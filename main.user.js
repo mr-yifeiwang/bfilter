@@ -847,26 +847,34 @@
     panel.hidden = true;
     panel.innerHTML = `
       <div class="buvb-manager-header">
-        <div class="buvb-manager-title">Blocked User UIDs</div>
+        <div class="buvb-manager-title">Blocklist Manager</div>
         <button class="buvb-manager-close" type="button" title="Close">×</button>
       </div>
-      ${BOOLEAN_CONTROLS.filter((control) => !control.previewToggle)
-        .map(
-          (control) =>
-            `<label class="buvb-manager-option" for="${control.id}"><input id="${control.id}" type="checkbox" data-setting="${control.name}"><span>${escapeHtml(control.label)}</span></label>`,
-        )
-        .join("")}
-      <div class="buvb-manager-separator" aria-hidden="true">------------------------------------------------</div>
-      <textarea id="${MANAGER_TEXTAREA_ID}" spellcheck="false"></textarea>
-      <div class="buvb-manager-help"></div>
-      <div class="buvb-manager-actions">
-        <label class="buvb-manager-preview-toggle" for="${getControl("previewMode").id}">
-          <input id="${getControl("previewMode").id}" type="checkbox" data-setting="previewMode">
-          <span class="buvb-manager-preview-slider" aria-hidden="true"></span>
-          <span>Preview</span>
-        </label>
-        <button class="buvb-manager-action buvb-manager-action-primary" type="button" data-action="save" disabled>Save</button>
-      </div>
+      <section class="buvb-manager-section">
+        ${BOOLEAN_CONTROLS.filter((control) => !control.previewToggle)
+          .map(
+            (control) =>
+              `<label class="buvb-manager-option" for="${control.id}"><input id="${control.id}" type="checkbox" data-setting="${control.name}"><span>${escapeHtml(control.label)}</span></label>`,
+          )
+          .join("")}
+      </section>
+      <section class="buvb-manager-section">
+        <div class="buvb-manager-tabs" role="tablist">
+          <button class="buvb-manager-tab" type="button" role="tab" aria-selected="true">Users</button>
+        </div>
+        <div class="buvb-manager-tab-panel" role="tabpanel">
+          <textarea id="${MANAGER_TEXTAREA_ID}" spellcheck="false"></textarea>
+          <div class="buvb-manager-help"></div>
+          <div class="buvb-manager-actions">
+            <label class="buvb-manager-preview-toggle" for="${getControl("previewMode").id}">
+              <input id="${getControl("previewMode").id}" type="checkbox" data-setting="previewMode">
+              <span class="buvb-manager-preview-slider" aria-hidden="true"></span>
+              <span>Preview</span>
+            </label>
+            <button class="buvb-manager-action buvb-manager-action-primary" type="button" data-action="save" disabled>Save</button>
+          </div>
+        </div>
+      </section>
     `;
 
     panel.addEventListener("click", (event) => {
@@ -1102,11 +1110,18 @@
       }
       #${MANAGER_PANEL_ID}[hidden] { display: none !important; }
       #${MANAGER_PANEL_ID} button { font-weight: 700; }
-      #${MANAGER_PANEL_ID} .buvb-manager-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+      #${MANAGER_PANEL_ID} .buvb-manager-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
       #${MANAGER_PANEL_ID} .buvb-manager-title { font-size: 16px; font-weight: 700; }
+      #${MANAGER_PANEL_ID} .buvb-manager-section { margin-top: 12px; }
+      #${MANAGER_PANEL_ID} .buvb-manager-section:first-of-type { margin-top: 0; }
+      #${MANAGER_PANEL_ID} .buvb-manager-section + .buvb-manager-section { padding-top: 4px; }
       #${MANAGER_PANEL_ID} .buvb-manager-option { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; color: #18191c; font-size: 13px; cursor: pointer; }
+      #${MANAGER_PANEL_ID} .buvb-manager-option:last-child { margin-bottom: 0; }
       #${MANAGER_PANEL_ID} .buvb-manager-option input { margin: 0; }
-      #${MANAGER_PANEL_ID} .buvb-manager-separator { overflow: hidden; width: 100%; margin: 4px 0 12px; color: #c9ccd0; font: 13px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: nowrap; }
+      #${MANAGER_PANEL_ID} .buvb-manager-tabs { display: flex; align-items: flex-end; gap: 4px; border-bottom: 1px solid #e3e5e7; }
+      #${MANAGER_PANEL_ID} .buvb-manager-tab { position: relative; border: 1px solid #e3e5e7; border-bottom: 0; border-radius: 10px 10px 0 0; padding: 7px 14px; color: #00aeec; background: #fff; font-size: 13px; cursor: default; }
+      #${MANAGER_PANEL_ID} .buvb-manager-tab::after { content: ""; position: absolute; right: 0; bottom: -1px; left: 0; height: 1px; background: #fff; }
+      #${MANAGER_PANEL_ID} .buvb-manager-tab-panel { padding-top: 12px; }
       #${MANAGER_TEXTAREA_ID} { box-sizing: border-box; width: 100%; min-height: 160px; border: 1px solid #c9ccd0; border-radius: 10px; padding: 10px; color: #18191c; background: #f6f7f8; font: 14px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; resize: vertical; }
       #${MANAGER_PANEL_ID} .buvb-manager-help { margin: 8px 0 12px; color: #9499a0; font-size: 12px; }
       #${MANAGER_PANEL_ID} .buvb-manager-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
