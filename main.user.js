@@ -1,6 +1,6 @@
 // ==UserScript==
-// @name         Bilibili Video Blocker
-// @namespace    https://github.com/mr-yifeiwang/bilibili-video-blocker
+// @name         Bilibili Blocklist
+// @namespace    https://github.com/mr-yifeiwang/bilibili-blocklist
 // @version      0.2.0
 // @description  Hide Bilibili video cards and comments conditionally
 // @author       mr-yifeiwang
@@ -20,19 +20,19 @@
   const PREVIEW_ATTR = "data-bilibili-uid-previewed";
   const BLOCKED_UID_ATTR = "data-bilibili-uid-blocked-uid";
 
-  const BLOCKLIST_STORAGE_KEY = "bilibili-uid-blocker:blocklist";
+  const BLOCKLIST_STORAGE_KEY = "bilibili-uid-blocklist:blocklist";
   const SETTING_KEYS = {
-    blockNewUsers: "bilibili-uid-blocker:block-new-users",
-    previewMode: "bilibili-uid-blocker:preview-mode",
-    hideShortVideos: "bilibili-uid-blocker:hide-short-videos",
-    hideUnpopularVideos: "bilibili-uid-blocker:hide-unpopular-videos",
+    blockNewUsers: "bilibili-uid-blocklist:block-new-users",
+    previewMode: "bilibili-uid-blocklist:preview-mode",
+    hideShortVideos: "bilibili-uid-blocklist:hide-short-videos",
+    hideUnpopularVideos: "bilibili-uid-blocklist:hide-unpopular-videos",
   };
 
-  const USER_BUTTON_ID = "bilibili-uid-blocker-user-button";
-  const MANAGER_BUTTON_ID = "bilibili-uid-blocker-manager-button";
-  const FLOATING_BUTTON_CLASS = "bilibili-uid-blocker-floating-button";
-  const MANAGER_PANEL_ID = "bilibili-uid-blocker-manager-panel";
-  const MANAGER_TEXTAREA_ID = "bilibili-uid-blocker-manager-textarea";
+  const USER_BUTTON_ID = "bilibili-uid-blocklist-user-button";
+  const MANAGER_BUTTON_ID = "bilibili-uid-blocklist-manager-button";
+  const FLOATING_BUTTON_CLASS = "bilibili-uid-blocklist-floating-button";
+  const MANAGER_PANEL_ID = "bilibili-uid-blocklist-manager-panel";
+  const MANAGER_TEXTAREA_ID = "bilibili-uid-blocklist-manager-textarea";
 
   const SHORT_VIDEO_MAX_SECONDS = 5 * 60;
   const UNPOPULAR_VIDEO_MAX_VIEWS = 10000;
@@ -129,22 +129,22 @@
   const BOOLEAN_CONTROLS = [
     {
       name: "blockNewUsers",
-      id: "bilibili-uid-blocker-manager-block-new-users",
+      id: "bilibili-uid-blocklist-manager-block-new-users",
       label: "Block new users (after 2022-08-30)",
     },
     {
       name: "hideShortVideos",
-      id: "bilibili-uid-blocker-manager-hide-short-videos",
+      id: "bilibili-uid-blocklist-manager-hide-short-videos",
       label: "Hide short videos (< 5 min)",
     },
     {
       name: "hideUnpopularVideos",
-      id: "bilibili-uid-blocker-manager-hide-unpopular-videos",
+      id: "bilibili-uid-blocklist-manager-hide-unpopular-videos",
       label: "Hide unpopular videos (< 10K views)",
     },
     {
       name: "previewMode",
-      id: "bilibili-uid-blocker-manager-preview-mode",
+      id: "bilibili-uid-blocklist-manager-preview-mode",
       label: "Preview",
       previewToggle: true,
     },
@@ -1073,7 +1073,7 @@
 
   function addStyle() {
     const style = document.createElement("style");
-    style.id = "bilibili-uid-video-blocker-style";
+    style.id = "bilibili-uid-video-blocklist-style";
     style.textContent = `
       [${BLOCK_ATTR}="true"] { display: none !important; }
       [${PREVIEW_ATTR}="true"] {
