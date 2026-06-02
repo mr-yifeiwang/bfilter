@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Bilibili Video Blocker
 // @namespace    https://github.com/mr-yifeiwang/bilibili-video-blocker
-// @version      0.1.0
-// @description  Hide Bilibili video cards conditionally
+// @version      0.2.0
+// @description  Hide Bilibili video cards and comments conditionally
 // @author       mr-yifeiwang
 // @match        https://www.bilibili.com/*
 // @match        https://search.bilibili.com/*
@@ -40,6 +40,7 @@
   const MAX_CARD_AREA_RATIO = 0.75;
   const RESCAN_INTERVAL_MS = 1500;
   const VIDEO_PATH_RE = /\/video\//i;
+  const OPUS_PATH_RE = /^\/opus\//i;
   const UID_ATTRS = ["data-usercard-mid", "data-mid", "mid"];
 
   const CARD_SELECTOR = [
@@ -120,6 +121,10 @@
     '[class*="owner"] a[href*="space.bilibili.com/"]',
     '[class*="Owner"] a[href*="space.bilibili.com/"]',
   ].join(",");
+
+  const COMMENT_ITEM_SELECTOR = ".reply-item, .sub-reply-item";
+  const COMMENT_USER_LINK_SELECTOR =
+    'a.user-name[href*="space.bilibili.com/"], a.sub-user-name[href*="space.bilibili.com/"]';
 
   const BOOLEAN_CONTROLS = [
     {
@@ -235,6 +240,13 @@
     if (!isCardBlockingPage() || !isElement(root)) return;
 
     for (const candidate of collectCandidates(root)) {
+      const comment = resolveCommentItem(candidate);
+      if (comment) {
+        const reason = evaluateComment(comment);
+        if (reason) applyConsequence(comment, reason);
+        continue;
+      }
+
       const card = resolveVideoCard(candidate);
       if (!card) continue;
 
@@ -251,17 +263,28 @@
   function collectCandidates(root) {
     const candidates = new Set();
     addIfMatches(root, CARD_SELECTOR, candidates);
+    addIfMatches(root, COMMENT_ITEM_SELECTOR, candidates);
     addIfMatches(root, UPLOADER_SELECTOR, candidates);
+    addIfMatches(root, COMMENT_USER_LINK_SELECTOR, candidates);
     addIfMatches(root, VIDEO_LINK_SELECTOR, candidates);
     for (const selector of [
       CARD_SELECTOR,
+      COMMENT_ITEM_SELECTOR,
       UPLOADER_SELECTOR,
+      COMMENT_USER_LINK_SELECTOR,
       VIDEO_LINK_SELECTOR,
     ]) {
       for (const element of root.querySelectorAll(selector))
         candidates.add(element);
     }
     return candidates;
+  }
+
+  function resolveCommentItem(candidate) {
+    if (!isElement(candidate)) return null;
+    return matches(candidate, COMMENT_ITEM_SELECTOR)
+      ? candidate
+      : candidate.closest(COMMENT_ITEM_SELECTOR);
   }
 
   function resolveVideoCard(candidate) {
@@ -293,11 +316,30 @@
     );
   }
 
+  function evaluateComment(comment) {
+    return (
+      blockedCommentAuthorReason(comment) || newCommentAuthorReason(comment)
+    );
+  }
+
   function blockedUidReason(card) {
     const uid = getUploaderUidsInside(card).find((value) =>
       BLOCKED_UIDS.has(value),
     );
     return uid ? { type: "uid", uid } : null;
+  }
+
+  function blockedCommentAuthorReason(comment) {
+    const uid = getCommentAuthorUidsInside(comment).find((value) =>
+      BLOCKED_UIDS.has(value),
+    );
+    return uid ? { type: "uid", uid } : null;
+  }
+
+  function newCommentAuthorReason(comment) {
+    if (!settings.blockNewUsers) return null;
+    const uid = getCommentAuthorUidsInside(comment).find(isNewUserUid);
+    return uid ? { type: "new-user", uid } : null;
   }
 
   function newUserReason(card) {
@@ -418,6 +460,15 @@
     if (matches(container, UPLOADER_SELECTOR)) addUploaderUids(container, uids);
     for (const element of container.querySelectorAll(UPLOADER_SELECTOR)) {
       addUploaderUids(element, uids);
+    }
+    return [...uids];
+  }
+
+  function getCommentAuthorUidsInside(comment) {
+    const uids = new Set();
+    for (const link of comment.querySelectorAll(COMMENT_USER_LINK_SELECTOR)) {
+      if (link.closest(COMMENT_ITEM_SELECTOR) !== comment) continue;
+      addUidFromHref(link.getAttribute("href"), uids);
     }
     return [...uids];
   }
@@ -973,7 +1024,12 @@
   }
 
   function isBlocklistManagerPage() {
-    return isBilibiliHomePage() || isSearchPage() || isDirectVideoPage();
+    return (
+      isBilibiliHomePage() ||
+      isSearchPage() ||
+      isDirectVideoPage() ||
+      isOpusPage()
+    );
   }
 
   function isBilibiliHomePage() {
@@ -990,6 +1046,13 @@
     return (
       location.hostname === "www.bilibili.com" &&
       VIDEO_PATH_RE.test(location.pathname)
+    );
+  }
+
+  function isOpusPage() {
+    return (
+      location.hostname === "www.bilibili.com" &&
+      OPUS_PATH_RE.test(location.pathname)
     );
   }
 
