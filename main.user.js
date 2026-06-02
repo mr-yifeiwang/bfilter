@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Bilibili Blocklist
 // @namespace    https://github.com/mr-yifeiwang/bilibili-blocklist
-// @version      0.2.0
+// @version      0.3.0
 // @description  Hide Bilibili video cards and comments conditionally
 // @author       mr-yifeiwang
 // @match        https://www.bilibili.com/*
@@ -23,6 +23,8 @@
   const BLOCKLIST_STORAGE_KEY = "bilibili-uid-blocklist:blocklist";
   const SETTING_KEYS = {
     blockNewUsers: "bilibili-uid-blocklist:block-new-users",
+    registrationTimeThreshold:
+      "bilibili-uid-blocklist:registration-time-threshold",
     previewMode: "bilibili-uid-blocklist:preview-mode",
     hideShortVideos: "bilibili-uid-blocklist:hide-short-videos",
     hideUnpopularVideos: "bilibili-uid-blocklist:hide-unpopular-videos",
@@ -33,6 +35,8 @@
   const FLOATING_BUTTON_CLASS = "bilibili-uid-blocklist-floating-button";
   const MANAGER_PANEL_ID = "bilibili-uid-blocklist-manager-panel";
   const MANAGER_TEXTAREA_ID = "bilibili-uid-blocklist-manager-textarea";
+  const REGISTRATION_THRESHOLD_SLIDER_ID =
+    "bilibili-uid-blocklist-manager-registration-threshold";
 
   const SHORT_VIDEO_MAX_SECONDS = 5 * 60;
   const UNPOPULAR_VIDEO_MAX_VIEWS = 10000;
@@ -130,7 +134,8 @@
     {
       name: "blockNewUsers",
       id: "bilibili-uid-blocklist-manager-block-new-users",
-      label: "Block new users (after 2022-08-30)",
+      label: "Block users by registration time",
+      registrationTimeControl: true,
     },
     {
       name: "hideShortVideos",
@@ -150,12 +155,21 @@
     },
   ];
 
+  const REGISTRATION_TIME_THRESHOLD_OPTIONS = [
+    { label: "> 2015", minDigits: 8 },
+    { label: "> 2017", minDigits: 9 },
+    { label: "> 2020", minDigits: 10 },
+    { label: "> 2022", minDigits: 15 },
+  ];
+  const DEFAULT_REGISTRATION_TIME_THRESHOLD = "> 2022";
+
   const BLOCKED_UIDS = new Set();
   const settings = {
     blockNewUsers: false,
     previewMode: false,
     hideShortVideos: false,
     hideUnpopularVideos: false,
+    registrationTimeThreshold: DEFAULT_REGISTRATION_TIME_THRESHOLD,
   };
 
   let scheduled = false;
@@ -167,9 +181,13 @@
 
   function boot() {
     replaceRuntimeBlockedUids(readSavedBlockedUids() || []);
-    for (const name of Object.keys(settings)) {
+    for (const { name } of BOOLEAN_CONTROLS) {
       settings[name] = readBooleanSetting(SETTING_KEYS[name], false);
     }
+    settings.registrationTimeThreshold = readRegistrationTimeThresholdSetting(
+      SETTING_KEYS.registrationTimeThreshold,
+      DEFAULT_REGISTRATION_TIME_THRESHOLD,
+    );
 
     setupStorageSync();
     renderUserPageBlockButton();
@@ -502,7 +520,33 @@
   }
 
   function isNewUserUid(uid) {
-    return /^\d{16}$/.test(uid);
+    return /^\d+$/.test(uid) && uid.length >= getRegistrationTimeThreshold();
+  }
+
+  function getRegistrationTimeThreshold() {
+    return getRegistrationTimeThresholdOption().minDigits;
+  }
+
+  function getRegistrationTimeThresholdOption(
+    value = settings.registrationTimeThreshold,
+  ) {
+    return (
+      REGISTRATION_TIME_THRESHOLD_OPTIONS.find(
+        (option) => option.label === value,
+      ) ||
+      REGISTRATION_TIME_THRESHOLD_OPTIONS[
+        REGISTRATION_TIME_THRESHOLD_OPTIONS.length - 1
+      ]
+    );
+  }
+
+  function getRegistrationTimeThresholdIndex(
+    value = settings.registrationTimeThreshold,
+  ) {
+    const index = REGISTRATION_TIME_THRESHOLD_OPTIONS.findIndex(
+      (option) => option.label === value,
+    );
+    return index < 0 ? REGISTRATION_TIME_THRESHOLD_OPTIONS.length - 1 : index;
   }
 
   function getVideoDurationSeconds(card) {
@@ -662,19 +706,31 @@
           if (remote) syncBlockedUids(value);
         },
       );
-      for (const [name, key] of Object.entries(SETTING_KEYS)) {
-        GM_addValueChangeListener(key, (_key, _oldValue, value, remote) => {
-          if (remote) syncBooleanSetting(name, value);
-        });
+      for (const { name } of BOOLEAN_CONTROLS) {
+        GM_addValueChangeListener(
+          SETTING_KEYS[name],
+          (_key, _oldValue, value, remote) => {
+            if (remote) syncBooleanSetting(name, value);
+          },
+        );
       }
+      GM_addValueChangeListener(
+        SETTING_KEYS.registrationTimeThreshold,
+        (_key, _oldValue, value, remote) => {
+          if (remote) syncRegistrationTimeThreshold(value);
+        },
+      );
       return;
     }
 
     window.addEventListener("storage", (event) => {
       if (event.key === BLOCKLIST_STORAGE_KEY) syncBlockedUids(event.newValue);
-      for (const [name, key] of Object.entries(SETTING_KEYS)) {
-        if (event.key === key) syncBooleanSetting(name, event.newValue);
+      for (const { name } of BOOLEAN_CONTROLS) {
+        if (event.key === SETTING_KEYS[name])
+          syncBooleanSetting(name, event.newValue);
       }
+      if (event.key === SETTING_KEYS.registrationTimeThreshold)
+        syncRegistrationTimeThreshold(event.newValue);
     });
   }
 
@@ -691,6 +747,15 @@
     settings[name] = parseBooleanSetting(savedValue, false);
     refreshConsequences();
     refreshBooleanControls();
+  }
+
+  function syncRegistrationTimeThreshold(savedValue) {
+    settings.registrationTimeThreshold = parseRegistrationTimeThresholdSetting(
+      savedValue,
+      DEFAULT_REGISTRATION_TIME_THRESHOLD,
+    );
+    refreshConsequences();
+    refreshRegistrationTimeThresholdControl();
   }
 
   function readSavedBlockedUids() {
@@ -749,6 +814,37 @@
     }
   }
 
+  function readRegistrationTimeThresholdSetting(key, defaultValue) {
+    try {
+      const saved =
+        typeof GM_getValue === "function"
+          ? GM_getValue(key, defaultValue)
+          : localStorage.getItem(key);
+      return parseRegistrationTimeThresholdSetting(saved, defaultValue);
+    } catch (_error) {
+      return defaultValue;
+    }
+  }
+
+  function parseRegistrationTimeThresholdSetting(saved, defaultValue) {
+    if (saved == null) return defaultValue;
+    const value = String(saved).trim();
+    return REGISTRATION_TIME_THRESHOLD_OPTIONS.some(
+      (option) => option.label === value,
+    )
+      ? value
+      : defaultValue;
+  }
+
+  function saveRegistrationTimeThresholdSetting(key, value) {
+    try {
+      if (typeof GM_setValue === "function") GM_setValue(key, value);
+      else localStorage.setItem(key, value);
+    } catch (_error) {
+      // Keep runtime setting even if persistence fails.
+    }
+  }
+
   function replaceRuntimeBlockedUids(nextUids) {
     const next = new Set(nextUids.map(normalizeUid).filter(Boolean));
     for (const uid of [...BLOCKED_UIDS]) {
@@ -774,6 +870,17 @@
   function setBooleanSetting(name, value) {
     settings[name] = Boolean(value);
     saveBooleanSetting(SETTING_KEYS[name], settings[name]);
+    refreshConsequences();
+  }
+
+  function setRegistrationTimeThresholdIndex(index) {
+    const option = REGISTRATION_TIME_THRESHOLD_OPTIONS[Number(index)];
+    if (!option || settings.registrationTimeThreshold === option.label) return;
+    settings.registrationTimeThreshold = option.label;
+    saveRegistrationTimeThresholdSetting(
+      SETTING_KEYS.registrationTimeThreshold,
+      settings.registrationTimeThreshold,
+    );
     refreshConsequences();
   }
 
@@ -852,10 +959,7 @@
       </div>
       <section class="buvb-manager-section">
         ${BOOLEAN_CONTROLS.filter((control) => !control.previewToggle)
-          .map(
-            (control) =>
-              `<label class="buvb-manager-option" for="${control.id}"><input id="${control.id}" type="checkbox" data-setting="${control.name}"><span>${escapeHtml(control.label)}</span></label>`,
-          )
+          .map(renderManagerOption)
           .join("")}
       </section>
       <section class="buvb-manager-section">
@@ -888,8 +992,13 @@
     });
 
     panel.addEventListener("input", (event) => {
-      if (event.target && event.target.id === MANAGER_TEXTAREA_ID)
+      const target = event.target;
+      if (target && target.id === MANAGER_TEXTAREA_ID)
         updateManagerSaveButtonState(panel);
+      if (target && target.id === REGISTRATION_THRESHOLD_SLIDER_ID) {
+        setRegistrationTimeThresholdIndex(target.value);
+        refreshRegistrationTimeThresholdControl(panel);
+      }
     });
 
     panel.addEventListener("change", (event) => {
@@ -902,6 +1011,25 @@
 
     refreshBlocklistManagerPanel(panel);
     return panel;
+  }
+
+  function renderManagerOption(control) {
+    const checkbox = `<label class="buvb-manager-option" for="${control.id}"><input id="${control.id}" type="checkbox" data-setting="${control.name}"><span>${escapeHtml(control.label)}</span></label>`;
+    if (!control.registrationTimeControl) return checkbox;
+    return `<div class="buvb-manager-registration-time-control">${checkbox}${renderRegistrationTimeThresholdSlider()}</div>`;
+  }
+
+  function renderRegistrationTimeThresholdSlider() {
+    return `
+      <div class="buvb-manager-registration-threshold">
+        <input id="${REGISTRATION_THRESHOLD_SLIDER_ID}" type="range" min="0" max="${REGISTRATION_TIME_THRESHOLD_OPTIONS.length - 1}" step="1">
+        <div class="buvb-manager-registration-threshold-labels" aria-hidden="true">
+          ${REGISTRATION_TIME_THRESHOLD_OPTIONS.map(
+            (option) => `<span>${escapeHtml(option.label)}</span>`,
+          ).join("")}
+        </div>
+      </div>
+    `;
   }
 
   function refreshBlocklistManagerPanel(
@@ -929,6 +1057,23 @@
       const input = panel.querySelector(`#${control.id}`);
       if (input) input.checked = settings[control.name];
     }
+    refreshRegistrationTimeThresholdControl(panel);
+  }
+
+  function refreshRegistrationTimeThresholdControl(
+    panel = document.getElementById(MANAGER_PANEL_ID),
+  ) {
+    if (!panel) return;
+    const slider = panel.querySelector(`#${REGISTRATION_THRESHOLD_SLIDER_ID}`);
+    const wrapper = panel.querySelector(".buvb-manager-registration-threshold");
+    if (!slider) return;
+    slider.value = String(getRegistrationTimeThresholdIndex());
+    slider.disabled = !settings.blockNewUsers;
+    if (wrapper)
+      wrapper.classList.toggle(
+        "buvb-manager-registration-threshold-disabled",
+        !settings.blockNewUsers,
+      );
   }
 
   function updateManagerSaveButtonState(panel) {
@@ -1118,6 +1263,13 @@
       #${MANAGER_PANEL_ID} .buvb-manager-option { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; color: #18191c; font-size: 13px; cursor: pointer; }
       #${MANAGER_PANEL_ID} .buvb-manager-option:last-child { margin-bottom: 0; }
       #${MANAGER_PANEL_ID} .buvb-manager-option input { margin: 0; }
+      #${MANAGER_PANEL_ID} .buvb-manager-registration-time-control { margin-bottom: 10px; }
+      #${MANAGER_PANEL_ID} .buvb-manager-registration-time-control .buvb-manager-option { margin-bottom: 6px; }
+      #${MANAGER_PANEL_ID} .buvb-manager-registration-threshold { padding: 0 2px 0 22px; transition: opacity .2s ease; }
+      #${MANAGER_PANEL_ID} .buvb-manager-registration-threshold input { width: 100%; accent-color: #fb7299; cursor: pointer; }
+      #${MANAGER_PANEL_ID} .buvb-manager-registration-threshold-labels { display: flex; justify-content: space-between; margin-top: 2px; color: #61666d; font-size: 11px; line-height: 16px; }
+      #${MANAGER_PANEL_ID} .buvb-manager-registration-threshold-disabled { opacity: .42; }
+      #${MANAGER_PANEL_ID} .buvb-manager-registration-threshold-disabled input { cursor: not-allowed; }
       #${MANAGER_PANEL_ID} .buvb-manager-tabs { display: flex; align-items: flex-end; gap: 4px; border-bottom: 1px solid #e3e5e7; }
       #${MANAGER_PANEL_ID} .buvb-manager-tab { position: relative; border: 1px solid #e3e5e7; border-bottom: 0; border-radius: 10px 10px 0 0; padding: 7px 14px; color: #00aeec; background: #fff; font-size: 13px; cursor: default; }
       #${MANAGER_PANEL_ID} .buvb-manager-tab::after { content: ""; position: absolute; right: 0; bottom: -1px; left: 0; height: 1px; background: #fff; }

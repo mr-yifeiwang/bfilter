@@ -3,7 +3,7 @@
 Bilibili's built-in blocklist is account-bounded and sometimes limited. This script stores your own in-browser blocklist and hides matching video cards and comments on supported pages. It can filter out the videos and comments:
 
 - Posted by specific users
-- Posted by new accounts created after August 30, 2022
+- Posted by accounts created after 2015, 2017, 2020, or 2022
 - (_videos_) Shorter than 5 minutes
 - (_videos_) Viewed by fewer than 10k times
 
