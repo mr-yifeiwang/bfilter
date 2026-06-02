@@ -973,7 +973,7 @@
   }
 
   function isBlocklistManagerPage() {
-    return isBilibiliHomePage() || isSearchPage();
+    return isBilibiliHomePage() || isSearchPage() || isDirectVideoPage();
   }
 
   function isBilibiliHomePage() {
