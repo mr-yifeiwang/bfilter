@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Bilibili Blocklist
 // @namespace    https://github.com/mr-yifeiwang/bilibili-blocklist
-// @version      0.3.0
+// @version      0.4.0
 // @description  Hide Bilibili video cards and comments conditionally
 // @author       mr-yifeiwang
 // @match        https://www.bilibili.com/*
@@ -28,6 +28,7 @@
     previewMode: "bilibili-uid-blocklist:preview-mode",
     hideShortVideos: "bilibili-uid-blocklist:hide-short-videos",
     hideUnpopularVideos: "bilibili-uid-blocklist:hide-unpopular-videos",
+    hideBadgedVideos: "bilibili-uid-blocklist:hide-badged-videos",
   };
 
   const USER_BUTTON_ID = "bilibili-uid-blocklist-user-button";
@@ -55,6 +56,9 @@
     ".video-card-reco",
     ".feed-card",
     ".bili-feed-card",
+    ".floor-single-card",
+    ".floor-card",
+    ".floor-card-inner",
     ".rank-item",
     ".rank-list-item",
     ".small-item",
@@ -95,6 +99,14 @@
   const DURATION_SELECTOR = '[class*="duration"], [class*="Duration"]';
   const STAT_SELECTOR =
     '[class*="play"], [class*="Play"], [class*="view"], [class*="View"], [class*="stat"], [class*="Stat"]';
+  const BADGE_SELECTOR = [
+    ".badge",
+    ".feed-badge",
+    ".bili-video-card__info--ad",
+    ".bili-video-card__info--creative-ad",
+    '[class*="badge"]',
+    '[class*="Badge"]',
+  ].join(",");
 
   const RECOMMENDATION_AREA_SELECTOR = [
     ".recommend-list",
@@ -148,6 +160,11 @@
       label: "Hide unpopular videos (< 10K views)",
     },
     {
+      name: "hideBadgedVideos",
+      id: "bilibili-uid-blocklist-manager-hide-badged-videos",
+      label: "Hide badged videos",
+    },
+    {
       name: "previewMode",
       id: "bilibili-uid-blocklist-manager-preview-mode",
       label: "Preview",
@@ -169,6 +186,7 @@
     previewMode: false,
     hideShortVideos: false,
     hideUnpopularVideos: false,
+    hideBadgedVideos: false,
     registrationTimeThreshold: DEFAULT_REGISTRATION_TIME_THRESHOLD,
   };
 
@@ -271,7 +289,7 @@
       const reason = evaluateCard(card);
       if (!reason) continue;
 
-      const target = resolveConsequenceTarget(card);
+      const target = resolveConsequenceTarget(card, reason);
       if (isValidConsequenceTarget(target, card, reason)) {
         applyConsequence(target, reason);
       }
@@ -330,7 +348,8 @@
       blockedUidReason(card) ||
       newUserReason(card) ||
       shortVideoReason(card) ||
-      unpopularVideoReason(card)
+      unpopularVideoReason(card) ||
+      badgedVideoReason(card)
     );
   }
 
@@ -383,17 +402,33 @@
       : null;
   }
 
+  function badgedVideoReason(card) {
+    if (!settings.hideBadgedVideos || !canUseMetadataFilter(card)) return null;
+    return hasVisibleBadgeInside(card)
+      ? { type: "badged-video", uid: "" }
+      : null;
+  }
+
   function canUseMetadataFilter(card) {
     return !isDirectVideoPage() || isInsideRecommendationArea(card);
   }
 
-  function resolveConsequenceTarget(card) {
+  function resolveConsequenceTarget(card, reason) {
+    if (isBadgedVideoReason(reason)) {
+      const floorCard = card.closest(".floor-single-card");
+      if (isSafeTargetShape(floorCard)) return floorCard;
+    }
+
     const recommendationContainer = card.closest(
       RECOMMENDATION_CARD_CONTAINER_SELECTOR,
     );
     return isSafeTargetShape(recommendationContainer)
       ? recommendationContainer
       : card;
+  }
+
+  function isBadgedVideoReason(reason) {
+    return reason && reason.type === "badged-video";
   }
 
   function isValidConsequenceTarget(target, card, reason) {
@@ -464,6 +499,7 @@
 
   function isPotentialVideoCard(element) {
     if (!isElement(element) || isUnsafePageContainer(element)) return false;
+    if (isPotentialBadgedCard(element)) return true;
     if (!hasInOrSelf(element, VIDEO_LINK_SELECTOR)) return false;
     if (matches(element, CARD_SELECTOR)) return true;
     return (
@@ -471,6 +507,41 @@
       (hasInOrSelf(element, VISUAL_SELECTOR) ||
         hasInOrSelf(element, TITLE_SELECTOR))
     );
+  }
+
+  function isPotentialBadgedCard(element) {
+    return Boolean(
+      settings.hideBadgedVideos &&
+      matches(element, CARD_SELECTOR) &&
+      hasVisibleBadgeInside(element) &&
+      hasInOrSelf(element, "a[href]"),
+    );
+  }
+
+  function hasVisibleBadgeInside(card) {
+    if (matches(card, BADGE_SELECTOR) && isVisibleElement(card)) return true;
+    return [...card.querySelectorAll(BADGE_SELECTOR)].some(isVisibleElement);
+  }
+
+  function isVisibleElement(element) {
+    if (!isElement(element) || element.hidden) return false;
+    for (
+      let current = element;
+      current && isElement(current);
+      current = current.parentElement
+    ) {
+      if (current.hidden) return false;
+      const style = window.getComputedStyle(current);
+      if (
+        style.display === "none" ||
+        style.visibility === "hidden" ||
+        style.visibility === "collapse" ||
+        Number(style.opacity) === 0
+      ) {
+        return false;
+      }
+    }
+    return true;
   }
 
   function getUploaderUidsInside(container) {
