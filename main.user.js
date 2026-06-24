@@ -31,6 +31,7 @@
     hideShortVideos: "bilibili-uid-blocklist:hide-short-videos",
     shortVideoThreshold: "bilibili-uid-blocklist:short-video-threshold",
     hideUnpopularVideos: "bilibili-uid-blocklist:hide-unpopular-videos",
+    unpopularVideoThreshold: "bilibili-uid-blocklist:unpopular-video-threshold",
     hideBadgedVideos: "bilibili-uid-blocklist:hide-badged-videos",
   };
 
@@ -42,7 +43,6 @@
   const MANAGER_KEYWORDS_TEXTAREA_ID =
     "bilibili-uid-blocklist-manager-keywords-textarea";
 
-  const UNPOPULAR_VIDEO_MAX_VIEWS = 10000;
   const MAX_ANCESTOR_STEPS = 8;
   const MAX_CARD_AREA_RATIO = 0.75;
   const RESCAN_INTERVAL_MS = 1500;
@@ -166,6 +166,15 @@
   ];
   const DEFAULT_SHORT_VIDEO_THRESHOLD = "< 5 min";
 
+  const UNPOPULAR_VIDEO_THRESHOLD_OPTIONS = [
+    { label: "< 1k views", views: 1000 },
+    { label: "< 5k views", views: 5000 },
+    { label: "< 10k views", views: 10000 },
+    { label: "< 50k views", views: 50000 },
+    { label: "< 100k views", views: 100000 },
+  ];
+  const DEFAULT_UNPOPULAR_VIDEO_THRESHOLD = "< 10K views";
+
   const BOOLEAN_CONTROLS = [
     {
       name: "blockNewUsers",
@@ -196,7 +205,15 @@
     {
       name: "hideUnpopularVideos",
       id: "bilibili-uid-blocklist-manager-hide-unpopular-videos",
-      label: "Hide unpopular videos (< 10K views)",
+      label: "Hide unpopular videos",
+      threshold: {
+        setting: "unpopularVideoThreshold",
+        key: SETTING_KEYS.unpopularVideoThreshold,
+        id: "bilibili-uid-blocklist-manager-unpopular-video-threshold",
+        options: UNPOPULAR_VIDEO_THRESHOLD_OPTIONS,
+        defaultValue: DEFAULT_UNPOPULAR_VIDEO_THRESHOLD,
+        fallbackIndex: 2,
+      },
     },
     {
       name: "hideBadgedVideos",
@@ -221,6 +238,7 @@
     hideBadgedVideos: false,
     registrationTimeThreshold: DEFAULT_REGISTRATION_TIME_THRESHOLD,
     shortVideoThreshold: DEFAULT_SHORT_VIDEO_THRESHOLD,
+    unpopularVideoThreshold: DEFAULT_UNPOPULAR_VIDEO_THRESHOLD,
   };
 
   let scheduled = false;
@@ -449,7 +467,7 @@
     if (!settings.hideUnpopularVideos || !canUseMetadataFilter(card))
       return null;
     const views = getVideoViewCount(card);
-    return views != null && views < UNPOPULAR_VIDEO_MAX_VIEWS
+    return views != null && views < getUnpopularVideoThresholdViews()
       ? { type: "unpopular-video", uid: "" }
       : null;
   }
@@ -707,6 +725,20 @@
     return (
       SHORT_VIDEO_THRESHOLD_OPTIONS.find((option) => option.label === value) ||
       SHORT_VIDEO_THRESHOLD_OPTIONS[2]
+    );
+  }
+
+  function getUnpopularVideoThresholdViews() {
+    return getUnpopularVideoThresholdOption().views;
+  }
+
+  function getUnpopularVideoThresholdOption(
+    value = settings.unpopularVideoThreshold,
+  ) {
+    return (
+      UNPOPULAR_VIDEO_THRESHOLD_OPTIONS.find(
+        (option) => option.label === value,
+      ) || UNPOPULAR_VIDEO_THRESHOLD_OPTIONS[2]
     );
   }
 
