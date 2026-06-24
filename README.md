@@ -5,7 +5,7 @@ Bilibili's built-in blocklist is account-bounded and sometimes limited. This scr
 - Posted by specific users
 - Containing specific keywords
 - Posted by accounts created after 2015, 2017, 2020, or 2022
-- (_videos_) Shorter than 5 minutes
+- (_videos_) Shorter than the selected short-video threshold (< 1 min, < 3 min, < 5 min, < 10 min, < 20 min)
 - (_videos_) Viewed by fewer than 10k times
 
 ## Installation
