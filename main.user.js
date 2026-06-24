@@ -89,6 +89,12 @@
     'a[href*="/bangumi/play/"]',
   ].join(",");
 
+  const BADGED_VIDEO_LINK_SELECTOR = [
+    'a[href*="live.bilibili.com/"]',
+    'a[href*="manga.bilibili.com/"]',
+    'a[href*="bilibili.com/cheese/"]',
+  ].join(",");
+
   const UPLOADER_SELECTOR = [
     'a[href*="space.bilibili.com/"]',
     "[data-usercard-mid]",
@@ -103,14 +109,6 @@
   const DURATION_SELECTOR = '[class*="duration"], [class*="Duration"]';
   const STAT_SELECTOR =
     '[class*="play"], [class*="Play"], [class*="view"], [class*="View"], [class*="stat"], [class*="Stat"]';
-  const BADGE_SELECTOR = [
-    ".badge",
-    ".feed-badge",
-    ".bili-video-card__info--ad",
-    ".bili-video-card__info--creative-ad",
-    '[class*="badge"]',
-    '[class*="Badge"]',
-  ].join(",");
 
   const RECOMMENDATION_AREA_SELECTOR = [
     ".recommend-list",
@@ -316,12 +314,14 @@
     addIfMatches(root, UPLOADER_SELECTOR, candidates);
     addIfMatches(root, COMMENT_USER_LINK_SELECTOR, candidates);
     addIfMatches(root, VIDEO_LINK_SELECTOR, candidates);
+    addIfMatches(root, BADGED_VIDEO_LINK_SELECTOR, candidates);
     for (const selector of [
       CARD_SELECTOR,
       COMMENT_ITEM_SELECTOR,
       UPLOADER_SELECTOR,
       COMMENT_USER_LINK_SELECTOR,
       VIDEO_LINK_SELECTOR,
+      BADGED_VIDEO_LINK_SELECTOR,
     ]) {
       for (const element of root.querySelectorAll(selector))
         candidates.add(element);
@@ -430,7 +430,7 @@
 
   function badgedVideoReason(card) {
     if (!settings.hideBadgedVideos || !canUseMetadataFilter(card)) return null;
-    return hasVisibleBadgeInside(card)
+    return hasBadgedVideoLinkInside(card)
       ? { type: "badged-video", uid: "" }
       : null;
   }
@@ -441,6 +441,10 @@
 
   function resolveConsequenceTarget(card, reason) {
     if (isBadgedVideoReason(reason)) {
+      const searchResultCard = card.closest(".video-list-item");
+      if (isSearchPage() && isSafeTargetShape(searchResultCard))
+        return searchResultCard;
+
       const floorCard = card.closest(".floor-single-card");
       if (isSafeTargetShape(floorCard)) return floorCard;
     }
@@ -539,35 +543,12 @@
     return Boolean(
       settings.hideBadgedVideos &&
       matches(element, CARD_SELECTOR) &&
-      hasVisibleBadgeInside(element) &&
-      hasInOrSelf(element, "a[href]"),
+      hasBadgedVideoLinkInside(element),
     );
   }
 
-  function hasVisibleBadgeInside(card) {
-    if (matches(card, BADGE_SELECTOR) && isVisibleElement(card)) return true;
-    return [...card.querySelectorAll(BADGE_SELECTOR)].some(isVisibleElement);
-  }
-
-  function isVisibleElement(element) {
-    if (!isElement(element) || element.hidden) return false;
-    for (
-      let current = element;
-      current && isElement(current);
-      current = current.parentElement
-    ) {
-      if (current.hidden) return false;
-      const style = window.getComputedStyle(current);
-      if (
-        style.display === "none" ||
-        style.visibility === "hidden" ||
-        style.visibility === "collapse" ||
-        Number(style.opacity) === 0
-      ) {
-        return false;
-      }
-    }
-    return true;
+  function hasBadgedVideoLinkInside(card) {
+    return hasInOrSelf(card, BADGED_VIDEO_LINK_SELECTOR);
   }
 
   function getUploaderUidsInside(container) {
