@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Bilibili Blocklist
 // @namespace    https://github.com/mr-yifeiwang/bilibili-blocklist
-// @version      0.6.1
+// @version      0.6.2
 // @description  Hide Bilibili video cards and comments conditionally
 // @author       mr-yifeiwang
 // @match        https://www.bilibili.com/*
@@ -11,6 +11,8 @@
 // @grant        GM_getValue
 // @grant        GM_setValue
 // @grant        GM_addValueChangeListener
+// @downloadURL  https://raw.githubusercontent.com/mr-yifeiwang/bilibili-blocklist/master/main.user.js
+// @updateURL    https://raw.githubusercontent.com/mr-yifeiwang/bilibili-blocklist/master/main.user.js
 // ==/UserScript==
 
 (function () {
