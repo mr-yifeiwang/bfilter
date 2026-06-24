@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Bilibili Blocklist
 // @namespace    https://github.com/mr-yifeiwang/bilibili-blocklist
-// @version      0.5.0
+// @version      0.5.1
 // @description  Hide Bilibili video cards and comments conditionally
 // @author       mr-yifeiwang
 // @match        https://www.bilibili.com/*
@@ -1503,6 +1503,7 @@
     style.id = "bilibili-uid-video-blocklist-style";
     style.textContent = `
       [${BLOCK_ATTR}="true"] { display: none !important; }
+      .video-list.row > [class*="col_"][class*="mb_"]:has([${BLOCK_ATTR}="true"]) { display: none !important; }
       [${PREVIEW_ATTR}="true"] {
         background-color: #ffe8e8 !important;
         outline: 2px solid rgba(251, 114, 153, 0.55) !important;
