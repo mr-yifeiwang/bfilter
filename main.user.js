@@ -1101,7 +1101,7 @@
   }
 
   function getBlockedKeywordList() {
-    return [...BLOCKED_KEYWORDS].sort((a, b) => a.localeCompare(b));
+    return [...BLOCKED_KEYWORDS];
   }
 
   function parseBlockedUidText(text) {
