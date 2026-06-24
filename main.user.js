@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Bilibili Blocklist
 // @namespace    https://github.com/mr-yifeiwang/bilibili-blocklist
-// @version      0.4.0
+// @version      0.5.0
 // @description  Hide Bilibili video cards and comments conditionally
 // @author       mr-yifeiwang
 // @match        https://www.bilibili.com/*
@@ -21,6 +21,8 @@
   const BLOCKED_UID_ATTR = "data-bilibili-uid-blocked-uid";
 
   const BLOCKLIST_STORAGE_KEY = "bilibili-uid-blocklist:blocklist";
+  const KEYWORD_BLOCKLIST_STORAGE_KEY =
+    "bilibili-uid-blocklist:keyword-blocklist";
   const SETTING_KEYS = {
     blockNewUsers: "bilibili-uid-blocklist:block-new-users",
     registrationTimeThreshold:
@@ -36,6 +38,8 @@
   const FLOATING_BUTTON_CLASS = "bilibili-uid-blocklist-floating-button";
   const MANAGER_PANEL_ID = "bilibili-uid-blocklist-manager-panel";
   const MANAGER_TEXTAREA_ID = "bilibili-uid-blocklist-manager-textarea";
+  const MANAGER_KEYWORDS_TEXTAREA_ID =
+    "bilibili-uid-blocklist-manager-keywords-textarea";
   const REGISTRATION_THRESHOLD_SLIDER_ID =
     "bilibili-uid-blocklist-manager-registration-threshold";
 
@@ -141,6 +145,13 @@
   const COMMENT_ITEM_SELECTOR = ".reply-item, .sub-reply-item";
   const COMMENT_USER_LINK_SELECTOR =
     'a.user-name[href*="space.bilibili.com/"], a.sub-user-name[href*="space.bilibili.com/"]';
+  const COMMENT_CONTENT_SELECTOR = [
+    ".reply-content",
+    ".reply-content-client",
+    ".sub-reply-content",
+    '[class*="reply-content"]',
+    '[class*="ReplyContent"]',
+  ].join(",");
 
   const BOOLEAN_CONTROLS = [
     {
@@ -181,6 +192,7 @@
   const DEFAULT_REGISTRATION_TIME_THRESHOLD = "> 2022";
 
   const BLOCKED_UIDS = new Set();
+  const BLOCKED_KEYWORDS = new Set();
   const settings = {
     blockNewUsers: false,
     previewMode: false,
@@ -199,6 +211,7 @@
 
   function boot() {
     replaceRuntimeBlockedUids(readSavedBlockedUids() || []);
+    replaceRuntimeBlockedKeywords(readSavedBlockedKeywords() || []);
     for (const { name } of BOOLEAN_CONTROLS) {
       settings[name] = readBooleanSetting(SETTING_KEYS[name], false);
     }
@@ -346,6 +359,7 @@
   function evaluateCard(card) {
     return (
       blockedUidReason(card) ||
+      blockedVideoTitleKeywordReason(card) ||
       newUserReason(card) ||
       shortVideoReason(card) ||
       unpopularVideoReason(card) ||
@@ -355,7 +369,9 @@
 
   function evaluateComment(comment) {
     return (
-      blockedCommentAuthorReason(comment) || newCommentAuthorReason(comment)
+      blockedCommentAuthorReason(comment) ||
+      blockedCommentKeywordReason(comment) ||
+      newCommentAuthorReason(comment)
     );
   }
 
@@ -371,6 +387,16 @@
       BLOCKED_UIDS.has(value),
     );
     return uid ? { type: "uid", uid } : null;
+  }
+
+  function blockedVideoTitleKeywordReason(card) {
+    const keyword = getMatchedKeyword(getVideoTitleText(card));
+    return keyword ? { type: "keyword", uid: "", keyword } : null;
+  }
+
+  function blockedCommentKeywordReason(comment) {
+    const keyword = getMatchedKeyword(getCommentContentText(comment));
+    return keyword ? { type: "keyword", uid: "", keyword } : null;
   }
 
   function newCommentAuthorReason(comment) {
@@ -590,6 +616,61 @@
     return match ? match[0] : "";
   }
 
+  function getMatchedKeyword(text) {
+    if (!BLOCKED_KEYWORDS.size) return "";
+    const haystack = String(text || "");
+    if (!haystack) return "";
+    return [...BLOCKED_KEYWORDS].find((keyword) => haystack.includes(keyword));
+  }
+
+  function getVideoTitleText(card) {
+    if (!isElement(card)) return "";
+    const values = [];
+    for (const element of getVideoTitleElements(card)) {
+      values.push(
+        element.textContent || "",
+        element.getAttribute("title") || "",
+      );
+    }
+    return values.join(" ");
+  }
+
+  function getVideoTitleElements(card) {
+    const elements = new Set();
+    for (const element of card.querySelectorAll(
+      [
+        ".bili-video-card__info--tit",
+        ".video-title",
+        ".title-text",
+        'a[href*="/video/"][title]',
+        'a[href*="bilibili.com/video/"][title]',
+        'a[href*="/bangumi/play/"][title]',
+      ].join(","),
+    )) {
+      elements.add(element);
+    }
+    return elements;
+  }
+
+  function getCommentContentText(comment) {
+    if (!isElement(comment)) return "";
+    const values = [];
+    for (const element of getCommentContentElements(comment)) {
+      values.push(element.textContent || "");
+    }
+    return values.join(" ");
+  }
+
+  function getCommentContentElements(comment) {
+    const elements = new Set();
+    if (matches(comment, COMMENT_CONTENT_SELECTOR)) elements.add(comment);
+    for (const element of comment.querySelectorAll(COMMENT_CONTENT_SELECTOR)) {
+      if (element.closest(COMMENT_ITEM_SELECTOR) !== comment) continue;
+      elements.add(element);
+    }
+    return elements;
+  }
+
   function isNewUserUid(uid) {
     return /^\d+$/.test(uid) && uid.length >= getRegistrationTimeThreshold();
   }
@@ -777,6 +858,12 @@
           if (remote) syncBlockedUids(value);
         },
       );
+      GM_addValueChangeListener(
+        KEYWORD_BLOCKLIST_STORAGE_KEY,
+        (_key, _oldValue, value, remote) => {
+          if (remote) syncBlockedKeywords(value);
+        },
+      );
       for (const { name } of BOOLEAN_CONTROLS) {
         GM_addValueChangeListener(
           SETTING_KEYS[name],
@@ -796,6 +883,8 @@
 
     window.addEventListener("storage", (event) => {
       if (event.key === BLOCKLIST_STORAGE_KEY) syncBlockedUids(event.newValue);
+      if (event.key === KEYWORD_BLOCKLIST_STORAGE_KEY)
+        syncBlockedKeywords(event.newValue);
       for (const { name } of BOOLEAN_CONTROLS) {
         if (event.key === SETTING_KEYS[name])
           syncBooleanSetting(name, event.newValue);
@@ -812,6 +901,14 @@
     refreshConsequences();
     refreshBlocklistManagerPanel();
     renderUserPageBlockButton();
+  }
+
+  function syncBlockedKeywords(savedValue) {
+    const savedKeywords = parseSavedBlockedKeywords(savedValue);
+    if (!savedKeywords) return;
+    replaceRuntimeBlockedKeywords(savedKeywords);
+    refreshConsequences();
+    refreshBlocklistManagerPanel();
   }
 
   function syncBooleanSetting(name, savedValue) {
@@ -847,6 +944,30 @@
       const parsed = typeof saved === "string" ? JSON.parse(saved) : saved;
       return Array.isArray(parsed)
         ? parsed.map(normalizeUid).filter(Boolean)
+        : [];
+    } catch (_error) {
+      return [];
+    }
+  }
+
+  function readSavedBlockedKeywords() {
+    try {
+      const saved =
+        typeof GM_getValue === "function"
+          ? GM_getValue(KEYWORD_BLOCKLIST_STORAGE_KEY, null)
+          : localStorage.getItem(KEYWORD_BLOCKLIST_STORAGE_KEY);
+      return parseSavedBlockedKeywords(saved);
+    } catch (_error) {
+      return [];
+    }
+  }
+
+  function parseSavedBlockedKeywords(saved) {
+    if (saved == null) return null;
+    try {
+      const parsed = typeof saved === "string" ? JSON.parse(saved) : saved;
+      return Array.isArray(parsed)
+        ? parsed.map((keyword) => String(keyword || "")).filter(Boolean)
         : [];
     } catch (_error) {
       return [];
@@ -927,6 +1048,13 @@
     for (const uid of next) BLOCKED_UIDS.add(uid);
   }
 
+  function replaceRuntimeBlockedKeywords(nextKeywords) {
+    BLOCKED_KEYWORDS.clear();
+    for (const keyword of dedupeKeywords(nextKeywords)) {
+      BLOCKED_KEYWORDS.add(keyword);
+    }
+  }
+
   function saveBlockedUids() {
     try {
       const value = JSON.stringify([...BLOCKED_UIDS]);
@@ -935,6 +1063,17 @@
       else localStorage.setItem(BLOCKLIST_STORAGE_KEY, value);
     } catch (_error) {
       // Keep runtime blocklist even if persistence fails.
+    }
+  }
+
+  function saveBlockedKeywords() {
+    try {
+      const value = JSON.stringify([...BLOCKED_KEYWORDS]);
+      if (typeof GM_setValue === "function")
+        GM_setValue(KEYWORD_BLOCKLIST_STORAGE_KEY, value);
+      else localStorage.setItem(KEYWORD_BLOCKLIST_STORAGE_KEY, value);
+    } catch (_error) {
+      // Keep runtime keywords even if persistence fails.
     }
   }
 
@@ -961,8 +1100,29 @@
     );
   }
 
+  function getBlockedKeywordList() {
+    return [...BLOCKED_KEYWORDS].sort((a, b) => a.localeCompare(b));
+  }
+
   function parseBlockedUidText(text) {
     return [...new Set(text.split(/\r?\n/).map(normalizeUid).filter(Boolean))];
+  }
+
+  function parseBlockedKeywordText(text) {
+    return dedupeKeywords(String(text || "").split(/\r?\n/));
+  }
+
+  function dedupeKeywords(keywords) {
+    const seen = new Set();
+    const values = [];
+    for (const keyword of keywords
+      .map((value) => String(value || ""))
+      .filter(Boolean)) {
+      if (seen.has(keyword)) continue;
+      seen.add(keyword);
+      values.push(keyword);
+    }
+    return values;
   }
 
   function replaceBlockedUids(nextUids) {
@@ -1007,7 +1167,7 @@
         currentPanel.hidden = !currentPanel.hidden;
         if (!currentPanel.hidden) {
           refreshBlocklistManagerPanel(currentPanel);
-          currentPanel.querySelector(`#${MANAGER_TEXTAREA_ID}`)?.focus();
+          getActiveManagerTextarea(currentPanel)?.focus();
         }
       });
     }
@@ -1035,19 +1195,24 @@
       </section>
       <section class="buvb-manager-section">
         <div class="buvb-manager-tabs" role="tablist">
-          <button class="buvb-manager-tab" type="button" role="tab" aria-selected="true">Users</button>
+          <button class="buvb-manager-tab" type="button" role="tab" aria-selected="true" data-tab="users">Users</button>
+          <button class="buvb-manager-tab" type="button" role="tab" aria-selected="false" data-tab="keywords">Keywords</button>
         </div>
-        <div class="buvb-manager-tab-panel" role="tabpanel">
+        <div class="buvb-manager-tab-panel" role="tabpanel" data-tab-panel="users">
           <textarea id="${MANAGER_TEXTAREA_ID}" spellcheck="false"></textarea>
-          <div class="buvb-manager-help"></div>
-          <div class="buvb-manager-actions">
-            <label class="buvb-manager-preview-toggle" for="${getControl("previewMode").id}">
-              <input id="${getControl("previewMode").id}" type="checkbox" data-setting="previewMode">
-              <span class="buvb-manager-preview-slider" aria-hidden="true"></span>
-              <span>Preview</span>
-            </label>
-            <button class="buvb-manager-action buvb-manager-action-primary" type="button" data-action="save" disabled>Save</button>
-          </div>
+          <div class="buvb-manager-help" data-help="users"></div>
+        </div>
+        <div class="buvb-manager-tab-panel" role="tabpanel" data-tab-panel="keywords" hidden>
+          <textarea id="${MANAGER_KEYWORDS_TEXTAREA_ID}" spellcheck="false"></textarea>
+          <div class="buvb-manager-help" data-help="keywords"></div>
+        </div>
+        <div class="buvb-manager-actions">
+          <label class="buvb-manager-preview-toggle" for="${getControl("previewMode").id}">
+            <input id="${getControl("previewMode").id}" type="checkbox" data-setting="previewMode">
+            <span class="buvb-manager-preview-slider" aria-hidden="true"></span>
+            <span>Preview</span>
+          </label>
+          <button class="buvb-manager-action buvb-manager-action-primary" type="button" data-action="save" disabled>Save</button>
         </div>
       </section>
     `;
@@ -1056,15 +1221,21 @@
       const target = event.target;
       if (!isElement(target)) return;
       if (target.classList.contains("buvb-manager-close")) panel.hidden = true;
+      if (target.matches(".buvb-manager-tab[data-tab]")) {
+        setActiveManagerTab(panel, target.getAttribute("data-tab"));
+      }
       if (target.getAttribute("data-action") === "save") {
-        const textarea = panel.querySelector(`#${MANAGER_TEXTAREA_ID}`);
-        if (textarea) replaceBlockedUids(parseBlockedUidText(textarea.value));
+        saveManagerTextareas(panel);
       }
     });
 
     panel.addEventListener("input", (event) => {
       const target = event.target;
-      if (target && target.id === MANAGER_TEXTAREA_ID)
+      if (
+        target &&
+        (target.id === MANAGER_TEXTAREA_ID ||
+          target.id === MANAGER_KEYWORDS_TEXTAREA_ID)
+      )
         updateManagerSaveButtonState(panel);
       if (target && target.id === REGISTRATION_THRESHOLD_SLIDER_ID) {
         setRegistrationTimeThresholdIndex(target.value);
@@ -1108,16 +1279,63 @@
   ) {
     if (!panel) return;
     const uids = getBlockedUidList();
+    const keywords = getBlockedKeywordList();
     const textarea = panel.querySelector(`#${MANAGER_TEXTAREA_ID}`);
-    const help = panel.querySelector(".buvb-manager-help");
+    const keywordsTextarea = panel.querySelector(
+      `#${MANAGER_KEYWORDS_TEXTAREA_ID}`,
+    );
+    const help = panel.querySelector('[data-help="users"]');
+    const keywordsHelp = panel.querySelector('[data-help="keywords"]');
     if (textarea) {
       textarea.value = uids.join("\n");
       textarea.dataset.cleanValue = textarea.value;
     }
+    if (keywordsTextarea) {
+      keywordsTextarea.value = keywords.join("\n");
+      keywordsTextarea.dataset.cleanValue = keywordsTextarea.value;
+    }
     if (help)
       help.textContent = `Enter one UID per line. ${uids.length} user(s) have been blocked.`;
+    if (keywordsHelp)
+      keywordsHelp.textContent = `Enter one keyword per line. Video titles and comments containing these keywords will be blocked. ${keywords.length} keyword(s) have been blocked.`;
     refreshBooleanControls(panel);
     updateManagerSaveButtonState(panel);
+  }
+
+  function setActiveManagerTab(panel, tabName) {
+    const nextTab = tabName === "keywords" ? "keywords" : "users";
+    for (const tab of panel.querySelectorAll(".buvb-manager-tab[data-tab]")) {
+      tab.setAttribute(
+        "aria-selected",
+        String(tab.getAttribute("data-tab") === nextTab),
+      );
+    }
+    for (const tabPanel of panel.querySelectorAll("[data-tab-panel]")) {
+      tabPanel.hidden = tabPanel.getAttribute("data-tab-panel") !== nextTab;
+    }
+    getActiveManagerTextarea(panel)?.focus();
+  }
+
+  function getActiveManagerTextarea(panel) {
+    const activePanel = panel.querySelector("[data-tab-panel]:not([hidden])");
+    return activePanel ? activePanel.querySelector("textarea") : null;
+  }
+
+  function saveManagerTextareas(panel) {
+    const textarea = panel.querySelector(`#${MANAGER_TEXTAREA_ID}`);
+    const keywordsTextarea = panel.querySelector(
+      `#${MANAGER_KEYWORDS_TEXTAREA_ID}`,
+    );
+    if (textarea)
+      replaceRuntimeBlockedUids(parseBlockedUidText(textarea.value));
+    if (keywordsTextarea)
+      replaceRuntimeBlockedKeywords(
+        parseBlockedKeywordText(keywordsTextarea.value),
+      );
+    saveBlockedUids();
+    saveBlockedKeywords();
+    refreshConsequences();
+    refreshBlocklistManagerPanel(panel);
   }
 
   function refreshBooleanControls(
@@ -1149,10 +1367,14 @@
 
   function updateManagerSaveButtonState(panel) {
     const textarea = panel.querySelector(`#${MANAGER_TEXTAREA_ID}`);
+    const keywordsTextarea = panel.querySelector(
+      `#${MANAGER_KEYWORDS_TEXTAREA_ID}`,
+    );
     const saveButton = panel.querySelector('[data-action="save"]');
-    if (textarea && saveButton)
-      saveButton.disabled =
-        textarea.value === (textarea.dataset.cleanValue || "");
+    if (saveButton)
+      saveButton.disabled = ![textarea, keywordsTextarea].some(
+        (input) => input && input.value !== (input.dataset.cleanValue || ""),
+      );
   }
 
   function renderUserPageBlockButton() {
@@ -1342,10 +1564,12 @@
       #${MANAGER_PANEL_ID} .buvb-manager-registration-threshold-disabled { opacity: .42; }
       #${MANAGER_PANEL_ID} .buvb-manager-registration-threshold-disabled input { cursor: not-allowed; }
       #${MANAGER_PANEL_ID} .buvb-manager-tabs { display: flex; align-items: flex-end; gap: 4px; border-bottom: 1px solid #e3e5e7; }
-      #${MANAGER_PANEL_ID} .buvb-manager-tab { position: relative; border: 1px solid #e3e5e7; border-bottom: 0; border-radius: 10px 10px 0 0; padding: 7px 14px; color: #00aeec; background: #fff; font-size: 13px; cursor: default; }
-      #${MANAGER_PANEL_ID} .buvb-manager-tab::after { content: ""; position: absolute; right: 0; bottom: -1px; left: 0; height: 1px; background: #fff; }
+      #${MANAGER_PANEL_ID} .buvb-manager-tab { position: relative; border: 1px solid transparent; border-bottom: 0; border-radius: 10px 10px 0 0; padding: 7px 14px; color: #61666d; background: transparent; font-size: 13px; cursor: pointer; }
+      #${MANAGER_PANEL_ID} .buvb-manager-tab[aria-selected="true"] { border-color: #e3e5e7; color: #00aeec; background: #fff; cursor: default; }
+      #${MANAGER_PANEL_ID} .buvb-manager-tab[aria-selected="true"]::after { content: ""; position: absolute; right: 0; bottom: -1px; left: 0; height: 1px; background: #fff; }
       #${MANAGER_PANEL_ID} .buvb-manager-tab-panel { padding-top: 12px; }
-      #${MANAGER_TEXTAREA_ID} { box-sizing: border-box; width: 100%; min-height: 160px; border: 1px solid #c9ccd0; border-radius: 10px; padding: 10px; color: #18191c; background: #f6f7f8; font: 14px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; resize: vertical; }
+      #${MANAGER_PANEL_ID} .buvb-manager-tab-panel[hidden] { display: none !important; }
+      #${MANAGER_TEXTAREA_ID}, #${MANAGER_KEYWORDS_TEXTAREA_ID} { box-sizing: border-box; width: 100%; min-height: 160px; border: 1px solid #c9ccd0; border-radius: 10px; padding: 10px; color: #18191c; background: #f6f7f8; font: 14px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; resize: vertical; }
       #${MANAGER_PANEL_ID} .buvb-manager-help { margin: 8px 0 12px; color: #9499a0; font-size: 12px; }
       #${MANAGER_PANEL_ID} .buvb-manager-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
       #${MANAGER_PANEL_ID} .buvb-manager-preview-toggle { display: inline-flex; align-items: center; gap: 8px; color: #61666d; font-size: 13px; font-weight: 700; cursor: pointer; user-select: none; }
