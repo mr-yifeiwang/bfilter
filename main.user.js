@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Bilibili Blocklist
 // @namespace    https://github.com/mr-yifeiwang/bilibili-blocklist
-// @version      0.6.2
+// @version      0.7.0
 // @description  Hide Bilibili video cards and comments conditionally
 // @author       mr-yifeiwang
 // @match        https://www.bilibili.com/*
@@ -44,6 +44,8 @@
   const MANAGER_TEXTAREA_ID = "bilibili-uid-blocklist-manager-textarea";
   const MANAGER_KEYWORDS_TEXTAREA_ID =
     "bilibili-uid-blocklist-manager-keywords-textarea";
+
+  const COMMENT_BLOCK_BTN_CLASS = "buvb-block-btn";
 
   const MAX_ANCESTOR_STEPS = 8;
   const MAX_CARD_AREA_RATIO = 0.75;
@@ -351,6 +353,7 @@
         applyConsequence(target, reason);
       }
     }
+    renderCommentBlockButtons();
   }
 
   function collectCandidates(root) {
@@ -1459,6 +1462,31 @@
     button.title = `${blocked ? "Unblock" : "Block"} Bilibili user UID ${uid}`;
   }
 
+  function renderCommentBlockButtons() {
+    if (!isOpusPage() && !isDirectVideoPage()) return;
+    for (const item of document.querySelectorAll(COMMENT_ITEM_SELECTOR)) {
+      if (item.hasAttribute(BLOCK_ATTR)) continue;
+      if (item.querySelector(`.${COMMENT_BLOCK_BTN_CLASS}`)) continue;
+      const userLink = item.querySelector(COMMENT_USER_LINK_SELECTOR);
+      if (!userLink) continue;
+      const href = userLink.getAttribute("href");
+      const match = href && href.match(/space\.bilibili\.com\/(\d+)/i);
+      if (!match) continue;
+      const uid = match[1];
+      const btn = document.createElement("button");
+      btn.className = COMMENT_BLOCK_BTN_CLASS;
+      btn.type = "button";
+      btn.textContent = "Block";
+      btn.dataset.uid = uid;
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        setUidBlocked(uid, !BLOCKED_UIDS.has(uid));
+      });
+      userLink.insertAdjacentElement("afterend", btn);
+    }
+  }
+
   function getControl(name) {
     return BOOLEAN_CONTROLS.find((control) => control.name === name);
   }
@@ -1650,6 +1678,18 @@
       #${MANAGER_PANEL_ID} .buvb-manager-action-primary { color: #fff; background: #00aeec; }
       #${MANAGER_PANEL_ID} .buvb-manager-action:disabled { color: #9499a0; background: #e3e5e7; cursor: not-allowed; }
       #${MANAGER_PANEL_ID} .buvb-manager-close { border: 0; border-radius: 50%; width: 28px; height: 28px; color: #61666d; background: #f1f2f3; font-size: 18px; line-height: 28px; cursor: pointer; }
+      .${COMMENT_BLOCK_BTN_CLASS} {
+        display: inline-flex; align-items: center; justify-content: center;
+        margin-left: 6px; padding: 0 6px; height: 18px;
+        border: 1px solid #fb7299; border-radius: 4px;
+        color: #fb7299; background: transparent;
+        font-size: 11px; line-height: 1; cursor: pointer;
+        vertical-align: middle; font-family: inherit;
+        transition: background .15s, color .15s;
+      }
+      .${COMMENT_BLOCK_BTN_CLASS}:hover {
+        color: #fff; background: #fb7299;
+      }
     `;
 
     const append = () => {
