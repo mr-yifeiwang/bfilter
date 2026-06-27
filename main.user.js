@@ -1,12 +1,13 @@
 // ==UserScript==
 // @name         Bilibili Blocklist
 // @namespace    https://github.com/mr-yifeiwang/bilibili-blocklist
-// @version      0.7.0
+// @version      0.7.1
 // @description  Hide Bilibili video cards and comments conditionally
 // @author       mr-yifeiwang
 // @match        https://www.bilibili.com/*
 // @match        https://search.bilibili.com/*
 // @match        https://space.bilibili.com/*
+// @match        https://t.bilibili.com/*
 // @run-at       document-start
 // @grant        GM_getValue
 // @grant        GM_setValue
@@ -1463,7 +1464,7 @@
   }
 
   function renderCommentBlockButtons() {
-    if (!isOpusPage() && !isDirectVideoPage()) return;
+    if (!isOpusPage() && !isDirectVideoPage() && !isTPage()) return;
     for (const item of document.querySelectorAll(COMMENT_ITEM_SELECTOR)) {
       if (item.hasAttribute(BLOCK_ATTR)) continue;
       if (item.querySelector(`.${COMMENT_BLOCK_BTN_CLASS}`)) continue;
@@ -1569,7 +1570,8 @@
       isBilibiliHomePage() ||
       isSearchPage() ||
       isDirectVideoPage() ||
-      isOpusPage()
+      isOpusPage() ||
+      isTPage()
     );
   }
 
@@ -1595,6 +1597,10 @@
       location.hostname === "www.bilibili.com" &&
       OPUS_PATH_RE.test(location.pathname)
     );
+  }
+
+  function isTPage() {
+    return location.hostname === "t.bilibili.com";
   }
 
   function getCurrentUserPageUid() {
