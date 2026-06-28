@@ -1467,24 +1467,28 @@
     if (!isOpusPage() && !isDirectVideoPage() && !isTPage()) return;
     for (const item of document.querySelectorAll(COMMENT_ITEM_SELECTOR)) {
       if (item.hasAttribute(BLOCK_ATTR)) continue;
-      if (item.querySelector(`.${COMMENT_BLOCK_BTN_CLASS}`)) continue;
       const userLink = item.querySelector(COMMENT_USER_LINK_SELECTOR);
       if (!userLink) continue;
       const href = userLink.getAttribute("href");
       const match = href && href.match(/space\.bilibili\.com\/(\d+)/i);
       if (!match) continue;
       const uid = match[1];
-      const btn = document.createElement("button");
-      btn.className = COMMENT_BLOCK_BTN_CLASS;
-      btn.type = "button";
-      btn.textContent = "Block";
+      let btn = item.querySelector(`.${COMMENT_BLOCK_BTN_CLASS}`);
+      if (!btn) {
+        btn = document.createElement("button");
+        btn.className = COMMENT_BLOCK_BTN_CLASS;
+        btn.type = "button";
+        btn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          const currentUid = btn.dataset.uid;
+          if (currentUid)
+            setUidBlocked(currentUid, !BLOCKED_UIDS.has(currentUid));
+        });
+        userLink.insertAdjacentElement("afterend", btn);
+      }
+      btn.textContent = BLOCKED_UIDS.has(uid) ? "Unblock" : "Block";
       btn.dataset.uid = uid;
-      btn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        e.preventDefault();
-        setUidBlocked(uid, !BLOCKED_UIDS.has(uid));
-      });
-      userLink.insertAdjacentElement("afterend", btn);
     }
   }
 
