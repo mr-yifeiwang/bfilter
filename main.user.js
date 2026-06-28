@@ -1492,7 +1492,9 @@
         });
         userLink.insertAdjacentElement("afterend", btn);
       }
-      btn.textContent = BLOCKED_UIDS.has(uid) ? "Unblock" : "Block";
+      const blocked = BLOCKED_UIDS.has(uid);
+      btn.textContent = blocked ? "Unblock" : "Block";
+      btn.dataset.blocked = String(blocked);
       btn.dataset.uid = uid;
     }
   }
@@ -1706,13 +1708,19 @@
       .${COMMENT_BLOCK_BTN_CLASS} {
         display: inline-flex; align-items: center; justify-content: center;
         margin-left: 6px; padding: 0 6px; height: 18px;
-        border: 1px solid #fb7299; border-radius: 4px;
-        color: #fb7299; background: transparent;
+        border: 1px solid #00aeec; border-radius: 4px;
+        color: #00aeec; background: transparent;
         font-size: 11px; line-height: 1; cursor: pointer;
         vertical-align: middle; font-family: inherit;
         transition: background .15s, color .15s;
       }
       .${COMMENT_BLOCK_BTN_CLASS}:hover {
+        color: #fff; background: #00aeec;
+      }
+      .${COMMENT_BLOCK_BTN_CLASS}[data-blocked="true"] {
+        border-color: #fb7299; color: #fb7299;
+      }
+      .${COMMENT_BLOCK_BTN_CLASS}[data-blocked="true"]:hover {
         color: #fff; background: #fb7299;
       }
     `;
