@@ -41,6 +41,7 @@
   const USER_BUTTON_ID = "bilibili-uid-blocklist-user-button";
   const MANAGER_BUTTON_ID = "bilibili-uid-blocklist-manager-button";
   const FLOATING_BUTTON_CLASS = "bilibili-uid-blocklist-floating-button";
+  const PROFILE_BUTTON_CLASS = "bilibili-uid-blocklist-profile-button";
   const MANAGER_PANEL_ID = "bilibili-uid-blocklist-manager-panel";
   const MANAGER_TEXTAREA_ID = "bilibili-uid-blocklist-manager-textarea";
   const MANAGER_KEYWORDS_TEXTAREA_ID =
@@ -1440,7 +1441,7 @@
     if (!button) {
       button = document.createElement("button");
       button.id = USER_BUTTON_ID;
-      button.className = FLOATING_BUTTON_CLASS;
+      button.className = PROFILE_BUTTON_CLASS;
       button.type = "button";
       button.addEventListener("click", () => {
         const currentUid = button.getAttribute("data-uid");
@@ -1450,16 +1451,20 @@
       });
     }
     updateUserPageBlockButton(button, uid);
-    appendToPage(button);
+    appendUserPageBlockButton(button);
+  }
+
+  function appendUserPageBlockButton(button) {
+    const statistics = document.querySelector(".nav-statistics");
+    if (statistics) statistics.insertAdjacentElement("beforebegin", button);
+    else appendToPage(button);
   }
 
   function updateUserPageBlockButton(button, uid) {
     const blocked = BLOCKED_UIDS.has(uid);
     button.setAttribute("data-uid", uid);
     button.setAttribute("data-blocked", String(blocked));
-    button.textContent = blocked
-      ? "Unblock User\nby UID"
-      : "Block User\nby UID";
+    button.textContent = blocked ? "BLOCKED" : "BLOCK USER";
     button.title = `${blocked ? "Unblock" : "Block"} Bilibili user UID ${uid}`;
   }
 
@@ -1645,6 +1650,16 @@
         text-align: center; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,.18);
       }
       .${FLOATING_BUTTON_CLASS}:hover { background: #fb7299; }
+      .${PROFILE_BUTTON_CLASS} {
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 120px; height: 64px; margin-right: 8px; border: 0; border-radius: 0;
+        color: #fff; background: #00aeec; font-size: 17px; font-weight: 700;
+        cursor: pointer; font-family: inherit;
+      }
+      .nav-bar__main-right:has(> .${PROFILE_BUTTON_CLASS}) { display: flex; align-items: center; }
+      .${PROFILE_BUTTON_CLASS}:hover { background: #40c5f1; }
+      .${PROFILE_BUTTON_CLASS}[data-blocked="true"] { background: #fb7299; }
+      .${PROFILE_BUTTON_CLASS}[data-blocked="true"]:hover { background: #fc8bab; }
       #${MANAGER_PANEL_ID} {
         position: fixed; top: 124px; right: 24px; z-index: 999999;
         width: min(360px, calc(100vw - 48px)); border: 1px solid rgba(0,0,0,.08);
