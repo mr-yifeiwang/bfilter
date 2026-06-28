@@ -1208,7 +1208,7 @@
       button.id = MANAGER_BUTTON_ID;
       button.className = FLOATING_BUTTON_CLASS;
       button.type = "button";
-      button.textContent = "Manage UID\nBlocklist";
+      button.textContent = "Open Blocklist";
       button.title = "View and edit blocked user UIDs";
       button.addEventListener("click", () => {
         const currentPanel = ensureBlocklistManagerPanel();
@@ -1645,8 +1645,8 @@
         background-color: transparent !important;
       }
       .${FLOATING_BUTTON_CLASS} {
-        position: fixed; top: 72px; right: 24px; z-index: 999999; border: 0;
-        border-radius: 18px; padding: 8px 16px; color: #fff; background: #fb7299;
+        position: fixed; top: 10px; right: 24px; z-index: 999999; border: 0;
+        border-radius: 18px; min-width: 120px; padding: 8px 16px; color: #fff; background: #fb7299;
         appearance: none; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         font-size: 14px; font-weight: 700; line-height: 20px; white-space: pre-line;
         text-align: center; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,.18);
@@ -1663,7 +1663,7 @@
       .${PROFILE_BUTTON_CLASS}[data-blocked="true"] { background: #fb7299; }
       .${PROFILE_BUTTON_CLASS}[data-blocked="true"]:hover { background: #fc8bab; }
       #${MANAGER_PANEL_ID} {
-        position: fixed; top: 124px; right: 24px; z-index: 999999;
+        position: fixed; top: 62px; right: 24px; z-index: 999999;
         width: min(360px, calc(100vw - 48px)); border: 1px solid rgba(0,0,0,.08);
         border-radius: 14px; padding: 16px; color: #18191c; background: #fff;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
