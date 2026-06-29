@@ -1,12 +1,16 @@
 # Bilibili Blocklist
 
-Bilibili's built-in blocklist is account-bounded and sometimes limited. This script stores your own in-browser blocklist and hides matching video cards and comments on supported pages. It can filter out the videos and comments:
+Bilibili's built-in blocklist is account-bounded and sometimes limited. This script stores your own in-browser blocklist and hides matching video cards and comments on supported pages. It can filter out the videos and/or comments:
 
 - Posted by specific users
+- Posted by new users, whose created accounts after 2015, 2017, 2020, or 2022
 - Containing specific keywords
-- Posted by accounts created after 2015, 2017, 2020, or 2022
-- (_videos_) Shorter than the selected short-video threshold (< 1 min, < 3 min, < 5 min, < 10 min, < 20 min)
-- (_videos_) Viewed by fewer than the selected unpopular-video threshold (< 1K, < 5K, < 10K, < 50K, < 100K views)
+- (_videos_) Shorter than 1, 3, 5, 10, or 20 minutes
+- (_videos_) Having views fewer than 1k, 5k, 10k, 50k, or 100k views
+
+It also supports the following experimental features:
+
+- Blocking all commenters under a video or a post
 
 ## Installation
 
