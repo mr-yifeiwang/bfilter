@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Bilibili Blocklist
 // @namespace    https://github.com/mr-yifeiwang/bilibili-blocklist
-// @version      0.7.1
+// @version      0.8.0
 // @description  Hide Bilibili video cards and comments conditionally
 // @author       mr-yifeiwang
 // @match        https://www.bilibili.com/*
@@ -1285,15 +1285,16 @@
           target.id === MANAGER_KEYWORDS_TEXTAREA_ID)
       )
         updateManagerSaveButtonState(panel);
-      const thresholdControl = getThresholdControlBySlider(target);
-      if (thresholdControl) {
-        setThresholdIndex(thresholdControl, target.value);
-        refreshThresholdControls(panel);
-      }
     });
 
     panel.addEventListener("change", (event) => {
       const target = event.target;
+      const thresholdControl = getThresholdControlBySlider(target);
+      if (thresholdControl) {
+        setThresholdIndex(thresholdControl, target.value);
+        refreshThresholdControls(panel);
+        return;
+      }
       const name = target && target.getAttribute("data-setting");
       if (!name || !(name in settings)) return;
       setBooleanSetting(name, target.checked);
@@ -1307,21 +1308,17 @@
   function renderManagerOption(control) {
     const checkbox = `<label class="buvb-manager-option" for="${control.id}"><input id="${control.id}" type="checkbox" data-setting="${control.name}"><span>${escapeHtml(control.label)}</span></label>`;
     return control.threshold
-      ? `<div class="buvb-manager-registration-time-control">${checkbox}${renderThresholdSlider(control)}</div>`
+      ? `<div class="buvb-manager-registration-time-control">${checkbox}${renderThresholdSelect(control)}</div>`
       : checkbox;
   }
 
-  function renderThresholdSlider(control) {
-    return `
-      <div class="buvb-manager-registration-threshold">
-        <input id="${control.threshold.id}" type="range" min="0" max="${control.threshold.options.length - 1}" step="1">
-        <div class="buvb-manager-registration-threshold-labels" aria-hidden="true">
-          ${control.threshold.options
-            .map((option) => `<span>${escapeHtml(option.label)}</span>`)
-            .join("")}
-        </div>
-      </div>
-    `;
+  function renderThresholdSelect(control) {
+    return `<select id="${control.threshold.id}" class="buvb-manager-registration-threshold">${control.threshold.options
+      .map(
+        (option, index) =>
+          `<option value="${index}">${escapeHtml(option.label)}</option>`,
+      )
+      .join("")}</select>`;
   }
 
   function refreshBlocklistManagerPanel(
@@ -1404,17 +1401,14 @@
   ) {
     if (!panel) return;
     for (const control of getThresholdControls()) {
-      const slider = panel.querySelector(`#${control.threshold.id}`);
-      const wrapper =
-        slider && slider.closest(".buvb-manager-registration-threshold");
-      if (!slider) continue;
-      slider.value = String(getOptionIndex(control));
-      slider.disabled = !settings[control.name];
-      if (wrapper)
-        wrapper.classList.toggle(
-          "buvb-manager-registration-threshold-disabled",
-          !settings[control.name],
-        );
+      const select = panel.querySelector(`#${control.threshold.id}`);
+      if (!select) continue;
+      select.value = String(getOptionIndex(control));
+      select.disabled = !settings[control.name];
+      select.classList.toggle(
+        "buvb-manager-registration-threshold-disabled",
+        !settings[control.name],
+      );
     }
   }
 
@@ -1664,7 +1658,7 @@
       .${PROFILE_BUTTON_CLASS}[data-blocked="true"]:hover { background: #fc8bab; }
       #${MANAGER_PANEL_ID} {
         position: fixed; top: 62px; right: 24px; z-index: 999999;
-        width: min(360px, calc(100vw - 48px)); border: 1px solid rgba(0,0,0,.08);
+        width: min(300px, calc(100vw - 48px)); border: 1px solid rgba(0,0,0,.08);
         border-radius: 14px; padding: 16px; color: #18191c; background: #fff;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         box-shadow: 0 12px 32px rgba(0,0,0,.22);
@@ -1679,13 +1673,10 @@
       #${MANAGER_PANEL_ID} .buvb-manager-option { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; color: #18191c; font-size: 13px; cursor: pointer; }
       #${MANAGER_PANEL_ID} .buvb-manager-option:last-child { margin-bottom: 0; }
       #${MANAGER_PANEL_ID} .buvb-manager-option input { margin: 0; }
-      #${MANAGER_PANEL_ID} .buvb-manager-registration-time-control { margin-bottom: 10px; }
-      #${MANAGER_PANEL_ID} .buvb-manager-registration-time-control .buvb-manager-option { margin-bottom: 6px; }
-      #${MANAGER_PANEL_ID} .buvb-manager-registration-threshold { padding: 0 2px 0 22px; transition: opacity .2s ease; }
-      #${MANAGER_PANEL_ID} .buvb-manager-registration-threshold input { width: 100%; accent-color: #fb7299; cursor: pointer; }
-      #${MANAGER_PANEL_ID} .buvb-manager-registration-threshold-labels { display: flex; justify-content: space-between; margin-top: 2px; color: #61666d; font-size: 11px; line-height: 16px; }
+      #${MANAGER_PANEL_ID} .buvb-manager-registration-time-control { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+      #${MANAGER_PANEL_ID} .buvb-manager-registration-time-control .buvb-manager-option { margin-bottom: 0; }
+      #${MANAGER_PANEL_ID} .buvb-manager-registration-threshold { max-width: 116px; height: 18px; border: 1px solid #c9ccd0; border-radius: 6px; padding: 0 4px; background: #fff; color: #18191c; font-size: 13px; line-height: 18px; transition: opacity .2s ease; }
       #${MANAGER_PANEL_ID} .buvb-manager-registration-threshold-disabled { opacity: .42; }
-      #${MANAGER_PANEL_ID} .buvb-manager-registration-threshold-disabled input { cursor: not-allowed; }
       #${MANAGER_PANEL_ID} .buvb-manager-tabs { display: flex; align-items: flex-end; gap: 4px; border-bottom: 1px solid #e3e5e7; }
       #${MANAGER_PANEL_ID} .buvb-manager-tab { position: relative; border: 1px solid transparent; border-bottom: 0; border-radius: 10px 10px 0 0; padding: 7px 14px; color: #61666d; background: transparent; font-size: 13px; cursor: pointer; }
       #${MANAGER_PANEL_ID} .buvb-manager-tab[aria-selected="true"] { border-color: #e3e5e7; color: #00aeec; background: #fff; cursor: default; }
