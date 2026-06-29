@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Bilibili Blocklist
 // @namespace    https://github.com/mr-yifeiwang/bilibili-blocklist
-// @version      0.8.0
+// @version      0.9.0
 // @description  Hide Bilibili video cards and comments conditionally
 // @author       mr-yifeiwang
 // @match        https://www.bilibili.com/*
@@ -48,6 +48,7 @@
     "bilibili-uid-blocklist-manager-keywords-textarea";
 
   const COMMENT_BLOCK_BTN_CLASS = "buvb-block-btn";
+  const BLOCK_ALL_COMMENTERS_BTN_CLASS = "buvb-block-all-commenters-btn";
 
   const MAX_ANCESTOR_STEPS = 8;
   const MAX_CARD_AREA_RATIO = 0.75;
@@ -315,6 +316,7 @@
   function refreshChromeAndScan() {
     renderUserPageBlockButton();
     renderBlocklistManager();
+    renderBlockAllCommentersButton();
     scheduleScan(document.documentElement, { force: true });
   }
 
@@ -356,6 +358,7 @@
       }
     }
     renderCommentBlockButtons();
+    renderBlockAllCommentersButton();
   }
 
   function collectCandidates(root) {
@@ -1192,6 +1195,16 @@
     refreshBlocklistManagerPanel();
   }
 
+  function blockAllCommenters() {
+    replaceRuntimeBlockedUids(readSavedBlockedUids() || []);
+    for (const item of document.querySelectorAll(COMMENT_ITEM_SELECTOR)) {
+      for (const uid of getCommentAuthorUidsInside(item)) BLOCKED_UIDS.add(uid);
+    }
+    saveBlockedUids();
+    refreshConsequences();
+    refreshBlocklistManagerPanel();
+  }
+
   function renderBlocklistManager() {
     const shouldShow = isBlocklistManagerPage();
     let button = document.getElementById(MANAGER_BUTTON_ID);
@@ -1493,6 +1506,36 @@
     }
   }
 
+  function renderBlockAllCommentersButton() {
+    if (!isOpusPage() && !isDirectVideoPage() && !isTPage()) {
+      for (const btn of document.querySelectorAll(
+        `.${BLOCK_ALL_COMMENTERS_BTN_CLASS}`,
+      ))
+        btn.remove();
+      return;
+    }
+    if (document.querySelector(`.${BLOCK_ALL_COMMENTERS_BTN_CLASS}`)) return;
+    const firstComment = document.querySelector(COMMENT_ITEM_SELECTOR);
+    if (!firstComment || !firstComment.parentElement) return;
+
+    const btn = document.createElement("button");
+    btn.className = BLOCK_ALL_COMMENTERS_BTN_CLASS;
+    btn.type = "button";
+    btn.textContent = "Block All Commenters";
+    btn.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (
+        !confirm(
+          "WARNING: This action will add all currently loaded commenters' UIDs to your Blocklist. Continue?",
+        )
+      )
+        return;
+      blockAllCommenters();
+    });
+    firstComment.parentElement.insertBefore(btn, firstComment);
+  }
+
   function getControl(name) {
     return BOOLEAN_CONTROLS.find((control) => control.name === name);
   }
@@ -1714,6 +1757,12 @@
       .${COMMENT_BLOCK_BTN_CLASS}[data-blocked="true"]:hover {
         color: #fff; background: #fb7299;
       }
+      .${BLOCK_ALL_COMMENTERS_BTN_CLASS} {
+        margin-left: 12px; padding: 4px 10px; border: 1px solid #fb7299;
+        border-radius: 6px; color: #fb7299; background: #fff;
+        font-size: 12px; font-weight: 700; cursor: pointer; font-family: inherit;
+      }
+      .${BLOCK_ALL_COMMENTERS_BTN_CLASS}:hover { color: #fff; background: #fb7299; }
     `;
 
     const append = () => {
