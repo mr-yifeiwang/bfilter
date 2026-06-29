@@ -52,7 +52,6 @@
 
   const MAX_ANCESTOR_STEPS = 8;
   const MAX_CARD_AREA_RATIO = 0.75;
-  const RESCAN_INTERVAL_MS = 1500;
   const VIDEO_PATH_RE = /\/video\//i;
   const OPUS_PATH_RE = /^\/opus\//i;
   const UID_ATTRS = ["data-usercard-mid", "data-mid", "mid"];
@@ -306,11 +305,6 @@
       attributes: true,
       attributeFilter: ["href", "class", "title", "alt", ...UID_ATTRS],
     });
-
-    setInterval(
-      () => scheduleScan(document.documentElement, { force: true }),
-      RESCAN_INTERVAL_MS,
-    );
   }
 
   function refreshChromeAndScan() {
