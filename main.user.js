@@ -185,7 +185,7 @@
     {
       name: "blockNewUsers",
       id: "bilibili-uid-blocklist-manager-block-new-users",
-      label: "Block users by registration time",
+      label: "Block new users",
       threshold: {
         setting: "registrationTimeThreshold",
         key: SETTING_KEYS.registrationTimeThreshold,
