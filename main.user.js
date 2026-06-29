@@ -1514,11 +1514,20 @@
         btn.remove();
       return;
     }
-    if (document.querySelector(`.${BLOCK_ALL_COMMENTERS_BTN_CLASS}`)) return;
     const firstComment = document.querySelector(COMMENT_ITEM_SELECTOR);
     if (!firstComment || !firstComment.parentElement) return;
+    const navBar = firstComment
+      .closest(".reply-warp")
+      ?.previousElementSibling?.querySelector(".nav-bar");
+    if (!navBar) return;
 
-    const btn = document.createElement("button");
+    let btn = document.querySelector(`.${BLOCK_ALL_COMMENTERS_BTN_CLASS}`);
+    if (btn) {
+      if (btn.parentElement !== navBar) navBar.appendChild(btn);
+      return;
+    }
+
+    btn = document.createElement("button");
     btn.className = BLOCK_ALL_COMMENTERS_BTN_CLASS;
     btn.type = "button";
     btn.textContent = "Block All Commenters";
@@ -1533,7 +1542,7 @@
         return;
       blockAllCommenters();
     });
-    firstComment.parentElement.insertBefore(btn, firstComment);
+    navBar.appendChild(btn);
   }
 
   function getControl(name) {
