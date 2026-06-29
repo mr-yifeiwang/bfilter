@@ -1613,6 +1613,7 @@
   }
 
   function isCardBlockingPage() {
+    // Deliberately exclude space.bilibili.com from card/comment scanning.
     return isBlocklistManagerPage() || isDirectVideoPage();
   }
 
