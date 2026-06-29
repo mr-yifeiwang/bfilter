@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Bilibili Blocklist
 // @namespace    https://github.com/mr-yifeiwang/bilibili-blocklist
-// @version      0.9.0
+// @version      0.9.1
 // @description  Hide Bilibili video cards and comments conditionally
 // @author       mr-yifeiwang
 // @match        https://www.bilibili.com/*
@@ -180,7 +180,7 @@
     { label: "< 50k views", views: 50000 },
     { label: "< 100k views", views: 100000 },
   ];
-  const DEFAULT_UNPOPULAR_VIDEO_THRESHOLD = "< 10K views";
+  const DEFAULT_UNPOPULAR_VIDEO_THRESHOLD = "< 10k views";
 
   const BOOLEAN_CONTROLS = [
     {
