@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Bilibili Blocklist
 // @namespace    https://github.com/mr-yifeiwang/bilibili-blocklist
-// @version      0.9.1
+// @version      0.9.2
 // @description  Hide Bilibili video cards and comments conditionally
 // @author       mr-yifeiwang
 // @match        https://www.bilibili.com/*
@@ -1681,6 +1681,13 @@
         background-color: var(--buvb-preview-background-color) !important;
         outline: 2px solid var(--buvb-preview-outline-color) !important;
         outline-offset: -2px;
+      }
+      /* Search cards cover the marked target. Paint the visible inner surface. */
+      [${PREVIEW_ATTR}="true"] .bili-video-card__wrap {
+        background-color: var(--buvb-preview-background-color) !important;
+      }
+      [${PREVIEW_ATTR}="true"] .bili-video-card__wrap[${PREVIEW_ATTR}="true"] {
+        outline: none !important;
       }
       .${FLOATING_BUTTON_CLASS} {
         position: fixed; top: 10px; right: 24px; z-index: 999999; border: 0;
