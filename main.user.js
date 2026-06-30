@@ -1668,35 +1668,48 @@
     const style = document.createElement("style");
     style.id = "bilibili-uid-video-blocklist-style";
     style.textContent = `
+      :root {
+        --buvb-button-color: #e53935;
+        --buvb-button-hover-color: #f04f4b;
+        --buvb-button-muted-color: #e3e5e7;
+        --buvb-preview-background-color: #ffe8e8;
+        --buvb-preview-outline-color: rgba(229, 57, 53, 0.55);
+      }
       [${BLOCK_ATTR}="true"] { display: none !important; }
       .video-list.row > [class*="col_"][class*="mb_"]:has([${BLOCK_ATTR}="true"]) { display: none !important; }
       [${PREVIEW_ATTR}="true"] {
-        background-color: #ffe8e8 !important;
-        outline: 2px solid rgba(251, 114, 153, 0.55) !important;
+        background-color: var(--buvb-preview-background-color) !important;
+        outline: 2px solid var(--buvb-preview-outline-color) !important;
         outline-offset: -2px;
-      }
-      [${PREVIEW_ATTR}="true"] * {
-        background: transparent !important;
-        background-color: transparent !important;
       }
       .${FLOATING_BUTTON_CLASS} {
         position: fixed; top: 10px; right: 24px; z-index: 999999; border: 0;
-        border-radius: 18px; min-width: 120px; padding: 8px 16px; color: #fff; background: #fb7299;
+        border-radius: 18px; min-width: 120px; padding: 8px 16px;
         appearance: none; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         font-size: 14px; font-weight: 700; line-height: 20px; white-space: pre-line;
         text-align: center; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,.18);
       }
-      .${FLOATING_BUTTON_CLASS}:hover { background: #fb7299; }
       .${PROFILE_BUTTON_CLASS} {
         display: inline-flex; align-items: center; justify-content: center;
-        width: 120px; height: 64px; margin-right: 8px; border: 0; border-radius: 0;
-        color: #fff; background: #00aeec; font-size: 17px; font-weight: 700;
+        width: 120px; height: 64px; margin-right: 8px;
+        border: 1px solid var(--buvb-button-color); border-radius: 0;
+        font-size: 17px; font-weight: 700;
         cursor: pointer; font-family: inherit;
       }
       .nav-bar__main-right:has(> .${PROFILE_BUTTON_CLASS}) { display: flex; align-items: center; }
-      .${PROFILE_BUTTON_CLASS}:hover { background: #40c5f1; }
-      .${PROFILE_BUTTON_CLASS}[data-blocked="true"] { background: #fb7299; }
-      .${PROFILE_BUTTON_CLASS}[data-blocked="true"]:hover { background: #fc8bab; }
+      .${FLOATING_BUTTON_CLASS}, #${MANAGER_PANEL_ID} .buvb-manager-action-primary {
+        color: #fff; background: var(--buvb-button-color);
+      }
+      .${FLOATING_BUTTON_CLASS}:hover, #${MANAGER_PANEL_ID} .buvb-manager-action-primary:hover {
+        background: var(--buvb-button-hover-color);
+      }
+      .${PROFILE_BUTTON_CLASS} {
+        color: var(--buvb-button-color); background: #fff;
+      }
+      .${PROFILE_BUTTON_CLASS}:hover, .${PROFILE_BUTTON_CLASS}[data-blocked="true"] {
+        color: #fff; background: var(--buvb-button-color);
+      }
+      .${PROFILE_BUTTON_CLASS}[data-blocked="true"]:hover { background: var(--buvb-button-hover-color); }
       #${MANAGER_PANEL_ID} {
         position: fixed; top: 62px; right: 24px; z-index: 999999;
         width: min(300px, calc(100vw - 48px)); border: 1px solid rgba(0,0,0,.08);
@@ -1720,7 +1733,7 @@
       #${MANAGER_PANEL_ID} .buvb-manager-registration-threshold-disabled { opacity: .42; }
       #${MANAGER_PANEL_ID} .buvb-manager-tabs { display: flex; align-items: flex-end; gap: 4px; border-bottom: 1px solid #e3e5e7; }
       #${MANAGER_PANEL_ID} .buvb-manager-tab { position: relative; border: 1px solid transparent; border-bottom: 0; border-radius: 10px 10px 0 0; padding: 7px 14px; color: #61666d; background: transparent; font-size: 13px; cursor: pointer; }
-      #${MANAGER_PANEL_ID} .buvb-manager-tab[aria-selected="true"] { border-color: #e3e5e7; color: #00aeec; background: #fff; cursor: default; }
+      #${MANAGER_PANEL_ID} .buvb-manager-tab[aria-selected="true"] { border-color: #e3e5e7; color: var(--buvb-button-color); background: #fff; cursor: default; }
       #${MANAGER_PANEL_ID} .buvb-manager-tab[aria-selected="true"]::after { content: ""; position: absolute; right: 0; bottom: -1px; left: 0; height: 1px; background: #fff; }
       #${MANAGER_PANEL_ID} .buvb-manager-tab-panel { padding-top: 12px; }
       #${MANAGER_PANEL_ID} .buvb-manager-tab-panel[hidden] { display: none !important; }
@@ -1731,36 +1744,33 @@
       #${MANAGER_PANEL_ID} .buvb-manager-preview-toggle input { position: absolute; opacity: 0; pointer-events: none; }
       #${MANAGER_PANEL_ID} .buvb-manager-preview-slider { position: relative; width: 36px; height: 20px; border-radius: 999px; background: #c9ccd0; transition: background .2s ease; }
       #${MANAGER_PANEL_ID} .buvb-manager-preview-slider::before { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.25); transition: transform .2s ease; }
-      #${MANAGER_PANEL_ID} .buvb-manager-preview-toggle input:checked + .buvb-manager-preview-slider { background: #fb7299; }
+      #${MANAGER_PANEL_ID} .buvb-manager-preview-toggle input:checked + .buvb-manager-preview-slider { background: var(--buvb-button-color); }
       #${MANAGER_PANEL_ID} .buvb-manager-preview-toggle input:checked + .buvb-manager-preview-slider::before { transform: translateX(16px); }
-      #${MANAGER_PANEL_ID} .buvb-manager-action { border: 0; border-radius: 8px; padding: 7px 12px; color: #18191c; background: #e3e5e7; font-size: 13px; cursor: pointer; }
-      #${MANAGER_PANEL_ID} .buvb-manager-action-primary { color: #fff; background: #00aeec; }
-      #${MANAGER_PANEL_ID} .buvb-manager-action:disabled { color: #9499a0; background: #e3e5e7; cursor: not-allowed; }
+      #${MANAGER_PANEL_ID} .buvb-manager-action { border: 0; border-radius: 8px; padding: 7px 12px; color: #18191c; background: var(--buvb-button-muted-color); font-size: 13px; cursor: pointer; }
+      #${MANAGER_PANEL_ID} .buvb-manager-action:disabled { color: #9499a0; background: var(--buvb-button-muted-color); cursor: not-allowed; }
       #${MANAGER_PANEL_ID} .buvb-manager-close { border: 0; border-radius: 50%; width: 28px; height: 28px; color: #61666d; background: #f1f2f3; font-size: 18px; line-height: 28px; cursor: pointer; }
       .${COMMENT_BLOCK_BTN_CLASS} {
         display: inline-flex; align-items: center; justify-content: center;
         margin-left: 6px; padding: 0 6px; height: 18px;
-        border: 1px solid #00aeec; border-radius: 4px;
-        color: #00aeec; background: transparent;
+        border: 1px solid var(--buvb-button-color); border-radius: 4px;
+        color: var(--buvb-button-color); background: #fff;
         font-size: 11px; line-height: 1; cursor: pointer;
         vertical-align: middle; font-family: inherit;
         transition: background .15s, color .15s;
       }
       .${COMMENT_BLOCK_BTN_CLASS}:hover {
-        color: #fff; background: #00aeec;
+        color: #fff; background: var(--buvb-button-color);
       }
       .${COMMENT_BLOCK_BTN_CLASS}[data-blocked="true"] {
-        border-color: #fb7299; color: #fb7299;
+        color: #fff; background: var(--buvb-button-color);
       }
-      .${COMMENT_BLOCK_BTN_CLASS}[data-blocked="true"]:hover {
-        color: #fff; background: #fb7299;
-      }
+      .${COMMENT_BLOCK_BTN_CLASS}[data-blocked="true"]:hover { background: var(--buvb-button-hover-color); }
       .${BLOCK_ALL_COMMENTERS_BTN_CLASS} {
-        margin-left: 12px; padding: 4px 10px; border: 1px solid #fb7299;
-        border-radius: 6px; color: #fb7299; background: #fff;
+        margin-left: 12px; padding: 4px 10px; border: 1px solid var(--buvb-button-color);
+        border-radius: 6px; color: var(--buvb-button-color); background: #fff;
         font-size: 12px; font-weight: 700; cursor: pointer; font-family: inherit;
       }
-      .${BLOCK_ALL_COMMENTERS_BTN_CLASS}:hover { color: #fff; background: #fb7299; }
+      .${BLOCK_ALL_COMMENTERS_BTN_CLASS}:hover { color: #fff; background: var(--buvb-button-color); }
     `;
 
     const append = () => {
