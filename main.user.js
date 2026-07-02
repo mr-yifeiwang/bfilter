@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Bilibili Blocklist
 // @namespace    https://github.com/mr-yifeiwang/bilibili-blocklist
-// @version      0.11.0
+// @version      0.11.1
 // @description  Hide Bilibili videos, comments, and danmukus conditionally
 // @author       mr-yifeiwang
 // @match        https://www.bilibili.com/*
@@ -1391,7 +1391,9 @@
           <button class="buvb-manager-tab" type="button" role="tab" aria-selected="false" data-tab="danmuku-keywords">Danmukus</button>
         </div>
         <div class="buvb-manager-tab-panel" role="tabpanel" data-tab-panel="users">
-          ${BOOLEAN_CONTROLS.filter((control) => control.name === "blockNewUsers")
+          ${BOOLEAN_CONTROLS.filter(
+            (control) => control.name === "blockNewUsers",
+          )
             .map(renderManagerOption)
             .join("")}
           <textarea id="${MANAGER_TEXTAREA_ID}" spellcheck="false"></textarea>
@@ -1399,9 +1401,11 @@
         </div>
         <div class="buvb-manager-tab-panel" role="tabpanel" data-tab-panel="video-keywords" hidden>
           ${BOOLEAN_CONTROLS.filter((control) =>
-            ["hideShortVideos", "hideUnpopularVideos", "hideBadgedVideos"].includes(
-              control.name,
-            ),
+            [
+              "hideShortVideos",
+              "hideUnpopularVideos",
+              "hideBadgedVideos",
+            ].includes(control.name),
           )
             .map(renderManagerOption)
             .join("")}
@@ -1975,11 +1979,11 @@
       #${MANAGER_PANEL_ID} .buvb-manager-option:has(input:disabled) { color: #9499a0; cursor: not-allowed; }
       #${MANAGER_PANEL_ID} .buvb-manager-badged-video-control { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
       #${MANAGER_PANEL_ID} .buvb-manager-badged-video-control .buvb-manager-option { margin-bottom: 0; }
-      #${MANAGER_PANEL_ID} .buvb-manager-badged-types { max-width: 132px; height: 24px; border: 1px solid #c9ccd0; border-radius: 6px; padding: 0 4px; background: #fff; color: #18191c; font-size: 13px; }
+      #${MANAGER_PANEL_ID} .buvb-manager-badged-types { max-width: 132px; height: 24px; border: 1px solid #c9ccd0; border-radius: 6px; padding: 0 4px; background: #fff; color: #18191c; font-size: 13px; appearance: auto; -webkit-appearance: auto; }
       #${MANAGER_PANEL_ID} .buvb-manager-badged-types:disabled { opacity: .42; }
       #${MANAGER_PANEL_ID} .buvb-manager-registration-time-control { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
       #${MANAGER_PANEL_ID} .buvb-manager-registration-time-control .buvb-manager-option { margin-bottom: 0; }
-      #${MANAGER_PANEL_ID} .buvb-manager-registration-threshold { max-width: 116px; height: 18px; border: 1px solid #c9ccd0; border-radius: 6px; padding: 0 4px; background: #fff; color: #18191c; font-size: 13px; line-height: 18px; transition: opacity .2s ease; }
+      #${MANAGER_PANEL_ID} .buvb-manager-registration-threshold { max-width: 116px; height: 18px; border: 1px solid #c9ccd0; border-radius: 6px; padding: 0 4px; background: #fff; color: #18191c; font-size: 13px; line-height: 18px; transition: opacity .2s ease; appearance: auto; -webkit-appearance: auto; }
       #${MANAGER_PANEL_ID} .buvb-manager-registration-threshold-disabled { opacity: .42; }
       #${MANAGER_PANEL_ID} .buvb-manager-tabs { display: flex; align-items: flex-end; gap: 4px; border-bottom: 1px solid #e3e5e7; }
       #${MANAGER_PANEL_ID} .buvb-manager-tab { position: relative; border: 1px solid transparent; border-bottom: 0; border-radius: 10px 10px 0 0; padding: 7px 14px; color: #61666d; background: transparent; font-size: 13px; cursor: pointer; }
