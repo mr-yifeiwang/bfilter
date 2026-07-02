@@ -1619,6 +1619,7 @@
       isRankPage() ||
       isSearchPage() ||
       isDirectVideoPage() ||
+      isUserPage() ||
       isOpusPage() ||
       isTPage()
     );
@@ -1660,9 +1661,14 @@
   }
 
   function getCurrentUserPageUid() {
-    if (location.hostname !== "space.bilibili.com") return "";
+    if (!isUserPage()) return "";
     const match = location.pathname.match(/^\/(\d+)(?:\/|$)/);
     return match ? normalizeUid(match[1]) : "";
+  }
+
+  function isUserPage() {
+    if (location.hostname !== "space.bilibili.com") return false;
+    return /^\/\d+(?:\/|$)/.test(location.pathname);
   }
 
   function patchHistory(methodName) {
