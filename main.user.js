@@ -182,7 +182,7 @@
     { label: "< 10 min", seconds: 10 * 60 },
     { label: "< 20 min", seconds: 20 * 60 },
   ];
-  const DEFAULT_SHORT_VIDEO_THRESHOLD = "< 5 min";
+  const DEFAULT_SHORT_VIDEO_THRESHOLD = "< 1 min";
 
   const UNPOPULAR_VIDEO_THRESHOLD_OPTIONS = [
     { label: "< 1k views", views: 1000 },
@@ -191,7 +191,7 @@
     { label: "< 50k views", views: 50000 },
     { label: "< 100k views", views: 100000 },
   ];
-  const DEFAULT_UNPOPULAR_VIDEO_THRESHOLD = "< 10k views";
+  const DEFAULT_UNPOPULAR_VIDEO_THRESHOLD = "< 1k views";
 
   const BOOLEAN_CONTROLS = [
     {
@@ -242,21 +242,21 @@
       name: "hideLiveVideos",
       id: "bilibili-uid-blocklist-manager-hide-live-videos",
       label: "Live",
-      defaultValue: true,
+      defaultValue: false,
       childOf: "hideBadgedVideos",
     },
     {
       name: "hideMangaVideos",
       id: "bilibili-uid-blocklist-manager-hide-manga-videos",
       label: "Manga",
-      defaultValue: true,
+      defaultValue: false,
       childOf: "hideBadgedVideos",
     },
     {
       name: "hideCourseVideos",
       id: "bilibili-uid-blocklist-manager-hide-course-videos",
       label: "Course",
-      defaultValue: true,
+      defaultValue: false,
       childOf: "hideBadgedVideos",
     },
     {
@@ -276,9 +276,9 @@
     hideShortVideos: false,
     hideUnpopularVideos: false,
     hideBadgedVideos: false,
-    hideLiveVideos: true,
-    hideMangaVideos: true,
-    hideCourseVideos: true,
+    hideLiveVideos: false,
+    hideMangaVideos: false,
+    hideCourseVideos: false,
     registrationTimeThreshold: DEFAULT_REGISTRATION_TIME_THRESHOLD,
     shortVideoThreshold: DEFAULT_SHORT_VIDEO_THRESHOLD,
     unpopularVideoThreshold: DEFAULT_UNPOPULAR_VIDEO_THRESHOLD,
