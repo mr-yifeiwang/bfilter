@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Bilibili Blocklist
 // @namespace    https://github.com/mr-yifeiwang/bilibili-blocklist
-// @version      0.10.1
-// @description  Hide Bilibili video cards and comments conditionally
+// @version      0.11.0
+// @description  Hide Bilibili videos, comments, and danmukus conditionally
 // @author       mr-yifeiwang
 // @match        https://www.bilibili.com/*
 // @match        https://search.bilibili.com/*
@@ -26,6 +26,8 @@
   const BLOCKLIST_STORAGE_KEY = "bilibili-uid-blocklist:blocklist";
   const KEYWORD_BLOCKLIST_STORAGE_KEY =
     "bilibili-uid-blocklist:keyword-blocklist";
+  const DANMUKU_BLOCKLIST_STORAGE_KEY =
+    "bilibili-uid-blocklist:danmuku-blocklist";
   const SETTING_KEYS = {
     blockNewUsers: "bilibili-uid-blocklist:block-new-users",
     registrationTimeThreshold:
@@ -46,6 +48,8 @@
   const MANAGER_TEXTAREA_ID = "bilibili-uid-blocklist-manager-textarea";
   const MANAGER_KEYWORDS_TEXTAREA_ID =
     "bilibili-uid-blocklist-manager-keywords-textarea";
+  const MANAGER_DANMUKUS_TEXTAREA_ID =
+    "bilibili-uid-blocklist-manager-danmukus-textarea";
 
   const COMMENT_BLOCK_BTN_CLASS = "buvb-block-btn";
   const BLOCK_ALL_COMMENTERS_BTN_CLASS = "buvb-block-all-commenters-btn";
@@ -147,13 +151,12 @@
   const COMMENT_ITEM_SELECTOR = ".reply-item, .sub-reply-item";
   const COMMENT_USER_LINK_SELECTOR =
     'a.user-name[href*="space.bilibili.com/"], a.sub-user-name[href*="space.bilibili.com/"]';
-  const COMMENT_CONTENT_SELECTOR = [
-    ".reply-content",
-    ".reply-content-client",
-    ".sub-reply-content",
-    '[class*="reply-content"]',
-    '[class*="ReplyContent"]',
+
+  const DANMUKU_SELECTOR = [
+    ".bpx-player-row-dm-wrap .bili-danmaku-x-dm",
+    ".bpx-player-dm li.bui-long-list-item",
   ].join(",");
+  const DANMUKU_TEXT_SELECTOR = ".dm-info-dm";
 
   const REGISTRATION_TIME_THRESHOLD_OPTIONS = [
     { label: "> 2015", minDigits: 8 },
@@ -236,6 +239,7 @@
 
   const BLOCKED_UIDS = new Set();
   const BLOCKED_KEYWORDS = new Set();
+  const BLOCKED_DANMUKUS = new Set();
   const settings = {
     blockNewUsers: false,
     previewMode: false,
@@ -257,6 +261,7 @@
   function boot() {
     replaceRuntimeBlockedUids(readSavedBlockedUids() || []);
     replaceRuntimeBlockedKeywords(readSavedBlockedKeywords() || []);
+    replaceRuntimeBlockedDanmukus(readSavedBlockedDanmukus() || []);
     for (const { name } of BOOLEAN_CONTROLS) {
       settings[name] = readBooleanSetting(SETTING_KEYS[name], false);
     }
@@ -295,6 +300,8 @@
       for (const mutation of mutations) {
         if (mutation.type === "childList") {
           for (const node of mutation.addedNodes) scheduleScan(node);
+        } else if (mutation.type === "characterData") {
+          scheduleScan(mutation.target.parentElement);
         } else {
           scheduleScan(mutation.target);
         }
@@ -302,6 +309,7 @@
     }).observe(document.documentElement, {
       childList: true,
       subtree: true,
+      characterData: true,
       attributes: true,
       attributeFilter: ["href", "class", "title", "alt", ...UID_ATTRS],
     });
@@ -340,6 +348,14 @@
         continue;
       }
 
+      const danmuku = resolveDanmuku(candidate);
+      if (danmuku) {
+        const reason = evaluateDanmuku(danmuku);
+        if (reason) applyConsequence(danmuku, reason);
+        else clearConsequence(danmuku);
+        continue;
+      }
+
       const card = resolveVideoCard(candidate);
       if (!card) continue;
 
@@ -359,6 +375,8 @@
     const candidates = new Set();
     addIfMatches(root, CARD_SELECTOR, candidates);
     addIfMatches(root, COMMENT_ITEM_SELECTOR, candidates);
+    addIfMatches(root, DANMUKU_SELECTOR, candidates);
+    addIfMatches(root, DANMUKU_TEXT_SELECTOR, candidates);
     addIfMatches(root, UPLOADER_SELECTOR, candidates);
     addIfMatches(root, COMMENT_USER_LINK_SELECTOR, candidates);
     addIfMatches(root, VIDEO_LINK_SELECTOR, candidates);
@@ -366,6 +384,8 @@
     for (const selector of [
       CARD_SELECTOR,
       COMMENT_ITEM_SELECTOR,
+      DANMUKU_SELECTOR,
+      DANMUKU_TEXT_SELECTOR,
       UPLOADER_SELECTOR,
       COMMENT_USER_LINK_SELECTOR,
       VIDEO_LINK_SELECTOR,
@@ -382,6 +402,13 @@
     return matches(candidate, COMMENT_ITEM_SELECTOR)
       ? candidate
       : candidate.closest(COMMENT_ITEM_SELECTOR);
+  }
+
+  function resolveDanmuku(candidate) {
+    if (!isDirectVideoPage() || !isElement(candidate)) return null;
+    return matches(candidate, DANMUKU_SELECTOR)
+      ? candidate
+      : candidate.closest(DANMUKU_SELECTOR);
   }
 
   function resolveVideoCard(candidate) {
@@ -417,10 +444,13 @@
 
   function evaluateComment(comment) {
     return (
-      blockedCommentAuthorReason(comment) ||
-      blockedCommentKeywordReason(comment) ||
-      newCommentAuthorReason(comment)
+      blockedCommentAuthorReason(comment) || newCommentAuthorReason(comment)
     );
+  }
+
+  function evaluateDanmuku(danmuku) {
+    const keyword = getMatchedDanmuku(getDanmukuText(danmuku));
+    return keyword ? { type: "danmuku-keyword", uid: "", keyword } : null;
   }
 
   function blockedUidReason(card) {
@@ -439,11 +469,6 @@
 
   function blockedVideoTitleKeywordReason(card) {
     const keyword = getMatchedKeyword(getVideoTitleText(card));
-    return keyword ? { type: "keyword", uid: "", keyword } : null;
-  }
-
-  function blockedCommentKeywordReason(comment) {
-    const keyword = getMatchedKeyword(getCommentContentText(comment));
     return keyword ? { type: "keyword", uid: "", keyword } : null;
   }
 
@@ -654,6 +679,13 @@
     return [...BLOCKED_KEYWORDS].find((keyword) => haystack.includes(keyword));
   }
 
+  function getMatchedDanmuku(text) {
+    if (!BLOCKED_DANMUKUS.size) return "";
+    const haystack = String(text || "");
+    if (!haystack) return "";
+    return [...BLOCKED_DANMUKUS].find((keyword) => haystack.includes(keyword));
+  }
+
   function getVideoTitleText(card) {
     if (!isElement(card)) return "";
     const values = [];
@@ -683,23 +715,9 @@
     return elements;
   }
 
-  function getCommentContentText(comment) {
-    if (!isElement(comment)) return "";
-    const values = [];
-    for (const element of getCommentContentElements(comment)) {
-      values.push(element.textContent || "");
-    }
-    return values.join(" ");
-  }
-
-  function getCommentContentElements(comment) {
-    const elements = new Set();
-    if (matches(comment, COMMENT_CONTENT_SELECTOR)) elements.add(comment);
-    for (const element of comment.querySelectorAll(COMMENT_CONTENT_SELECTOR)) {
-      if (element.closest(COMMENT_ITEM_SELECTOR) !== comment) continue;
-      elements.add(element);
-    }
-    return elements;
+  function getDanmukuText(danmuku) {
+    const text = danmuku.querySelector(DANMUKU_TEXT_SELECTOR);
+    return text ? text.textContent || "" : danmuku.textContent || "";
   }
 
   function isNewUserUid(uid) {
@@ -913,6 +931,12 @@
           if (remote) syncBlockedKeywords(value);
         },
       );
+      GM_addValueChangeListener(
+        DANMUKU_BLOCKLIST_STORAGE_KEY,
+        (_key, _oldValue, value, remote) => {
+          if (remote) syncBlockedDanmukus(value);
+        },
+      );
       for (const { name } of BOOLEAN_CONTROLS) {
         GM_addValueChangeListener(
           SETTING_KEYS[name],
@@ -936,6 +960,8 @@
       if (event.key === BLOCKLIST_STORAGE_KEY) syncBlockedUids(event.newValue);
       if (event.key === KEYWORD_BLOCKLIST_STORAGE_KEY)
         syncBlockedKeywords(event.newValue);
+      if (event.key === DANMUKU_BLOCKLIST_STORAGE_KEY)
+        syncBlockedDanmukus(event.newValue);
       for (const { name } of BOOLEAN_CONTROLS) {
         if (event.key === SETTING_KEYS[name])
           syncBooleanSetting(name, event.newValue);
@@ -960,6 +986,14 @@
     const savedKeywords = parseSavedBlockedKeywords(savedValue);
     if (!savedKeywords) return;
     replaceRuntimeBlockedKeywords(savedKeywords);
+    refreshConsequences();
+    refreshBlocklistManagerPanel();
+  }
+
+  function syncBlockedDanmukus(savedValue) {
+    const savedDanmukus = parseSavedBlockedDanmukus(savedValue);
+    if (!savedDanmukus) return;
+    replaceRuntimeBlockedDanmukus(savedDanmukus);
     refreshConsequences();
     refreshBlocklistManagerPanel();
   }
@@ -1015,6 +1049,18 @@
     }
   }
 
+  function readSavedBlockedDanmukus() {
+    try {
+      const saved =
+        typeof GM_getValue === "function"
+          ? GM_getValue(DANMUKU_BLOCKLIST_STORAGE_KEY, null)
+          : localStorage.getItem(DANMUKU_BLOCKLIST_STORAGE_KEY);
+      return parseSavedBlockedDanmukus(saved);
+    } catch (_error) {
+      return [];
+    }
+  }
+
   function parseSavedBlockedKeywords(saved) {
     if (saved == null) return null;
     try {
@@ -1025,6 +1071,10 @@
     } catch (_error) {
       return [];
     }
+  }
+
+  function parseSavedBlockedDanmukus(saved) {
+    return parseSavedBlockedKeywords(saved);
   }
 
   function readBooleanSetting(key, defaultValue) {
@@ -1106,6 +1156,13 @@
     }
   }
 
+  function replaceRuntimeBlockedDanmukus(nextDanmukus) {
+    BLOCKED_DANMUKUS.clear();
+    for (const danmuku of dedupeKeywords(nextDanmukus)) {
+      BLOCKED_DANMUKUS.add(danmuku);
+    }
+  }
+
   function saveBlockedUids() {
     try {
       const value = JSON.stringify([...BLOCKED_UIDS]);
@@ -1125,6 +1182,17 @@
       else localStorage.setItem(KEYWORD_BLOCKLIST_STORAGE_KEY, value);
     } catch (_error) {
       // Keep runtime keywords even if persistence fails.
+    }
+  }
+
+  function saveBlockedDanmukus() {
+    try {
+      const value = JSON.stringify([...BLOCKED_DANMUKUS]);
+      if (typeof GM_setValue === "function")
+        GM_setValue(DANMUKU_BLOCKLIST_STORAGE_KEY, value);
+      else localStorage.setItem(DANMUKU_BLOCKLIST_STORAGE_KEY, value);
+    } catch (_error) {
+      // Keep runtime danmukus even if persistence fails.
     }
   }
 
@@ -1155,12 +1223,20 @@
     return [...BLOCKED_KEYWORDS];
   }
 
+  function getBlockedDanmukuList() {
+    return [...BLOCKED_DANMUKUS];
+  }
+
   function parseBlockedUidText(text) {
     return [...new Set(text.split(/\r?\n/).map(normalizeUid).filter(Boolean))];
   }
 
   function parseBlockedKeywordText(text) {
     return dedupeKeywords(String(text || "").split(/\r?\n/));
+  }
+
+  function parseBlockedDanmukuText(text) {
+    return parseBlockedKeywordText(text);
   }
 
   function dedupeKeywords(keywords) {
@@ -1251,6 +1327,7 @@
         <div class="buvb-manager-tabs" role="tablist">
           <button class="buvb-manager-tab" type="button" role="tab" aria-selected="true" data-tab="users">Users</button>
           <button class="buvb-manager-tab" type="button" role="tab" aria-selected="false" data-tab="keywords">Keywords</button>
+          <button class="buvb-manager-tab" type="button" role="tab" aria-selected="false" data-tab="danmukus">Danmukus</button>
         </div>
         <div class="buvb-manager-tab-panel" role="tabpanel" data-tab-panel="users">
           <textarea id="${MANAGER_TEXTAREA_ID}" spellcheck="false"></textarea>
@@ -1259,6 +1336,10 @@
         <div class="buvb-manager-tab-panel" role="tabpanel" data-tab-panel="keywords" hidden>
           <textarea id="${MANAGER_KEYWORDS_TEXTAREA_ID}" spellcheck="false"></textarea>
           <div class="buvb-manager-help" data-help="keywords"></div>
+        </div>
+        <div class="buvb-manager-tab-panel" role="tabpanel" data-tab-panel="danmukus" hidden>
+          <textarea id="${MANAGER_DANMUKUS_TEXTAREA_ID}" spellcheck="false"></textarea>
+          <div class="buvb-manager-help" data-help="danmukus"></div>
         </div>
         <div class="buvb-manager-actions">
           <label class="buvb-manager-preview-toggle" for="${getControl("previewMode").id}">
@@ -1288,7 +1369,8 @@
       if (
         target &&
         (target.id === MANAGER_TEXTAREA_ID ||
-          target.id === MANAGER_KEYWORDS_TEXTAREA_ID)
+          target.id === MANAGER_KEYWORDS_TEXTAREA_ID ||
+          target.id === MANAGER_DANMUKUS_TEXTAREA_ID)
       )
         updateManagerSaveButtonState(panel);
     });
@@ -1333,12 +1415,17 @@
     if (!panel) return;
     const uids = getBlockedUidList();
     const keywords = getBlockedKeywordList();
+    const danmukus = getBlockedDanmukuList();
     const textarea = panel.querySelector(`#${MANAGER_TEXTAREA_ID}`);
     const keywordsTextarea = panel.querySelector(
       `#${MANAGER_KEYWORDS_TEXTAREA_ID}`,
     );
     const help = panel.querySelector('[data-help="users"]');
     const keywordsHelp = panel.querySelector('[data-help="keywords"]');
+    const danmukusTextarea = panel.querySelector(
+      `#${MANAGER_DANMUKUS_TEXTAREA_ID}`,
+    );
+    const danmukusHelp = panel.querySelector('[data-help="danmukus"]');
     if (textarea) {
       textarea.value = uids.join("\n");
       textarea.dataset.cleanValue = textarea.value;
@@ -1347,16 +1434,24 @@
       keywordsTextarea.value = keywords.join("\n");
       keywordsTextarea.dataset.cleanValue = keywordsTextarea.value;
     }
+    if (danmukusTextarea) {
+      danmukusTextarea.value = danmukus.join("\n");
+      danmukusTextarea.dataset.cleanValue = danmukusTextarea.value;
+    }
     if (help)
       help.textContent = `Enter one UID per line. ${uids.length} user(s) have been blocked.`;
     if (keywordsHelp)
-      keywordsHelp.textContent = `Enter one keyword per line. Video titles and comments containing these keywords will be blocked. ${keywords.length} keyword(s) have been blocked.`;
+      keywordsHelp.textContent = `Enter one keyword per line. Video titles containing these keywords will be blocked. ${keywords.length} keyword(s) have been blocked.`;
+    if (danmukusHelp)
+      danmukusHelp.textContent = `Enter one danmuku keyword per line. Danmukus containing these keywords will be blocked. ${danmukus.length} keyword(s) have been blocked.`;
     refreshBooleanControls(panel);
     updateManagerSaveButtonState(panel);
   }
 
   function setActiveManagerTab(panel, tabName) {
-    const nextTab = tabName === "keywords" ? "keywords" : "users";
+    const nextTab = ["users", "keywords", "danmukus"].includes(tabName)
+      ? tabName
+      : "users";
     for (const tab of panel.querySelectorAll(".buvb-manager-tab[data-tab]")) {
       tab.setAttribute(
         "aria-selected",
@@ -1379,14 +1474,22 @@
     const keywordsTextarea = panel.querySelector(
       `#${MANAGER_KEYWORDS_TEXTAREA_ID}`,
     );
+    const danmukusTextarea = panel.querySelector(
+      `#${MANAGER_DANMUKUS_TEXTAREA_ID}`,
+    );
     if (textarea)
       replaceRuntimeBlockedUids(parseBlockedUidText(textarea.value));
     if (keywordsTextarea)
       replaceRuntimeBlockedKeywords(
         parseBlockedKeywordText(keywordsTextarea.value),
       );
+    if (danmukusTextarea)
+      replaceRuntimeBlockedDanmukus(
+        parseBlockedDanmukuText(danmukusTextarea.value),
+      );
     saveBlockedUids();
     saveBlockedKeywords();
+    saveBlockedDanmukus();
     refreshConsequences();
     refreshBlocklistManagerPanel(panel);
   }
@@ -1423,9 +1526,16 @@
     const keywordsTextarea = panel.querySelector(
       `#${MANAGER_KEYWORDS_TEXTAREA_ID}`,
     );
+    const danmukusTextarea = panel.querySelector(
+      `#${MANAGER_DANMUKUS_TEXTAREA_ID}`,
+    );
     const saveButton = panel.querySelector('[data-action="save"]');
     if (saveButton)
-      saveButton.disabled = ![textarea, keywordsTextarea].some(
+      saveButton.disabled = ![
+        textarea,
+        keywordsTextarea,
+        danmukusTextarea,
+      ].some(
         (input) => input && input.value !== (input.dataset.cleanValue || ""),
       );
   }
@@ -1765,7 +1875,7 @@
       #${MANAGER_PANEL_ID} .buvb-manager-tab[aria-selected="true"]::after { content: ""; position: absolute; right: 0; bottom: -1px; left: 0; height: 1px; background: #fff; }
       #${MANAGER_PANEL_ID} .buvb-manager-tab-panel { padding-top: 12px; }
       #${MANAGER_PANEL_ID} .buvb-manager-tab-panel[hidden] { display: none !important; }
-      #${MANAGER_TEXTAREA_ID}, #${MANAGER_KEYWORDS_TEXTAREA_ID} { box-sizing: border-box; width: 100%; min-height: 160px; border: 1px solid #c9ccd0; border-radius: 10px; padding: 10px; color: #18191c; background: #f6f7f8; font: 14px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; resize: vertical; }
+      #${MANAGER_TEXTAREA_ID}, #${MANAGER_KEYWORDS_TEXTAREA_ID}, #${MANAGER_DANMUKUS_TEXTAREA_ID} { box-sizing: border-box; width: 100%; min-height: 160px; border: 1px solid #c9ccd0; border-radius: 10px; padding: 10px; color: #18191c; background: #f6f7f8; font: 14px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; resize: vertical; }
       #${MANAGER_PANEL_ID} .buvb-manager-help { margin: 8px 0 12px; color: #9499a0; font-size: 12px; }
       #${MANAGER_PANEL_ID} .buvb-manager-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
       #${MANAGER_PANEL_ID} .buvb-manager-preview-toggle { display: inline-flex; align-items: center; gap: 8px; color: #61666d; font-size: 13px; font-weight: 700; cursor: pointer; user-select: none; }

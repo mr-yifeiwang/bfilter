@@ -1,12 +1,14 @@
 # Bilibili Blocklist
 
-Bilibili's built-in blocklist is account-bounded and sometimes limited. This script stores your own in-browser blocklist and hides matching video cards and comments on supported pages. It can filter out the videos and/or comments:
+Bilibili's built-in blocklist is account-bounded and sometimes limited. This script stores your own in-browser blocklist and hides matching videos, comments, and danmukus on supported pages.
 
-- Posted by specific users
-- Posted by new users, whose created accounts after 2015, 2017, 2020, or 2022
-- Containing specific keywords
-- (_videos_) Shorter than 1, 3, 5, 10, or 20 minutes
-- (_videos_) Having views fewer than 1k, 5k, 10k, 50k, or 100k views
+| Filters       | Users | Videos | Danmukus |
+| ------------- | ----- | ------ | -------- |
+| User UID      | ✓     | ✓      |          |
+| Creation time | ✓     |        |          |
+| Keyword       |       | ✓      | ✓        |
+| Duration      |       | ✓      |          |
+| Views         |       | ✓      |          |
 
 It also supports the following experimental features:
 
