@@ -38,6 +38,9 @@
     hideUnpopularVideos: "bilibili-uid-blocklist:hide-unpopular-videos",
     unpopularVideoThreshold: "bilibili-uid-blocklist:unpopular-video-threshold",
     hideBadgedVideos: "bilibili-uid-blocklist:hide-badged-videos",
+    hideLiveVideos: "bilibili-uid-blocklist:hide-live-videos",
+    hideMangaVideos: "bilibili-uid-blocklist:hide-manga-videos",
+    hideCourseVideos: "bilibili-uid-blocklist:hide-course-videos",
   };
 
   const USER_BUTTON_ID = "bilibili-uid-blocklist-user-button";
@@ -97,11 +100,14 @@
     'a[href*="/bangumi/play/"]',
   ].join(",");
 
-  const BADGED_VIDEO_LINK_SELECTOR = [
-    'a[href*="live.bilibili.com/"]',
-    'a[href*="manga.bilibili.com/"]',
-    'a[href*="bilibili.com/cheese/"]',
-  ].join(",");
+  const BADGED_VIDEO_LINK_SELECTORS = {
+    live: 'a[href*="live.bilibili.com/"]',
+    manga: 'a[href*="manga.bilibili.com/"]',
+    course: 'a[href*="bilibili.com/cheese/"]',
+  };
+  const BADGED_VIDEO_LINK_SELECTOR = Object.values(
+    BADGED_VIDEO_LINK_SELECTORS,
+  ).join(",");
 
   const UPLOADER_SELECTOR = [
     'a[href*="space.bilibili.com/"]',
@@ -230,6 +236,27 @@
       label: "Hide badged videos",
     },
     {
+      name: "hideLiveVideos",
+      id: "bilibili-uid-blocklist-manager-hide-live-videos",
+      label: "Live",
+      defaultValue: true,
+      childOf: "hideBadgedVideos",
+    },
+    {
+      name: "hideMangaVideos",
+      id: "bilibili-uid-blocklist-manager-hide-manga-videos",
+      label: "Manga",
+      defaultValue: true,
+      childOf: "hideBadgedVideos",
+    },
+    {
+      name: "hideCourseVideos",
+      id: "bilibili-uid-blocklist-manager-hide-course-videos",
+      label: "Course",
+      defaultValue: true,
+      childOf: "hideBadgedVideos",
+    },
+    {
       name: "previewMode",
       id: "bilibili-uid-blocklist-manager-preview-mode",
       label: "Preview",
@@ -246,6 +273,9 @@
     hideShortVideos: false,
     hideUnpopularVideos: false,
     hideBadgedVideos: false,
+    hideLiveVideos: true,
+    hideMangaVideos: true,
+    hideCourseVideos: true,
     registrationTimeThreshold: DEFAULT_REGISTRATION_TIME_THRESHOLD,
     shortVideoThreshold: DEFAULT_SHORT_VIDEO_THRESHOLD,
     unpopularVideoThreshold: DEFAULT_UNPOPULAR_VIDEO_THRESHOLD,
@@ -265,7 +295,11 @@
       readSavedBlockedDanmukuKeywords() || [],
     );
     for (const { name } of BOOLEAN_CONTROLS) {
-      settings[name] = readBooleanSetting(SETTING_KEYS[name], false);
+      const control = getControl(name);
+      settings[name] = readBooleanSetting(
+        SETTING_KEYS[name],
+        control.defaultValue || false,
+      );
     }
     for (const control of getThresholdControls()) {
       settings[control.threshold.setting] = readLabelSetting(
@@ -623,9 +657,22 @@
   }
 
   function hasBadgedVideoLinkInside(card) {
-    return [...card.querySelectorAll(BADGED_VIDEO_LINK_SELECTOR)].some((link) =>
+    const selector = getActiveBadgedVideoLinkSelector();
+    if (!selector) return false;
+    return [...card.querySelectorAll(selector)].some((link) =>
       link.closest(CARD_SELECTOR),
     );
+  }
+
+  function getActiveBadgedVideoLinkSelector() {
+    if (!settings.hideBadgedVideos) return "";
+    return [
+      settings.hideLiveVideos && BADGED_VIDEO_LINK_SELECTORS.live,
+      settings.hideMangaVideos && BADGED_VIDEO_LINK_SELECTORS.manga,
+      settings.hideCourseVideos && BADGED_VIDEO_LINK_SELECTORS.course,
+    ]
+      .filter(Boolean)
+      .join(",");
   }
 
   function getUploaderUidsInside(container) {
@@ -1209,6 +1256,19 @@
     renderUserPageBlockButton();
   }
 
+  function setBadgedVideoTypes(selectedOptions) {
+    const selected = new Set(
+      [...selectedOptions].map((option) => option.value).filter(Boolean),
+    );
+    for (const control of BOOLEAN_CONTROLS.filter(
+      (child) => child.childOf === "hideBadgedVideos",
+    )) {
+      settings[control.name] = selected.has(control.name);
+      saveBooleanSetting(SETTING_KEYS[control.name], settings[control.name]);
+    }
+    refreshConsequences();
+  }
+
   function setThresholdIndex(control, index) {
     const { setting, key, options } = control.threshold;
     const option = options[Number(index)];
@@ -1394,6 +1454,11 @@
         refreshThresholdControls(panel);
         return;
       }
+      if (target && target.matches("[data-badged-video-types]")) {
+        setBadgedVideoTypes(target.selectedOptions);
+        refreshBooleanControls(panel);
+        return;
+      }
       const name = target && target.getAttribute("data-setting");
       if (!name || !(name in settings)) return;
       setBooleanSetting(name, target.checked);
@@ -1406,6 +1471,12 @@
 
   function renderManagerOption(control) {
     const checkbox = `<label class="buvb-manager-option" for="${control.id}"><input id="${control.id}" type="checkbox" data-setting="${control.name}"><span>${escapeHtml(control.label)}</span></label>`;
+    const children = BOOLEAN_CONTROLS.filter(
+      (child) => child.childOf === control.name,
+    );
+    if (children.length) {
+      return `<div class="buvb-manager-badged-video-control">${checkbox}${renderBadgedVideoTypeSelect(children)}</div>`;
+    }
     return control.threshold
       ? `<div class="buvb-manager-registration-time-control">${checkbox}${renderThresholdSelect(control)}</div>`
       : checkbox;
@@ -1416,6 +1487,15 @@
       .map(
         (option, index) =>
           `<option value="${index}">${escapeHtml(option.label)}</option>`,
+      )
+      .join("")}</select>`;
+  }
+
+  function renderBadgedVideoTypeSelect(controls) {
+    return `<select class="buvb-manager-badged-types" data-badged-video-types multiple size="1">${controls
+      .map(
+        (control) =>
+          `<option value="${control.name}">${escapeHtml(control.label)}</option>`,
       )
       .join("")}</select>`;
   }
@@ -1518,7 +1598,16 @@
     if (!panel) return;
     for (const control of BOOLEAN_CONTROLS) {
       const input = panel.querySelector(`#${control.id}`);
-      if (input) input.checked = settings[control.name];
+      if (!input) continue;
+      input.checked = settings[control.name];
+      input.disabled = Boolean(control.childOf && !settings[control.childOf]);
+    }
+    const badgedTypes = panel.querySelector("[data-badged-video-types]");
+    if (badgedTypes) {
+      badgedTypes.disabled = !settings.hideBadgedVideos;
+      for (const option of badgedTypes.options) {
+        option.selected = settings[option.value];
+      }
     }
     refreshThresholdControls(panel);
   }
@@ -1883,6 +1972,11 @@
       #${MANAGER_PANEL_ID} .buvb-manager-option { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; color: #18191c; font-size: 13px; cursor: pointer; }
       #${MANAGER_PANEL_ID} .buvb-manager-option:last-child { margin-bottom: 0; }
       #${MANAGER_PANEL_ID} .buvb-manager-option input { margin: 0; }
+      #${MANAGER_PANEL_ID} .buvb-manager-option:has(input:disabled) { color: #9499a0; cursor: not-allowed; }
+      #${MANAGER_PANEL_ID} .buvb-manager-badged-video-control { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+      #${MANAGER_PANEL_ID} .buvb-manager-badged-video-control .buvb-manager-option { margin-bottom: 0; }
+      #${MANAGER_PANEL_ID} .buvb-manager-badged-types { max-width: 132px; height: 24px; border: 1px solid #c9ccd0; border-radius: 6px; padding: 0 4px; background: #fff; color: #18191c; font-size: 13px; }
+      #${MANAGER_PANEL_ID} .buvb-manager-badged-types:disabled { opacity: .42; }
       #${MANAGER_PANEL_ID} .buvb-manager-registration-time-control { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
       #${MANAGER_PANEL_ID} .buvb-manager-registration-time-control .buvb-manager-option { margin-bottom: 0; }
       #${MANAGER_PANEL_ID} .buvb-manager-registration-threshold { max-width: 116px; height: 18px; border: 1px solid #c9ccd0; border-radius: 6px; padding: 0 4px; background: #fff; color: #18191c; font-size: 13px; line-height: 18px; transition: opacity .2s ease; }
