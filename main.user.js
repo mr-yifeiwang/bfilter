@@ -9,6 +9,7 @@
 // @match        https://space.bilibili.com/*
 // @match        https://t.bilibili.com/*
 // @run-at       document-start
+// @grant        GM_info
 // @grant        GM_getValue
 // @grant        GM_setValue
 // @grant        GM_addValueChangeListener
@@ -48,6 +49,8 @@
   const FLOATING_BUTTON_CLASS = "bilibili-uid-blocklist-floating-button";
   const PROFILE_BUTTON_CLASS = "bilibili-uid-blocklist-profile-button";
   const MANAGER_PANEL_ID = "bilibili-uid-blocklist-manager-panel";
+  const SCRIPT_VERSION =
+    typeof GM_info !== "undefined" && GM_info.script && GM_info.script.version;
   const MANAGER_TEXTAREA_ID = "bilibili-uid-blocklist-manager-textarea";
   const MANAGER_VIDEO_KEYWORDS_TEXTAREA_ID =
     "bilibili-uid-blocklist-manager-video-keywords-textarea";
@@ -1381,7 +1384,7 @@
     panel.hidden = true;
     panel.innerHTML = `
       <div class="buvb-manager-header">
-        <div class="buvb-manager-title">Blocklist Manager</div>
+        <div class="buvb-manager-title">Blocklist Manager <span class="buvb-manager-version">${SCRIPT_VERSION}</span></div>
         <button class="buvb-manager-close" type="button" title="Close">×</button>
       </div>
       <section class="buvb-manager-section">
@@ -1970,6 +1973,7 @@
       #${MANAGER_PANEL_ID} button { font-weight: 700; }
       #${MANAGER_PANEL_ID} .buvb-manager-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
       #${MANAGER_PANEL_ID} .buvb-manager-title { font-size: 16px; font-weight: 700; }
+      #${MANAGER_PANEL_ID} .buvb-manager-version { margin-left: 2px; color: #9499a0; font-size: 12px; font-weight: 500; }
       #${MANAGER_PANEL_ID} .buvb-manager-section { margin-top: 12px; }
       #${MANAGER_PANEL_ID} .buvb-manager-section:first-of-type { margin-top: 0; }
       #${MANAGER_PANEL_ID} .buvb-manager-section + .buvb-manager-section { padding-top: 4px; }
