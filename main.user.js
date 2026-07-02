@@ -24,10 +24,10 @@
   const BLOCKED_UID_ATTR = "data-bilibili-uid-blocked-uid";
 
   const BLOCKLIST_STORAGE_KEY = "bilibili-uid-blocklist:blocklist";
-  const KEYWORD_BLOCKLIST_STORAGE_KEY =
-    "bilibili-uid-blocklist:keyword-blocklist";
-  const DANMUKU_BLOCKLIST_STORAGE_KEY =
-    "bilibili-uid-blocklist:danmuku-blocklist";
+  const VIDEO_KEYWORD_BLOCKLIST_STORAGE_KEY =
+    "bilibili-uid-blocklist:video-keyword-blocklist";
+  const DANMUKU_KEYWORD_BLOCKLIST_STORAGE_KEY =
+    "bilibili-uid-blocklist:danmuku-keyword-blocklist";
   const SETTING_KEYS = {
     blockNewUsers: "bilibili-uid-blocklist:block-new-users",
     registrationTimeThreshold:
@@ -46,10 +46,10 @@
   const PROFILE_BUTTON_CLASS = "bilibili-uid-blocklist-profile-button";
   const MANAGER_PANEL_ID = "bilibili-uid-blocklist-manager-panel";
   const MANAGER_TEXTAREA_ID = "bilibili-uid-blocklist-manager-textarea";
-  const MANAGER_KEYWORDS_TEXTAREA_ID =
-    "bilibili-uid-blocklist-manager-keywords-textarea";
-  const MANAGER_DANMUKUS_TEXTAREA_ID =
-    "bilibili-uid-blocklist-manager-danmukus-textarea";
+  const MANAGER_VIDEO_KEYWORDS_TEXTAREA_ID =
+    "bilibili-uid-blocklist-manager-video-keywords-textarea";
+  const MANAGER_DANMUKU_KEYWORDS_TEXTAREA_ID =
+    "bilibili-uid-blocklist-manager-danmuku-keywords-textarea";
 
   const COMMENT_BLOCK_BTN_CLASS = "buvb-block-btn";
   const BLOCK_ALL_COMMENTERS_BTN_CLASS = "buvb-block-all-commenters-btn";
@@ -238,8 +238,8 @@
   ];
 
   const BLOCKED_UIDS = new Set();
-  const BLOCKED_KEYWORDS = new Set();
-  const BLOCKED_DANMUKUS = new Set();
+  const BLOCKED_VIDEO_KEYWORDS = new Set();
+  const BLOCKED_DANMUKU_KEYWORDS = new Set();
   const settings = {
     blockNewUsers: false,
     previewMode: false,
@@ -260,8 +260,10 @@
 
   function boot() {
     replaceRuntimeBlockedUids(readSavedBlockedUids() || []);
-    replaceRuntimeBlockedKeywords(readSavedBlockedKeywords() || []);
-    replaceRuntimeBlockedDanmukus(readSavedBlockedDanmukus() || []);
+    replaceRuntimeBlockedVideoKeywords(readSavedBlockedVideoKeywords() || []);
+    replaceRuntimeBlockedDanmukuKeywords(
+      readSavedBlockedDanmukuKeywords() || [],
+    );
     for (const { name } of BOOLEAN_CONTROLS) {
       settings[name] = readBooleanSetting(SETTING_KEYS[name], false);
     }
@@ -434,7 +436,7 @@
   function evaluateCard(card) {
     return (
       blockedUidReason(card) ||
-      blockedVideoTitleKeywordReason(card) ||
+      blockedVideoKeywordReason(card) ||
       newUserReason(card) ||
       shortVideoReason(card) ||
       unpopularVideoReason(card) ||
@@ -449,7 +451,7 @@
   }
 
   function evaluateDanmuku(danmuku) {
-    const keyword = getMatchedDanmuku(getDanmukuText(danmuku));
+    const keyword = getMatchedDanmukuKeyword(getDanmukuText(danmuku));
     return keyword ? { type: "danmuku-keyword", uid: "", keyword } : null;
   }
 
@@ -467,9 +469,9 @@
     return uid ? { type: "uid", uid } : null;
   }
 
-  function blockedVideoTitleKeywordReason(card) {
-    const keyword = getMatchedKeyword(getVideoTitleText(card));
-    return keyword ? { type: "keyword", uid: "", keyword } : null;
+  function blockedVideoKeywordReason(card) {
+    const keyword = getMatchedVideoKeyword(getVideoTitleText(card));
+    return keyword ? { type: "video-keyword", uid: "", keyword } : null;
   }
 
   function newCommentAuthorReason(comment) {
@@ -672,18 +674,22 @@
     return match ? match[0] : "";
   }
 
-  function getMatchedKeyword(text) {
-    if (!BLOCKED_KEYWORDS.size) return "";
+  function getMatchedVideoKeyword(text) {
+    if (!BLOCKED_VIDEO_KEYWORDS.size) return "";
     const haystack = String(text || "");
     if (!haystack) return "";
-    return [...BLOCKED_KEYWORDS].find((keyword) => haystack.includes(keyword));
+    return [...BLOCKED_VIDEO_KEYWORDS].find((keyword) =>
+      haystack.includes(keyword),
+    );
   }
 
-  function getMatchedDanmuku(text) {
-    if (!BLOCKED_DANMUKUS.size) return "";
+  function getMatchedDanmukuKeyword(text) {
+    if (!BLOCKED_DANMUKU_KEYWORDS.size) return "";
     const haystack = String(text || "");
     if (!haystack) return "";
-    return [...BLOCKED_DANMUKUS].find((keyword) => haystack.includes(keyword));
+    return [...BLOCKED_DANMUKU_KEYWORDS].find((keyword) =>
+      haystack.includes(keyword),
+    );
   }
 
   function getVideoTitleText(card) {
@@ -926,15 +932,15 @@
         },
       );
       GM_addValueChangeListener(
-        KEYWORD_BLOCKLIST_STORAGE_KEY,
+        VIDEO_KEYWORD_BLOCKLIST_STORAGE_KEY,
         (_key, _oldValue, value, remote) => {
-          if (remote) syncBlockedKeywords(value);
+          if (remote) syncBlockedVideoKeywords(value);
         },
       );
       GM_addValueChangeListener(
-        DANMUKU_BLOCKLIST_STORAGE_KEY,
+        DANMUKU_KEYWORD_BLOCKLIST_STORAGE_KEY,
         (_key, _oldValue, value, remote) => {
-          if (remote) syncBlockedDanmukus(value);
+          if (remote) syncBlockedDanmukuKeywords(value);
         },
       );
       for (const { name } of BOOLEAN_CONTROLS) {
@@ -958,10 +964,10 @@
 
     window.addEventListener("storage", (event) => {
       if (event.key === BLOCKLIST_STORAGE_KEY) syncBlockedUids(event.newValue);
-      if (event.key === KEYWORD_BLOCKLIST_STORAGE_KEY)
-        syncBlockedKeywords(event.newValue);
-      if (event.key === DANMUKU_BLOCKLIST_STORAGE_KEY)
-        syncBlockedDanmukus(event.newValue);
+      if (event.key === VIDEO_KEYWORD_BLOCKLIST_STORAGE_KEY)
+        syncBlockedVideoKeywords(event.newValue);
+      if (event.key === DANMUKU_KEYWORD_BLOCKLIST_STORAGE_KEY)
+        syncBlockedDanmukuKeywords(event.newValue);
       for (const { name } of BOOLEAN_CONTROLS) {
         if (event.key === SETTING_KEYS[name])
           syncBooleanSetting(name, event.newValue);
@@ -982,18 +988,18 @@
     renderUserPageBlockButton();
   }
 
-  function syncBlockedKeywords(savedValue) {
-    const savedKeywords = parseSavedBlockedKeywords(savedValue);
+  function syncBlockedVideoKeywords(savedValue) {
+    const savedKeywords = parseSavedBlockedVideoKeywords(savedValue);
     if (!savedKeywords) return;
-    replaceRuntimeBlockedKeywords(savedKeywords);
+    replaceRuntimeBlockedVideoKeywords(savedKeywords);
     refreshConsequences();
     refreshBlocklistManagerPanel();
   }
 
-  function syncBlockedDanmukus(savedValue) {
-    const savedDanmukus = parseSavedBlockedDanmukus(savedValue);
-    if (!savedDanmukus) return;
-    replaceRuntimeBlockedDanmukus(savedDanmukus);
+  function syncBlockedDanmukuKeywords(savedValue) {
+    const savedKeywords = parseSavedBlockedDanmukuKeywords(savedValue);
+    if (!savedKeywords) return;
+    replaceRuntimeBlockedDanmukuKeywords(savedKeywords);
     refreshConsequences();
     refreshBlocklistManagerPanel();
   }
@@ -1037,31 +1043,31 @@
     }
   }
 
-  function readSavedBlockedKeywords() {
+  function readSavedBlockedVideoKeywords() {
     try {
       const saved =
         typeof GM_getValue === "function"
-          ? GM_getValue(KEYWORD_BLOCKLIST_STORAGE_KEY, null)
-          : localStorage.getItem(KEYWORD_BLOCKLIST_STORAGE_KEY);
-      return parseSavedBlockedKeywords(saved);
+          ? GM_getValue(VIDEO_KEYWORD_BLOCKLIST_STORAGE_KEY, null)
+          : localStorage.getItem(VIDEO_KEYWORD_BLOCKLIST_STORAGE_KEY);
+      return parseSavedBlockedVideoKeywords(saved);
     } catch (_error) {
       return [];
     }
   }
 
-  function readSavedBlockedDanmukus() {
+  function readSavedBlockedDanmukuKeywords() {
     try {
       const saved =
         typeof GM_getValue === "function"
-          ? GM_getValue(DANMUKU_BLOCKLIST_STORAGE_KEY, null)
-          : localStorage.getItem(DANMUKU_BLOCKLIST_STORAGE_KEY);
-      return parseSavedBlockedDanmukus(saved);
+          ? GM_getValue(DANMUKU_KEYWORD_BLOCKLIST_STORAGE_KEY, null)
+          : localStorage.getItem(DANMUKU_KEYWORD_BLOCKLIST_STORAGE_KEY);
+      return parseSavedBlockedDanmukuKeywords(saved);
     } catch (_error) {
       return [];
     }
   }
 
-  function parseSavedBlockedKeywords(saved) {
+  function parseSavedBlockedVideoKeywords(saved) {
     if (saved == null) return null;
     try {
       const parsed = typeof saved === "string" ? JSON.parse(saved) : saved;
@@ -1073,8 +1079,8 @@
     }
   }
 
-  function parseSavedBlockedDanmukus(saved) {
-    return parseSavedBlockedKeywords(saved);
+  function parseSavedBlockedDanmukuKeywords(saved) {
+    return parseSavedBlockedVideoKeywords(saved);
   }
 
   function readBooleanSetting(key, defaultValue) {
@@ -1149,17 +1155,17 @@
     for (const uid of next) BLOCKED_UIDS.add(uid);
   }
 
-  function replaceRuntimeBlockedKeywords(nextKeywords) {
-    BLOCKED_KEYWORDS.clear();
+  function replaceRuntimeBlockedVideoKeywords(nextKeywords) {
+    BLOCKED_VIDEO_KEYWORDS.clear();
     for (const keyword of dedupeKeywords(nextKeywords)) {
-      BLOCKED_KEYWORDS.add(keyword);
+      BLOCKED_VIDEO_KEYWORDS.add(keyword);
     }
   }
 
-  function replaceRuntimeBlockedDanmukus(nextDanmukus) {
-    BLOCKED_DANMUKUS.clear();
-    for (const danmuku of dedupeKeywords(nextDanmukus)) {
-      BLOCKED_DANMUKUS.add(danmuku);
+  function replaceRuntimeBlockedDanmukuKeywords(nextKeywords) {
+    BLOCKED_DANMUKU_KEYWORDS.clear();
+    for (const keyword of dedupeKeywords(nextKeywords)) {
+      BLOCKED_DANMUKU_KEYWORDS.add(keyword);
     }
   }
 
@@ -1174,25 +1180,25 @@
     }
   }
 
-  function saveBlockedKeywords() {
+  function saveBlockedVideoKeywords() {
     try {
-      const value = JSON.stringify([...BLOCKED_KEYWORDS]);
+      const value = JSON.stringify([...BLOCKED_VIDEO_KEYWORDS]);
       if (typeof GM_setValue === "function")
-        GM_setValue(KEYWORD_BLOCKLIST_STORAGE_KEY, value);
-      else localStorage.setItem(KEYWORD_BLOCKLIST_STORAGE_KEY, value);
+        GM_setValue(VIDEO_KEYWORD_BLOCKLIST_STORAGE_KEY, value);
+      else localStorage.setItem(VIDEO_KEYWORD_BLOCKLIST_STORAGE_KEY, value);
     } catch (_error) {
-      // Keep runtime keywords even if persistence fails.
+      // Keep runtime video keywords even if persistence fails.
     }
   }
 
-  function saveBlockedDanmukus() {
+  function saveBlockedDanmukuKeywords() {
     try {
-      const value = JSON.stringify([...BLOCKED_DANMUKUS]);
+      const value = JSON.stringify([...BLOCKED_DANMUKU_KEYWORDS]);
       if (typeof GM_setValue === "function")
-        GM_setValue(DANMUKU_BLOCKLIST_STORAGE_KEY, value);
-      else localStorage.setItem(DANMUKU_BLOCKLIST_STORAGE_KEY, value);
+        GM_setValue(DANMUKU_KEYWORD_BLOCKLIST_STORAGE_KEY, value);
+      else localStorage.setItem(DANMUKU_KEYWORD_BLOCKLIST_STORAGE_KEY, value);
     } catch (_error) {
-      // Keep runtime danmukus even if persistence fails.
+      // Keep runtime danmuku keywords even if persistence fails.
     }
   }
 
@@ -1219,24 +1225,24 @@
     );
   }
 
-  function getBlockedKeywordList() {
-    return [...BLOCKED_KEYWORDS];
+  function getBlockedVideoKeywordList() {
+    return [...BLOCKED_VIDEO_KEYWORDS];
   }
 
-  function getBlockedDanmukuList() {
-    return [...BLOCKED_DANMUKUS];
+  function getBlockedDanmukuKeywordList() {
+    return [...BLOCKED_DANMUKU_KEYWORDS];
   }
 
   function parseBlockedUidText(text) {
     return [...new Set(text.split(/\r?\n/).map(normalizeUid).filter(Boolean))];
   }
 
-  function parseBlockedKeywordText(text) {
+  function parseBlockedVideoKeywordText(text) {
     return dedupeKeywords(String(text || "").split(/\r?\n/));
   }
 
-  function parseBlockedDanmukuText(text) {
-    return parseBlockedKeywordText(text);
+  function parseBlockedDanmukuKeywordText(text) {
+    return parseBlockedVideoKeywordText(text);
   }
 
   function dedupeKeywords(keywords) {
@@ -1326,20 +1332,20 @@
       <section class="buvb-manager-section">
         <div class="buvb-manager-tabs" role="tablist">
           <button class="buvb-manager-tab" type="button" role="tab" aria-selected="true" data-tab="users">Users</button>
-          <button class="buvb-manager-tab" type="button" role="tab" aria-selected="false" data-tab="keywords">Keywords</button>
-          <button class="buvb-manager-tab" type="button" role="tab" aria-selected="false" data-tab="danmukus">Danmukus</button>
+          <button class="buvb-manager-tab" type="button" role="tab" aria-selected="false" data-tab="video-keywords">Videos</button>
+          <button class="buvb-manager-tab" type="button" role="tab" aria-selected="false" data-tab="danmuku-keywords">Danmukus</button>
         </div>
         <div class="buvb-manager-tab-panel" role="tabpanel" data-tab-panel="users">
           <textarea id="${MANAGER_TEXTAREA_ID}" spellcheck="false"></textarea>
           <div class="buvb-manager-help" data-help="users"></div>
         </div>
-        <div class="buvb-manager-tab-panel" role="tabpanel" data-tab-panel="keywords" hidden>
-          <textarea id="${MANAGER_KEYWORDS_TEXTAREA_ID}" spellcheck="false"></textarea>
-          <div class="buvb-manager-help" data-help="keywords"></div>
+        <div class="buvb-manager-tab-panel" role="tabpanel" data-tab-panel="video-keywords" hidden>
+          <textarea id="${MANAGER_VIDEO_KEYWORDS_TEXTAREA_ID}" spellcheck="false"></textarea>
+          <div class="buvb-manager-help" data-help="video-keywords"></div>
         </div>
-        <div class="buvb-manager-tab-panel" role="tabpanel" data-tab-panel="danmukus" hidden>
-          <textarea id="${MANAGER_DANMUKUS_TEXTAREA_ID}" spellcheck="false"></textarea>
-          <div class="buvb-manager-help" data-help="danmukus"></div>
+        <div class="buvb-manager-tab-panel" role="tabpanel" data-tab-panel="danmuku-keywords" hidden>
+          <textarea id="${MANAGER_DANMUKU_KEYWORDS_TEXTAREA_ID}" spellcheck="false"></textarea>
+          <div class="buvb-manager-help" data-help="danmuku-keywords"></div>
         </div>
         <div class="buvb-manager-actions">
           <label class="buvb-manager-preview-toggle" for="${getControl("previewMode").id}">
@@ -1369,8 +1375,8 @@
       if (
         target &&
         (target.id === MANAGER_TEXTAREA_ID ||
-          target.id === MANAGER_KEYWORDS_TEXTAREA_ID ||
-          target.id === MANAGER_DANMUKUS_TEXTAREA_ID)
+          target.id === MANAGER_VIDEO_KEYWORDS_TEXTAREA_ID ||
+          target.id === MANAGER_DANMUKU_KEYWORDS_TEXTAREA_ID)
       )
         updateManagerSaveButtonState(panel);
     });
@@ -1414,42 +1420,49 @@
   ) {
     if (!panel) return;
     const uids = getBlockedUidList();
-    const keywords = getBlockedKeywordList();
-    const danmukus = getBlockedDanmukuList();
+    const videoKeywords = getBlockedVideoKeywordList();
+    const danmukuKeywords = getBlockedDanmukuKeywordList();
     const textarea = panel.querySelector(`#${MANAGER_TEXTAREA_ID}`);
-    const keywordsTextarea = panel.querySelector(
-      `#${MANAGER_KEYWORDS_TEXTAREA_ID}`,
+    const videoKeywordsTextarea = panel.querySelector(
+      `#${MANAGER_VIDEO_KEYWORDS_TEXTAREA_ID}`,
     );
     const help = panel.querySelector('[data-help="users"]');
-    const keywordsHelp = panel.querySelector('[data-help="keywords"]');
-    const danmukusTextarea = panel.querySelector(
-      `#${MANAGER_DANMUKUS_TEXTAREA_ID}`,
+    const videoKeywordsHelp = panel.querySelector(
+      '[data-help="video-keywords"]',
     );
-    const danmukusHelp = panel.querySelector('[data-help="danmukus"]');
+    const danmukuKeywordsTextarea = panel.querySelector(
+      `#${MANAGER_DANMUKU_KEYWORDS_TEXTAREA_ID}`,
+    );
+    const danmukuKeywordsHelp = panel.querySelector(
+      '[data-help="danmuku-keywords"]',
+    );
     if (textarea) {
       textarea.value = uids.join("\n");
       textarea.dataset.cleanValue = textarea.value;
     }
-    if (keywordsTextarea) {
-      keywordsTextarea.value = keywords.join("\n");
-      keywordsTextarea.dataset.cleanValue = keywordsTextarea.value;
+    if (videoKeywordsTextarea) {
+      videoKeywordsTextarea.value = videoKeywords.join("\n");
+      videoKeywordsTextarea.dataset.cleanValue = videoKeywordsTextarea.value;
     }
-    if (danmukusTextarea) {
-      danmukusTextarea.value = danmukus.join("\n");
-      danmukusTextarea.dataset.cleanValue = danmukusTextarea.value;
+    if (danmukuKeywordsTextarea) {
+      danmukuKeywordsTextarea.value = danmukuKeywords.join("\n");
+      danmukuKeywordsTextarea.dataset.cleanValue =
+        danmukuKeywordsTextarea.value;
     }
     if (help)
       help.textContent = `Enter one UID per line. ${uids.length} user(s) have been blocked.`;
-    if (keywordsHelp)
-      keywordsHelp.textContent = `Enter one keyword per line. Video titles containing these keywords will be blocked. ${keywords.length} keyword(s) have been blocked.`;
-    if (danmukusHelp)
-      danmukusHelp.textContent = `Enter one danmuku keyword per line. Danmukus containing these keywords will be blocked. ${danmukus.length} keyword(s) have been blocked.`;
+    if (videoKeywordsHelp)
+      videoKeywordsHelp.textContent = `Enter one keyword per line. Video titles containing these keywords will be blocked. ${videoKeywords.length} keyword(s) have been blocked.`;
+    if (danmukuKeywordsHelp)
+      danmukuKeywordsHelp.textContent = `Enter one keyword per line. Danmukus containing these keywords will be blocked. ${danmukuKeywords.length} keyword(s) have been blocked.`;
     refreshBooleanControls(panel);
     updateManagerSaveButtonState(panel);
   }
 
   function setActiveManagerTab(panel, tabName) {
-    const nextTab = ["users", "keywords", "danmukus"].includes(tabName)
+    const nextTab = ["users", "video-keywords", "danmuku-keywords"].includes(
+      tabName,
+    )
       ? tabName
       : "users";
     for (const tab of panel.querySelectorAll(".buvb-manager-tab[data-tab]")) {
@@ -1471,25 +1484,25 @@
 
   function saveManagerTextareas(panel) {
     const textarea = panel.querySelector(`#${MANAGER_TEXTAREA_ID}`);
-    const keywordsTextarea = panel.querySelector(
-      `#${MANAGER_KEYWORDS_TEXTAREA_ID}`,
+    const videoKeywordsTextarea = panel.querySelector(
+      `#${MANAGER_VIDEO_KEYWORDS_TEXTAREA_ID}`,
     );
-    const danmukusTextarea = panel.querySelector(
-      `#${MANAGER_DANMUKUS_TEXTAREA_ID}`,
+    const danmukuKeywordsTextarea = panel.querySelector(
+      `#${MANAGER_DANMUKU_KEYWORDS_TEXTAREA_ID}`,
     );
     if (textarea)
       replaceRuntimeBlockedUids(parseBlockedUidText(textarea.value));
-    if (keywordsTextarea)
-      replaceRuntimeBlockedKeywords(
-        parseBlockedKeywordText(keywordsTextarea.value),
+    if (videoKeywordsTextarea)
+      replaceRuntimeBlockedVideoKeywords(
+        parseBlockedVideoKeywordText(videoKeywordsTextarea.value),
       );
-    if (danmukusTextarea)
-      replaceRuntimeBlockedDanmukus(
-        parseBlockedDanmukuText(danmukusTextarea.value),
+    if (danmukuKeywordsTextarea)
+      replaceRuntimeBlockedDanmukuKeywords(
+        parseBlockedDanmukuKeywordText(danmukuKeywordsTextarea.value),
       );
     saveBlockedUids();
-    saveBlockedKeywords();
-    saveBlockedDanmukus();
+    saveBlockedVideoKeywords();
+    saveBlockedDanmukuKeywords();
     refreshConsequences();
     refreshBlocklistManagerPanel(panel);
   }
@@ -1523,18 +1536,18 @@
 
   function updateManagerSaveButtonState(panel) {
     const textarea = panel.querySelector(`#${MANAGER_TEXTAREA_ID}`);
-    const keywordsTextarea = panel.querySelector(
-      `#${MANAGER_KEYWORDS_TEXTAREA_ID}`,
+    const videoKeywordsTextarea = panel.querySelector(
+      `#${MANAGER_VIDEO_KEYWORDS_TEXTAREA_ID}`,
     );
-    const danmukusTextarea = panel.querySelector(
-      `#${MANAGER_DANMUKUS_TEXTAREA_ID}`,
+    const danmukuKeywordsTextarea = panel.querySelector(
+      `#${MANAGER_DANMUKU_KEYWORDS_TEXTAREA_ID}`,
     );
     const saveButton = panel.querySelector('[data-action="save"]');
     if (saveButton)
       saveButton.disabled = ![
         textarea,
-        keywordsTextarea,
-        danmukusTextarea,
+        videoKeywordsTextarea,
+        danmukuKeywordsTextarea,
       ].some(
         (input) => input && input.value !== (input.dataset.cleanValue || ""),
       );
@@ -1875,7 +1888,7 @@
       #${MANAGER_PANEL_ID} .buvb-manager-tab[aria-selected="true"]::after { content: ""; position: absolute; right: 0; bottom: -1px; left: 0; height: 1px; background: #fff; }
       #${MANAGER_PANEL_ID} .buvb-manager-tab-panel { padding-top: 12px; }
       #${MANAGER_PANEL_ID} .buvb-manager-tab-panel[hidden] { display: none !important; }
-      #${MANAGER_TEXTAREA_ID}, #${MANAGER_KEYWORDS_TEXTAREA_ID}, #${MANAGER_DANMUKUS_TEXTAREA_ID} { box-sizing: border-box; width: 100%; min-height: 160px; border: 1px solid #c9ccd0; border-radius: 10px; padding: 10px; color: #18191c; background: #f6f7f8; font: 14px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; resize: vertical; }
+      #${MANAGER_TEXTAREA_ID}, #${MANAGER_VIDEO_KEYWORDS_TEXTAREA_ID}, #${MANAGER_DANMUKU_KEYWORDS_TEXTAREA_ID} { box-sizing: border-box; width: 100%; min-height: 160px; border: 1px solid #c9ccd0; border-radius: 10px; padding: 10px; color: #18191c; background: #f6f7f8; font: 14px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; resize: vertical; }
       #${MANAGER_PANEL_ID} .buvb-manager-help { margin: 8px 0 12px; color: #9499a0; font-size: 12px; }
       #${MANAGER_PANEL_ID} .buvb-manager-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
       #${MANAGER_PANEL_ID} .buvb-manager-preview-toggle { display: inline-flex; align-items: center; gap: 8px; color: #61666d; font-size: 13px; font-weight: 700; cursor: pointer; user-select: none; }
