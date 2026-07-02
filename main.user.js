@@ -968,6 +968,7 @@
     settings[name] = parseBooleanSetting(savedValue, false);
     refreshConsequences();
     refreshBooleanControls();
+    renderUserPageBlockButton();
   }
 
   function syncThresholdSetting(control, savedValue) {
@@ -975,6 +976,7 @@
     settings[setting] = parseLabelSetting(savedValue, defaultValue, options);
     refreshConsequences();
     refreshThresholdControls();
+    renderUserPageBlockButton();
   }
 
   function readSavedBlockedUids() {
@@ -1130,6 +1132,7 @@
     settings[name] = Boolean(value);
     saveBooleanSetting(SETTING_KEYS[name], settings[name]);
     refreshConsequences();
+    renderUserPageBlockButton();
   }
 
   function setThresholdIndex(control, index) {
@@ -1139,6 +1142,7 @@
     settings[setting] = option.label;
     saveLabelSetting(key, settings[setting]);
     refreshConsequences();
+    renderUserPageBlockButton();
   }
 
   function getBlockedUidList() {
@@ -1465,9 +1469,16 @@
 
   function updateUserPageBlockButton(button, uid) {
     const blocked = BLOCKED_UIDS.has(uid);
+    const blockedByNewUserFilter =
+      !blocked && settings.blockNewUsers && isNewUserUid(uid);
     button.setAttribute("data-uid", uid);
     button.setAttribute("data-blocked", String(blocked));
     button.textContent = blocked ? "BLOCKED" : "BLOCK USER";
+    if (blockedByNewUserFilter) {
+      const hint = document.createElement("span");
+      hint.textContent = "Already blocked as New Users";
+      button.appendChild(hint);
+    }
     button.title = `${blocked ? "Unblock" : "Block"} Bilibili user UID ${uid}`;
   }
 
@@ -1713,12 +1724,13 @@
         text-align: center; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,.18);
       }
       .${PROFILE_BUTTON_CLASS} {
-        display: inline-flex; align-items: center; justify-content: center;
+        display: inline-flex; flex-direction: column; align-items: center; justify-content: center;
         width: 120px; height: 64px; margin-right: 8px;
         border: 1px solid var(--buvb-button-color); border-radius: 0;
-        font-size: 17px; font-weight: 700;
+        font-size: 17px; font-weight: 700; line-height: 20px;
         cursor: pointer; font-family: inherit;
       }
+      .${PROFILE_BUTTON_CLASS} span { font-size: 11px; font-weight: 500; line-height: 14px; }
       .nav-bar__main-right:has(> .${PROFILE_BUTTON_CLASS}) { display: flex; align-items: center; }
       .${FLOATING_BUTTON_CLASS}, #${MANAGER_PANEL_ID} .buvb-manager-action-primary {
         color: #fff; background: var(--buvb-button-color);
