@@ -1325,21 +1325,26 @@
         <button class="buvb-manager-close" type="button" title="Close">×</button>
       </div>
       <section class="buvb-manager-section">
-        ${BOOLEAN_CONTROLS.filter((control) => !control.previewToggle)
-          .map(renderManagerOption)
-          .join("")}
-      </section>
-      <section class="buvb-manager-section">
         <div class="buvb-manager-tabs" role="tablist">
           <button class="buvb-manager-tab" type="button" role="tab" aria-selected="true" data-tab="users">Users</button>
           <button class="buvb-manager-tab" type="button" role="tab" aria-selected="false" data-tab="video-keywords">Videos</button>
           <button class="buvb-manager-tab" type="button" role="tab" aria-selected="false" data-tab="danmuku-keywords">Danmukus</button>
         </div>
         <div class="buvb-manager-tab-panel" role="tabpanel" data-tab-panel="users">
+          ${BOOLEAN_CONTROLS.filter((control) => control.name === "blockNewUsers")
+            .map(renderManagerOption)
+            .join("")}
           <textarea id="${MANAGER_TEXTAREA_ID}" spellcheck="false"></textarea>
           <div class="buvb-manager-help" data-help="users"></div>
         </div>
         <div class="buvb-manager-tab-panel" role="tabpanel" data-tab-panel="video-keywords" hidden>
+          ${BOOLEAN_CONTROLS.filter((control) =>
+            ["hideShortVideos", "hideUnpopularVideos", "hideBadgedVideos"].includes(
+              control.name,
+            ),
+          )
+            .map(renderManagerOption)
+            .join("")}
           <textarea id="${MANAGER_VIDEO_KEYWORDS_TEXTAREA_ID}" spellcheck="false"></textarea>
           <div class="buvb-manager-help" data-help="video-keywords"></div>
         </div>
