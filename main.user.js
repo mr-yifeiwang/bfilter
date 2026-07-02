@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Bilibili Blocklist
 // @namespace    https://github.com/mr-yifeiwang/bilibili-blocklist
-// @version      0.9.2
+// @version      0.10.0
 // @description  Hide Bilibili video cards and comments conditionally
 // @author       mr-yifeiwang
 // @match        https://www.bilibili.com/*
@@ -825,6 +825,8 @@
   }
 
   function containsMultipleVideos(element) {
+    if (isRankPage() && matches(element, ".rank-item")) return false;
+
     const hrefs = new Set();
     if (matches(element, VIDEO_LINK_SELECTOR)) addVideoHref(element, hrefs);
     for (const link of element.querySelectorAll(VIDEO_LINK_SELECTOR))
@@ -1614,6 +1616,7 @@
   function isBlocklistManagerPage() {
     return (
       isBilibiliHomePage() ||
+      isRankPage() ||
       isSearchPage() ||
       isDirectVideoPage() ||
       isOpusPage() ||
@@ -1629,6 +1632,13 @@
 
   function isSearchPage() {
     return location.hostname === "search.bilibili.com";
+  }
+
+  function isRankPage() {
+    return (
+      location.hostname === "www.bilibili.com" &&
+      /^\/v\/popular\/rank(?:\/|$)/.test(location.pathname)
+    );
   }
 
   function isDirectVideoPage() {
