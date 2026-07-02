@@ -1450,11 +1450,11 @@
         danmukuKeywordsTextarea.value;
     }
     if (help)
-      help.textContent = `Enter one UID per line. ${uids.length} user(s) have been blocked.`;
+      help.innerHTML = `<strong>${uids.length}</strong> user(s) have been blocked.\nEnter one UID per line to block users.`;
     if (videoKeywordsHelp)
-      videoKeywordsHelp.textContent = `Enter one keyword per line. Video titles containing these keywords will be blocked. ${videoKeywords.length} keyword(s) have been blocked.`;
+      videoKeywordsHelp.innerHTML = `<strong>${videoKeywords.length}</strong> keyword(s) have been blocked.\nEnter one keyword per line to block videos containing it in their titles.`;
     if (danmukuKeywordsHelp)
-      danmukuKeywordsHelp.textContent = `Enter one keyword per line. Danmukus containing these keywords will be blocked. ${danmukuKeywords.length} keyword(s) have been blocked.`;
+      danmukuKeywordsHelp.innerHTML = `<strong>${danmukuKeywords.length}</strong> keyword(s) have been blocked.\nEnter one keyword per line to block danmukus containing it.`;
     refreshBooleanControls(panel);
     updateManagerSaveButtonState(panel);
   }
@@ -1889,7 +1889,7 @@
       #${MANAGER_PANEL_ID} .buvb-manager-tab-panel { padding-top: 12px; }
       #${MANAGER_PANEL_ID} .buvb-manager-tab-panel[hidden] { display: none !important; }
       #${MANAGER_TEXTAREA_ID}, #${MANAGER_VIDEO_KEYWORDS_TEXTAREA_ID}, #${MANAGER_DANMUKU_KEYWORDS_TEXTAREA_ID} { box-sizing: border-box; width: 100%; min-height: 160px; border: 1px solid #c9ccd0; border-radius: 10px; padding: 10px; color: #18191c; background: #f6f7f8; font: 14px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; resize: vertical; }
-      #${MANAGER_PANEL_ID} .buvb-manager-help { margin: 8px 0 12px; color: #9499a0; font-size: 12px; }
+      #${MANAGER_PANEL_ID} .buvb-manager-help { margin: 8px 0 12px; color: #9499a0; font-size: 12px; white-space: pre-line; }
       #${MANAGER_PANEL_ID} .buvb-manager-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
       #${MANAGER_PANEL_ID} .buvb-manager-preview-toggle { display: inline-flex; align-items: center; gap: 8px; color: #61666d; font-size: 13px; font-weight: 700; cursor: pointer; user-select: none; }
       #${MANAGER_PANEL_ID} .buvb-manager-preview-toggle input { position: absolute; opacity: 0; pointer-events: none; }
