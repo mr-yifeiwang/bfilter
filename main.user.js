@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Bilibili Blocklist
 // @namespace    https://github.com/mr-yifeiwang/bilibili-blocklist
-// @version      0.10.0
+// @version      0.10.1
 // @description  Hide Bilibili video cards and comments conditionally
 // @author       mr-yifeiwang
 // @match        https://www.bilibili.com/*
@@ -1621,7 +1621,7 @@
 
   function isCardBlockingPage() {
     // Deliberately exclude space.bilibili.com from card/comment scanning.
-    return isBlocklistManagerPage() || isDirectVideoPage();
+    return !isUserPage() && isBlocklistManagerPage();
   }
 
   function isBlocklistManagerPage() {
