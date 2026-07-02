@@ -1176,13 +1176,6 @@
     return values;
   }
 
-  function replaceBlockedUids(nextUids) {
-    replaceRuntimeBlockedUids(nextUids);
-    saveBlockedUids();
-    refreshConsequences();
-    refreshBlocklistManagerPanel();
-  }
-
   function setUidBlocked(uid, blocked) {
     replaceRuntimeBlockedUids(readSavedBlockedUids() || []);
     if (blocked) BLOCKED_UIDS.add(uid);
