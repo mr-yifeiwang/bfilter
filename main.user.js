@@ -44,6 +44,8 @@
     hideLiveVideos: "bilibili-uid-blocklist:hide-live-videos",
     hideMangaVideos: "bilibili-uid-blocklist:hide-manga-videos",
     hideCourseVideos: "bilibili-uid-blocklist:hide-course-videos",
+    addUsernamesToFollowing:
+      "bilibili-uid-blocklist:add-usernames-to-following",
   };
 
   const USER_BUTTON_ID = "bilibili-uid-blocklist-user-button";
@@ -270,6 +272,13 @@
       label: "Preview",
       previewToggle: true,
     },
+    {
+      name: "addUsernamesToFollowing",
+      id: "bilibili-uid-blocklist-manager-add-usernames-to-following",
+      label: "Add usernames by default",
+      defaultValue: true,
+      followingOption: true,
+    },
   ];
 
   const BLOCKED_UIDS = new Set();
@@ -285,6 +294,7 @@
     hideLiveVideos: false,
     hideMangaVideos: false,
     hideCourseVideos: false,
+    addUsernamesToFollowing: true,
     registrationTimeThreshold: DEFAULT_REGISTRATION_TIME_THRESHOLD,
     shortVideoThreshold: DEFAULT_SHORT_VIDEO_THRESHOLD,
     unpopularVideoThreshold: DEFAULT_UNPOPULAR_VIDEO_THRESHOLD,
@@ -1144,10 +1154,46 @@
         typeof GM_getValue === "function"
           ? GM_getValue(FOLLOWING_STORAGE_KEY, null)
           : localStorage.getItem(FOLLOWING_STORAGE_KEY);
-      return parseSavedBlockedUids(saved);
+      return parseSavedFollowingUids(saved);
     } catch (_error) {
       return [];
     }
+  }
+
+  function readSavedFollowingText() {
+    try {
+      const saved =
+        typeof GM_getValue === "function"
+          ? GM_getValue(FOLLOWING_STORAGE_KEY, null)
+          : localStorage.getItem(FOLLOWING_STORAGE_KEY);
+      return parseSavedFollowingText(saved);
+    } catch (_error) {
+      return "";
+    }
+  }
+
+  function parseSavedFollowingUids(saved) {
+    if (saved == null) return null;
+    try {
+      const parsed = typeof saved === "string" ? JSON.parse(saved) : saved;
+      if (Array.isArray(parsed))
+        return parsed.map(normalizeUid).filter(Boolean);
+    } catch (_error) {
+      // Treat following storage as editable text when it is not legacy JSON.
+    }
+    return parseFollowingUidText(String(saved || ""));
+  }
+
+  function parseSavedFollowingText(saved) {
+    if (saved == null) return "";
+    try {
+      const parsed = typeof saved === "string" ? JSON.parse(saved) : saved;
+      if (Array.isArray(parsed))
+        return parsed.map(normalizeUid).filter(Boolean).join("\n");
+    } catch (_error) {
+      return String(saved || "");
+    }
+    return String(saved || "");
   }
 
   function parseSavedBlockedUids(saved) {
@@ -1305,9 +1351,10 @@
     }
   }
 
-  function saveFollowingUids() {
+  function saveFollowingUids(textValue) {
     try {
-      const value = JSON.stringify([...FOLLOWING_UIDS]);
+      const value =
+        textValue == null ? JSON.stringify([...FOLLOWING_UIDS]) : textValue;
       if (typeof GM_setValue === "function")
         GM_setValue(FOLLOWING_STORAGE_KEY, value);
       else localStorage.setItem(FOLLOWING_STORAGE_KEY, value);
@@ -1380,6 +1427,10 @@
     );
   }
 
+  function getFollowingTextValue() {
+    return readSavedFollowingText() || getFollowingUidList().join("\n");
+  }
+
   function getBlockedVideoKeywordList() {
     return [...BLOCKED_VIDEO_KEYWORDS];
   }
@@ -1402,6 +1453,20 @@
 
   function parseFollowingUidText(text) {
     return parseBlockedUidText(text);
+  }
+
+  function updateFollowingText(text, uid, following, username = "") {
+    const normalizedUid = normalizeUid(uid);
+    if (!normalizedUid) return text || "";
+    const lines = String(text || "").split(/\r?\n/);
+    const nextLines = lines.filter(
+      (line) => normalizeUid(stripLineComment(line)) !== normalizedUid,
+    );
+    if (following) {
+      const name = String(username || "").trim();
+      nextLines.push(name ? `${normalizedUid} # ${name}` : normalizedUid);
+    }
+    return nextLines.filter((line) => String(line || "").trim()).join("\n");
   }
 
   function parseBlockedVideoKeywordText(text) {
@@ -1447,11 +1512,17 @@
     refreshBlocklistManagerPanel();
   }
 
-  function setUidFollowing(uid, following) {
-    replaceRuntimeFollowingUids(readSavedFollowingUids() || []);
+  function setUidFollowing(uid, following, username = "") {
+    const followingText = updateFollowingText(
+      readSavedFollowingText(),
+      uid,
+      following,
+      settings.addUsernamesToFollowing ? username : "",
+    );
+    replaceRuntimeFollowingUids(parseFollowingUidText(followingText));
     if (following) FOLLOWING_UIDS.add(uid);
     else FOLLOWING_UIDS.delete(uid);
-    saveFollowingUids();
+    saveFollowingUids(followingText);
     refreshConsequences();
     refreshBlocklistManagerPanel();
   }
@@ -1544,6 +1615,9 @@
           <div class="buvb-manager-help" data-help="danmuku-keywords"></div>
         </div>
         <div class="buvb-manager-tab-panel" role="tabpanel" data-tab-panel="following" hidden>
+          ${BOOLEAN_CONTROLS.filter((control) => control.followingOption)
+            .map(renderManagerOption)
+            .join("")}
           ${renderManagerTextarea(MANAGER_FOLLOWING_TEXTAREA_ID)}
           <div class="buvb-manager-help" data-help="following"></div>
         </div>
@@ -1659,6 +1733,7 @@
     if (!panel) return;
     const uids = getBlockedUidList();
     const followingUids = getFollowingUidList();
+    const followingText = getFollowingTextValue();
     const videoKeywords = getBlockedVideoKeywordList();
     const danmukuKeywords = getBlockedDanmukuKeywordList();
     const textarea = panel.querySelector(`#${MANAGER_TEXTAREA_ID}`);
@@ -1692,7 +1767,7 @@
       followingTextarea.value = getManagerTextValue(
         textValues,
         "following",
-        followingUids.join("\n"),
+        followingText,
       );
       followingTextarea.dataset.cleanValue = followingTextarea.value;
       updateManagerCommentHighlight(followingTextarea);
@@ -1829,7 +1904,7 @@
         parseBlockedDanmukuKeywordText(danmukuKeywordsTextarea.value),
       );
     saveBlockedUids();
-    saveFollowingUids();
+    saveFollowingUids(followingTextarea ? followingTextarea.value : undefined);
     saveBlockedVideoKeywords();
     saveBlockedDanmukuKeywords();
     refreshConsequences();
@@ -1913,7 +1988,11 @@
       followButton.addEventListener("click", () => {
         const currentUid = followButton.getAttribute("data-uid");
         if (!currentUid) return;
-        setUidFollowing(currentUid, !FOLLOWING_UIDS.has(currentUid));
+        setUidFollowing(
+          currentUid,
+          !FOLLOWING_UIDS.has(currentUid),
+          getCurrentUserPageUsername(),
+        );
         updateUserPageFollowButton(followButton, currentUid);
         if (button) updateUserPageBlockButton(button, currentUid);
       });
@@ -2167,6 +2246,12 @@
     if (!isUserPage()) return "";
     const match = location.pathname.match(/^\/(\d+)(?:\/|$)/);
     return match ? normalizeUid(match[1]) : "";
+  }
+
+  function getCurrentUserPageUsername() {
+    if (!isUserPage()) return "";
+    const element = document.querySelector(".nickname");
+    return element ? String(element.textContent || "").trim() : "";
   }
 
   function isUserPage() {
