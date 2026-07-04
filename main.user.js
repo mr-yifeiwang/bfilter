@@ -1390,15 +1390,11 @@
   }
 
   function getBlockedUidList() {
-    return [...BLOCKED_UIDS].sort((a, b) =>
-      a.length === b.length ? a.localeCompare(b) : a.length - b.length,
-    );
+    return [...BLOCKED_UIDS];
   }
 
   function getFollowingUidList() {
-    return [...FOLLOWING_UIDS].sort((a, b) =>
-      a.length === b.length ? a.localeCompare(b) : a.length - b.length,
-    );
+    return [...FOLLOWING_UIDS];
   }
 
   function getFollowingTextValue() {
