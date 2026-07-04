@@ -1389,7 +1389,15 @@
   }
 
   function parseBlockedUidText(text) {
-    return [...new Set(text.split(/\r?\n/).map(normalizeUid).filter(Boolean))];
+    return [
+      ...new Set(
+        text
+          .split(/\r?\n/)
+          .map(stripLineComment)
+          .map(normalizeUid)
+          .filter(Boolean),
+      ),
+    ];
   }
 
   function parseFollowingUidText(text) {
@@ -1397,11 +1405,21 @@
   }
 
   function parseBlockedVideoKeywordText(text) {
-    return dedupeKeywords(String(text || "").split(/\r?\n/));
+    return dedupeKeywords(
+      String(text || "")
+        .split(/\r?\n/)
+        .map(stripLineComment),
+    );
   }
 
   function parseBlockedDanmukuKeywordText(text) {
     return parseBlockedVideoKeywordText(text);
+  }
+
+  function stripLineComment(line) {
+    return String(line || "")
+      .split("#")[0]
+      .trim();
   }
 
   function dedupeKeywords(keywords) {
@@ -1620,6 +1638,7 @@
 
   function refreshBlocklistManagerPanel(
     panel = document.getElementById(MANAGER_PANEL_ID),
+    textValues = {},
   ) {
     if (!panel) return;
     const uids = getBlockedUidList();
@@ -1645,19 +1664,35 @@
       '[data-help="danmuku-keywords"]',
     );
     if (textarea) {
-      textarea.value = uids.join("\n");
+      textarea.value = getManagerTextValue(
+        textValues,
+        "users",
+        uids.join("\n"),
+      );
       textarea.dataset.cleanValue = textarea.value;
     }
     if (followingTextarea) {
-      followingTextarea.value = followingUids.join("\n");
+      followingTextarea.value = getManagerTextValue(
+        textValues,
+        "following",
+        followingUids.join("\n"),
+      );
       followingTextarea.dataset.cleanValue = followingTextarea.value;
     }
     if (videoKeywordsTextarea) {
-      videoKeywordsTextarea.value = videoKeywords.join("\n");
+      videoKeywordsTextarea.value = getManagerTextValue(
+        textValues,
+        "videoKeywords",
+        videoKeywords.join("\n"),
+      );
       videoKeywordsTextarea.dataset.cleanValue = videoKeywordsTextarea.value;
     }
     if (danmukuKeywordsTextarea) {
-      danmukuKeywordsTextarea.value = danmukuKeywords.join("\n");
+      danmukuKeywordsTextarea.value = getManagerTextValue(
+        textValues,
+        "danmukuKeywords",
+        danmukuKeywords.join("\n"),
+      );
       danmukuKeywordsTextarea.dataset.cleanValue =
         danmukuKeywordsTextarea.value;
     }
@@ -1671,6 +1706,12 @@
       danmukuKeywordsHelp.innerHTML = `<strong>${danmukuKeywords.length}</strong> keyword(s) have been blocked.\nEnter one keyword per line to block danmukus containing it.`;
     refreshBooleanControls(panel);
     updateManagerSaveButtonState(panel);
+  }
+
+  function getManagerTextValue(textValues, name, fallback) {
+    return Object.prototype.hasOwnProperty.call(textValues, name)
+      ? textValues[name]
+      : fallback;
   }
 
   function setActiveManagerTab(panel, tabName) {
@@ -1710,6 +1751,14 @@
     const danmukuKeywordsTextarea = panel.querySelector(
       `#${MANAGER_DANMUKU_KEYWORDS_TEXTAREA_ID}`,
     );
+    const textValues = {
+      users: textarea ? textarea.value : "",
+      following: followingTextarea ? followingTextarea.value : "",
+      videoKeywords: videoKeywordsTextarea ? videoKeywordsTextarea.value : "",
+      danmukuKeywords: danmukuKeywordsTextarea
+        ? danmukuKeywordsTextarea.value
+        : "",
+    };
     if (textarea)
       replaceRuntimeBlockedUids(parseBlockedUidText(textarea.value));
     if (followingTextarea)
@@ -1729,7 +1778,7 @@
     saveBlockedVideoKeywords();
     saveBlockedDanmukuKeywords();
     refreshConsequences();
-    refreshBlocklistManagerPanel(panel);
+    refreshBlocklistManagerPanel(panel, textValues);
   }
 
   function refreshBooleanControls(
