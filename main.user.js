@@ -2372,6 +2372,7 @@
       #${MANAGER_PANEL_ID} .buvb-manager-tabs { display: flex; align-items: flex-end; gap: 4px; border-bottom: 1px solid #e3e5e7; }
       #${MANAGER_PANEL_ID} .buvb-manager-tab { position: relative; border: 1px solid transparent; border-bottom: 0; border-radius: 10px 10px 0 0; padding: 7px 14px; color: #61666d; background: transparent; font-size: 13px; cursor: pointer; }
       #${MANAGER_PANEL_ID} .buvb-manager-tab[aria-selected="true"] { border-color: #e3e5e7; color: var(--buvb-button-color); background: #fff; cursor: default; }
+      #${MANAGER_PANEL_ID} .buvb-manager-tab[data-tab="following"][aria-selected="true"] { color: var(--buvb-follow-color); }
       #${MANAGER_PANEL_ID} .buvb-manager-tab[aria-selected="true"]::after { content: ""; position: absolute; right: 0; bottom: -1px; left: 0; height: 1px; background: #fff; }
       #${MANAGER_PANEL_ID} .buvb-manager-tab-panel { padding-top: 12px; }
       #${MANAGER_PANEL_ID} .buvb-manager-tab-panel[hidden] { display: none !important; }
