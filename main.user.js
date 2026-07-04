@@ -1811,6 +1811,7 @@
         if (!currentUid) return;
         setUidFollowing(currentUid, !FOLLOWING_UIDS.has(currentUid));
         updateUserPageFollowButton(followButton, currentUid);
+        if (button) updateUserPageBlockButton(button, currentUid);
       });
     }
 
@@ -1852,17 +1853,21 @@
 
   function updateUserPageBlockButton(button, uid) {
     const blocked = BLOCKED_UIDS.has(uid);
+    const following = FOLLOWING_UIDS.has(uid);
     const blockedByNewUserFilter =
       !blocked && settings.blockNewUsers && isNewUserUid(uid);
     button.setAttribute("data-uid", uid);
     button.setAttribute("data-blocked", String(blocked));
+    button.disabled = following;
     button.textContent = blocked ? "BLOCKED" : "BLOCK";
     if (blockedByNewUserFilter) {
       const hint = document.createElement("span");
       hint.textContent = "Already blocked as New Users";
       button.appendChild(hint);
     }
-    button.title = `${blocked ? "Unblock" : "Block"} Bilibili user UID ${uid}`;
+    button.title = following
+      ? `Followed Bilibili user UID ${uid} cannot be blocked here`
+      : `${blocked ? "Unblock" : "Block"} Bilibili user UID ${uid}`;
   }
 
   function renderCommentBlockButtons() {
@@ -2143,6 +2148,10 @@
       .${PROFILE_BUTTON_CLASS}[data-blocked="true"]:hover { background: var(--buvb-button-hover-color); }
       .${PROFILE_BUTTON_CLASS}[data-following] { color: var(--buvb-follow-color); border-color: var(--buvb-follow-color); }
       .${PROFILE_BUTTON_CLASS}[data-following]:hover, .${PROFILE_BUTTON_CLASS}[data-following="true"] { color: #fff; background: var(--buvb-follow-color); }
+      .${PROFILE_BUTTON_CLASS}:disabled, .${PROFILE_BUTTON_CLASS}:disabled:hover {
+        color: #9499a0; background: #f1f2f3; border-color: #c9ccd0; cursor: not-allowed;
+        text-decoration: line-through;
+      }
       #${MANAGER_PANEL_ID} {
         position: fixed; top: 62px; right: 24px; z-index: 999999;
         width: min(420px, calc(100vw - 48px)); border: 1px solid rgba(0,0,0,.08);
