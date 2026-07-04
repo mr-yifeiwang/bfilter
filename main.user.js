@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Bilibili Blocklist
 // @namespace    https://github.com/mr-yifeiwang/bilibili-blocklist
-// @version      0.11.1
+// @version      0.12.0
 // @description  Hide Bilibili videos, comments, and danmukus conditionally
 // @author       mr-yifeiwang
 // @match        https://www.bilibili.com/*

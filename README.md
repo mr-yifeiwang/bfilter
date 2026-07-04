@@ -13,6 +13,7 @@ Bilibili's built-in blocklist is account-bounded and sometimes limited. This scr
 It also supports the following experimental features:
 
 - Blocking all commenters under a video or a post
+- Following users and highlighting their videos and posts
 
 ## Installation
 
