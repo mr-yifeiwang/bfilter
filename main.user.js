@@ -1097,9 +1097,7 @@
   }
 
   function syncFollowingUids(savedValue) {
-    const savedUids = parseSavedBlockedUids(savedValue);
-    if (!savedUids) return;
-    replaceRuntimeFollowingUids(savedUids);
+    replaceRuntimeFollowingUids(parseFollowingUidText(savedValue || ""));
     refreshConsequences();
     refreshBlocklistManagerPanel();
     renderUserPageBlockButton();
@@ -1154,7 +1152,7 @@
         typeof GM_getValue === "function"
           ? GM_getValue(FOLLOWING_STORAGE_KEY, null)
           : localStorage.getItem(FOLLOWING_STORAGE_KEY);
-      return parseSavedFollowingUids(saved);
+      return parseFollowingUidText(saved || "");
     } catch (_error) {
       return [];
     }
@@ -1166,34 +1164,10 @@
         typeof GM_getValue === "function"
           ? GM_getValue(FOLLOWING_STORAGE_KEY, null)
           : localStorage.getItem(FOLLOWING_STORAGE_KEY);
-      return parseSavedFollowingText(saved);
+      return String(saved || "");
     } catch (_error) {
       return "";
     }
-  }
-
-  function parseSavedFollowingUids(saved) {
-    if (saved == null) return null;
-    try {
-      const parsed = typeof saved === "string" ? JSON.parse(saved) : saved;
-      if (Array.isArray(parsed))
-        return parsed.map(normalizeUid).filter(Boolean);
-    } catch (_error) {
-      // Treat following storage as editable text when it is not legacy JSON.
-    }
-    return parseFollowingUidText(String(saved || ""));
-  }
-
-  function parseSavedFollowingText(saved) {
-    if (saved == null) return "";
-    try {
-      const parsed = typeof saved === "string" ? JSON.parse(saved) : saved;
-      if (Array.isArray(parsed))
-        return parsed.map(normalizeUid).filter(Boolean).join("\n");
-    } catch (_error) {
-      return String(saved || "");
-    }
-    return String(saved || "");
   }
 
   function parseSavedBlockedUids(saved) {
@@ -1354,7 +1328,7 @@
   function saveFollowingUids(textValue) {
     try {
       const value =
-        textValue == null ? JSON.stringify([...FOLLOWING_UIDS]) : textValue;
+        textValue == null ? getFollowingUidList().join("\n") : textValue;
       if (typeof GM_setValue === "function")
         GM_setValue(FOLLOWING_STORAGE_KEY, value);
       else localStorage.setItem(FOLLOWING_STORAGE_KEY, value);
