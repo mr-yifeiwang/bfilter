@@ -1523,7 +1523,7 @@
           )
             .map(renderManagerOption)
             .join("")}
-          <textarea id="${MANAGER_TEXTAREA_ID}" spellcheck="false"></textarea>
+          ${renderManagerTextarea(MANAGER_TEXTAREA_ID)}
           <div class="buvb-manager-help" data-help="users"></div>
         </div>
         <div class="buvb-manager-tab-panel" role="tabpanel" data-tab-panel="video-keywords" hidden>
@@ -1536,15 +1536,15 @@
           )
             .map(renderManagerOption)
             .join("")}
-          <textarea id="${MANAGER_VIDEO_KEYWORDS_TEXTAREA_ID}" spellcheck="false"></textarea>
+          ${renderManagerTextarea(MANAGER_VIDEO_KEYWORDS_TEXTAREA_ID)}
           <div class="buvb-manager-help" data-help="video-keywords"></div>
         </div>
         <div class="buvb-manager-tab-panel" role="tabpanel" data-tab-panel="danmuku-keywords" hidden>
-          <textarea id="${MANAGER_DANMUKU_KEYWORDS_TEXTAREA_ID}" spellcheck="false"></textarea>
+          ${renderManagerTextarea(MANAGER_DANMUKU_KEYWORDS_TEXTAREA_ID)}
           <div class="buvb-manager-help" data-help="danmuku-keywords"></div>
         </div>
         <div class="buvb-manager-tab-panel" role="tabpanel" data-tab-panel="following" hidden>
-          <textarea id="${MANAGER_FOLLOWING_TEXTAREA_ID}" spellcheck="false"></textarea>
+          ${renderManagerTextarea(MANAGER_FOLLOWING_TEXTAREA_ID)}
           <div class="buvb-manager-help" data-help="following"></div>
         </div>
         <div class="buvb-manager-actions">
@@ -1578,9 +1578,21 @@
           target.id === MANAGER_FOLLOWING_TEXTAREA_ID ||
           target.id === MANAGER_VIDEO_KEYWORDS_TEXTAREA_ID ||
           target.id === MANAGER_DANMUKU_KEYWORDS_TEXTAREA_ID)
-      )
+      ) {
+        updateManagerCommentHighlight(target);
         updateManagerSaveButtonState(panel);
+      }
     });
+
+    panel.addEventListener(
+      "scroll",
+      (event) => {
+        const target = event.target;
+        if (target && target.matches(".buvb-manager-textarea"))
+          syncManagerCommentHighlightScroll(target);
+      },
+      true,
+    );
 
     panel.addEventListener("change", (event) => {
       const target = event.target;
@@ -1603,6 +1615,10 @@
 
     refreshBlocklistManagerPanel(panel);
     return panel;
+  }
+
+  function renderManagerTextarea(id) {
+    return `<div class="buvb-manager-textarea-wrap"><pre class="buvb-manager-textarea-highlight" aria-hidden="true"></pre><textarea id="${id}" class="buvb-manager-textarea" spellcheck="false"></textarea></div>`;
   }
 
   function renderManagerOption(control) {
@@ -1670,6 +1686,7 @@
         uids.join("\n"),
       );
       textarea.dataset.cleanValue = textarea.value;
+      updateManagerCommentHighlight(textarea);
     }
     if (followingTextarea) {
       followingTextarea.value = getManagerTextValue(
@@ -1678,6 +1695,7 @@
         followingUids.join("\n"),
       );
       followingTextarea.dataset.cleanValue = followingTextarea.value;
+      updateManagerCommentHighlight(followingTextarea);
     }
     if (videoKeywordsTextarea) {
       videoKeywordsTextarea.value = getManagerTextValue(
@@ -1686,6 +1704,7 @@
         videoKeywords.join("\n"),
       );
       videoKeywordsTextarea.dataset.cleanValue = videoKeywordsTextarea.value;
+      updateManagerCommentHighlight(videoKeywordsTextarea);
     }
     if (danmukuKeywordsTextarea) {
       danmukuKeywordsTextarea.value = getManagerTextValue(
@@ -1695,6 +1714,7 @@
       );
       danmukuKeywordsTextarea.dataset.cleanValue =
         danmukuKeywordsTextarea.value;
+      updateManagerCommentHighlight(danmukuKeywordsTextarea);
     }
     if (help)
       help.innerHTML = `<strong>${uids.length}</strong> user(s) have been blocked.\nEnter one UID per line to block users.`;
@@ -1712,6 +1732,41 @@
     return Object.prototype.hasOwnProperty.call(textValues, name)
       ? textValues[name]
       : fallback;
+  }
+
+  function updateManagerCommentHighlight(textarea) {
+    const highlight = getManagerCommentHighlight(textarea);
+    if (!highlight) return;
+    highlight.innerHTML = renderManagerCommentHighlight(textarea.value);
+    syncManagerCommentHighlightScroll(textarea);
+  }
+
+  function syncManagerCommentHighlightScroll(textarea) {
+    const highlight = getManagerCommentHighlight(textarea);
+    if (!highlight) return;
+    highlight.scrollTop = textarea.scrollTop;
+    highlight.scrollLeft = textarea.scrollLeft;
+  }
+
+  function getManagerCommentHighlight(textarea) {
+    return textarea.parentElement
+      ? textarea.parentElement.querySelector(".buvb-manager-textarea-highlight")
+      : null;
+  }
+
+  function renderManagerCommentHighlight(text) {
+    return String(text || "")
+      .split(/(\r?\n)/)
+      .map((part) =>
+        /\r?\n/.test(part) ? part : renderManagerCommentHighlightLine(part),
+      )
+      .join("");
+  }
+
+  function renderManagerCommentHighlightLine(line) {
+    const commentIndex = line.indexOf("#");
+    if (commentIndex < 0) return escapeHtml(line);
+    return `${escapeHtml(line.slice(0, commentIndex))}<span class="buvb-manager-comment">${escapeHtml(line.slice(commentIndex))}</span>`;
   }
 
   function setActiveManagerTab(panel, tabName) {
@@ -2235,7 +2290,12 @@
       #${MANAGER_PANEL_ID} .buvb-manager-tab[aria-selected="true"]::after { content: ""; position: absolute; right: 0; bottom: -1px; left: 0; height: 1px; background: #fff; }
       #${MANAGER_PANEL_ID} .buvb-manager-tab-panel { padding-top: 12px; }
       #${MANAGER_PANEL_ID} .buvb-manager-tab-panel[hidden] { display: none !important; }
-      #${MANAGER_TEXTAREA_ID}, #${MANAGER_FOLLOWING_TEXTAREA_ID}, #${MANAGER_VIDEO_KEYWORDS_TEXTAREA_ID}, #${MANAGER_DANMUKU_KEYWORDS_TEXTAREA_ID} { box-sizing: border-box; width: 100%; min-height: 160px; border: 1px solid #c9ccd0; border-radius: 10px; padding: 10px; color: #18191c; background: #f6f7f8; font: 14px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; resize: vertical; }
+      #${MANAGER_PANEL_ID} .buvb-manager-textarea-wrap { position: relative; }
+      #${MANAGER_PANEL_ID} .buvb-manager-textarea-highlight,
+      #${MANAGER_PANEL_ID} .buvb-manager-textarea { box-sizing: border-box; width: 100%; min-height: 160px; border: 1px solid #c9ccd0; border-radius: 10px; padding: 10px; font: 14px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
+      #${MANAGER_PANEL_ID} .buvb-manager-textarea-highlight { position: absolute; inset: 0; margin: 0; overflow: hidden; color: #18191c; background: #f6f7f8; pointer-events: none; }
+      #${MANAGER_PANEL_ID} .buvb-manager-textarea { position: relative; display: block; color: transparent; background: transparent; caret-color: #18191c; resize: vertical; }
+      #${MANAGER_PANEL_ID} .buvb-manager-comment { color: #9499a0; }
       #${MANAGER_PANEL_ID} .buvb-manager-help { margin: 8px 0 12px; color: #9499a0; font-size: 12px; white-space: pre-line; }
       #${MANAGER_PANEL_ID} .buvb-manager-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
       #${MANAGER_PANEL_ID} .buvb-manager-preview-toggle { display: inline-flex; align-items: center; gap: 8px; color: #61666d; font-size: 13px; font-weight: 700; cursor: pointer; user-select: none; }
