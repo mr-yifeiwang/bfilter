@@ -599,6 +599,180 @@
     return !isDirectVideoPage() || isInsideRecommendationArea(card);
   }
 
+  function getMatchedVideoKeyword(text) {
+    if (!BLOCKED_VIDEO_KEYWORDS.size) return "";
+    const haystack = String(text || "");
+    if (!haystack) return "";
+    return [...BLOCKED_VIDEO_KEYWORDS].find((keyword) =>
+      haystack.includes(keyword),
+    );
+  }
+
+  function getMatchedDanmakuKeyword(text) {
+    if (!BLOCKED_DANMAKU_KEYWORDS.size) return "";
+    const haystack = String(text || "");
+    if (!haystack) return "";
+    return [...BLOCKED_DANMAKU_KEYWORDS].find((keyword) =>
+      haystack.includes(keyword),
+    );
+  }
+
+  function getVideoTitleText(card) {
+    if (!isElement(card)) return "";
+    const values = [];
+    for (const element of getVideoTitleElements(card)) {
+      values.push(
+        element.textContent || "",
+        element.getAttribute("title") || "",
+      );
+    }
+    return values.join(" ");
+  }
+
+  function getVideoTitleElements(card) {
+    const elements = new Set();
+    for (const element of card.querySelectorAll(
+      [
+        ".bili-video-card__info--tit",
+        ".video-title",
+        ".title-text",
+        'a[href*="/video/"][title]',
+        'a[href*="bilibili.com/video/"][title]',
+        'a[href*="/bangumi/play/"][title]',
+      ].join(","),
+    )) {
+      elements.add(element);
+    }
+    return elements;
+  }
+
+  function getDanmakuText(danmaku) {
+    const text = danmaku.querySelector(DANMAKU_TEXT_SELECTOR);
+    return text ? text.textContent || "" : danmaku.textContent || "";
+  }
+
+  function isNewUserUid(uid) {
+    return /^\d+$/.test(uid) && uid.length >= getRegistrationTimeThreshold();
+  }
+
+  function getRegistrationTimeThreshold() {
+    return getRegistrationTimeThresholdOption().minDigits;
+  }
+
+  function getRegistrationTimeThresholdOption(
+    value = settings.registrationTimeThreshold,
+  ) {
+    return (
+      REGISTRATION_TIME_THRESHOLD_OPTIONS.find(
+        (option) => option.label === value,
+      ) ||
+      REGISTRATION_TIME_THRESHOLD_OPTIONS[
+        REGISTRATION_TIME_THRESHOLD_OPTIONS.length - 1
+      ]
+    );
+  }
+
+  function getShortVideoThresholdSeconds() {
+    return getShortVideoThresholdOption().seconds;
+  }
+
+  function getShortVideoThresholdOption(value = settings.shortVideoThreshold) {
+    return (
+      SHORT_VIDEO_THRESHOLD_OPTIONS.find((option) => option.label === value) ||
+      SHORT_VIDEO_THRESHOLD_OPTIONS[2]
+    );
+  }
+
+  function getUnpopularVideoThresholdViews() {
+    return getUnpopularVideoThresholdOption().views;
+  }
+
+  function getUnpopularVideoThresholdOption(
+    value = settings.unpopularVideoThreshold,
+  ) {
+    return (
+      UNPOPULAR_VIDEO_THRESHOLD_OPTIONS.find(
+        (option) => option.label === value,
+      ) || UNPOPULAR_VIDEO_THRESHOLD_OPTIONS[2]
+    );
+  }
+
+  function getVideoDurationSeconds(card) {
+    for (const element of getDurationElements(card)) {
+      const seconds = parseDurationSeconds(element.textContent || "");
+      if (seconds > 0) return seconds;
+    }
+    return 0;
+  }
+
+  function getDurationElements(card) {
+    const elements = new Set(card.querySelectorAll(DURATION_SELECTOR));
+    if (matches(card, DURATION_SELECTOR)) elements.add(card);
+    for (const element of card.querySelectorAll("*")) {
+      if (
+        !element.children.length &&
+        /^\s*\d{1,2}:\d{2}(?::\d{2})?\s*$/.test(element.textContent || "")
+      ) {
+        elements.add(element);
+      }
+    }
+    return elements;
+  }
+
+  function parseDurationSeconds(text) {
+    const match = String(text || "")
+      .trim()
+      .match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+    if (!match) return 0;
+    return match[3] == null
+      ? Number(match[1]) * 60 + Number(match[2])
+      : Number(match[1]) * 3600 + Number(match[2]) * 60 + Number(match[3]);
+  }
+
+  function getVideoViewCount(card) {
+    const preferred = [...card.querySelectorAll(STAT_SELECTOR)].filter(
+      isViewCountElement,
+    );
+    const fallback = [...card.querySelectorAll(STAT_SELECTOR)].filter(
+      isLikelyViewCountFallbackElement,
+    );
+    for (const element of [...preferred, ...fallback]) {
+      const count = parseViewCount(element.innerText || "");
+      if (count != null) return count;
+    }
+    return null;
+  }
+
+  function isViewCountElement(element) {
+    if (matches(element, DURATION_SELECTOR)) return false;
+    return /play|view|播放|观看/i.test(getClueText(element, true));
+  }
+
+  function isLikelyViewCountFallbackElement(element) {
+    const text = element.textContent || "";
+    if (text.includes(":")) return false;
+    if (parseViewCount(text) == null) return false;
+    return /stat|播放|观看|play|view/i.test(getClueText(element, false));
+  }
+
+  function getClueText(element, includeText) {
+    return `${element.className || ""} ${element.getAttribute("aria-label") || ""} ${element.getAttribute("title") || ""} ${includeText ? element.textContent || "" : ""}`;
+  }
+
+  function parseViewCount(text) {
+    const normalized = String(text || "")
+      .replace(/,/g, "")
+      .trim();
+    if (!normalized || normalized.includes(":")) return null;
+    const match = normalized.match(/(\d+(?:\.\d+)?)\s*([万亿]?)/);
+    if (!match) return null;
+    const value = Number(match[1]);
+    if (!Number.isFinite(value)) return null;
+    if (match[2] === "万") return value * 10000;
+    if (match[2] === "亿") return value * 100000000;
+    return value;
+  }
+
   function resolveConsequenceTarget(card, reason) {
     if (isBadgedVideoReason(reason)) {
       const searchResultCard = card.closest(".video-list-item");
@@ -778,180 +952,6 @@
   function normalizeUid(value) {
     const match = value == null ? null : String(value).trim().match(/^\d+$/);
     return match ? match[0] : "";
-  }
-
-  function getMatchedVideoKeyword(text) {
-    if (!BLOCKED_VIDEO_KEYWORDS.size) return "";
-    const haystack = String(text || "");
-    if (!haystack) return "";
-    return [...BLOCKED_VIDEO_KEYWORDS].find((keyword) =>
-      haystack.includes(keyword),
-    );
-  }
-
-  function getMatchedDanmakuKeyword(text) {
-    if (!BLOCKED_DANMAKU_KEYWORDS.size) return "";
-    const haystack = String(text || "");
-    if (!haystack) return "";
-    return [...BLOCKED_DANMAKU_KEYWORDS].find((keyword) =>
-      haystack.includes(keyword),
-    );
-  }
-
-  function getVideoTitleText(card) {
-    if (!isElement(card)) return "";
-    const values = [];
-    for (const element of getVideoTitleElements(card)) {
-      values.push(
-        element.textContent || "",
-        element.getAttribute("title") || "",
-      );
-    }
-    return values.join(" ");
-  }
-
-  function getVideoTitleElements(card) {
-    const elements = new Set();
-    for (const element of card.querySelectorAll(
-      [
-        ".bili-video-card__info--tit",
-        ".video-title",
-        ".title-text",
-        'a[href*="/video/"][title]',
-        'a[href*="bilibili.com/video/"][title]',
-        'a[href*="/bangumi/play/"][title]',
-      ].join(","),
-    )) {
-      elements.add(element);
-    }
-    return elements;
-  }
-
-  function getDanmakuText(danmaku) {
-    const text = danmaku.querySelector(DANMAKU_TEXT_SELECTOR);
-    return text ? text.textContent || "" : danmaku.textContent || "";
-  }
-
-  function isNewUserUid(uid) {
-    return /^\d+$/.test(uid) && uid.length >= getRegistrationTimeThreshold();
-  }
-
-  function getRegistrationTimeThreshold() {
-    return getRegistrationTimeThresholdOption().minDigits;
-  }
-
-  function getRegistrationTimeThresholdOption(
-    value = settings.registrationTimeThreshold,
-  ) {
-    return (
-      REGISTRATION_TIME_THRESHOLD_OPTIONS.find(
-        (option) => option.label === value,
-      ) ||
-      REGISTRATION_TIME_THRESHOLD_OPTIONS[
-        REGISTRATION_TIME_THRESHOLD_OPTIONS.length - 1
-      ]
-    );
-  }
-
-  function getShortVideoThresholdSeconds() {
-    return getShortVideoThresholdOption().seconds;
-  }
-
-  function getShortVideoThresholdOption(value = settings.shortVideoThreshold) {
-    return (
-      SHORT_VIDEO_THRESHOLD_OPTIONS.find((option) => option.label === value) ||
-      SHORT_VIDEO_THRESHOLD_OPTIONS[2]
-    );
-  }
-
-  function getUnpopularVideoThresholdViews() {
-    return getUnpopularVideoThresholdOption().views;
-  }
-
-  function getUnpopularVideoThresholdOption(
-    value = settings.unpopularVideoThreshold,
-  ) {
-    return (
-      UNPOPULAR_VIDEO_THRESHOLD_OPTIONS.find(
-        (option) => option.label === value,
-      ) || UNPOPULAR_VIDEO_THRESHOLD_OPTIONS[2]
-    );
-  }
-
-  function getVideoDurationSeconds(card) {
-    for (const element of getDurationElements(card)) {
-      const seconds = parseDurationSeconds(element.textContent || "");
-      if (seconds > 0) return seconds;
-    }
-    return 0;
-  }
-
-  function getDurationElements(card) {
-    const elements = new Set(card.querySelectorAll(DURATION_SELECTOR));
-    if (matches(card, DURATION_SELECTOR)) elements.add(card);
-    for (const element of card.querySelectorAll("*")) {
-      if (
-        !element.children.length &&
-        /^\s*\d{1,2}:\d{2}(?::\d{2})?\s*$/.test(element.textContent || "")
-      ) {
-        elements.add(element);
-      }
-    }
-    return elements;
-  }
-
-  function parseDurationSeconds(text) {
-    const match = String(text || "")
-      .trim()
-      .match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
-    if (!match) return 0;
-    return match[3] == null
-      ? Number(match[1]) * 60 + Number(match[2])
-      : Number(match[1]) * 3600 + Number(match[2]) * 60 + Number(match[3]);
-  }
-
-  function getVideoViewCount(card) {
-    const preferred = [...card.querySelectorAll(STAT_SELECTOR)].filter(
-      isViewCountElement,
-    );
-    const fallback = [...card.querySelectorAll(STAT_SELECTOR)].filter(
-      isLikelyViewCountFallbackElement,
-    );
-    for (const element of [...preferred, ...fallback]) {
-      const count = parseViewCount(element.innerText || "");
-      if (count != null) return count;
-    }
-    return null;
-  }
-
-  function isViewCountElement(element) {
-    if (matches(element, DURATION_SELECTOR)) return false;
-    return /play|view|播放|观看/i.test(getClueText(element, true));
-  }
-
-  function isLikelyViewCountFallbackElement(element) {
-    const text = element.textContent || "";
-    if (text.includes(":")) return false;
-    if (parseViewCount(text) == null) return false;
-    return /stat|播放|观看|play|view/i.test(getClueText(element, false));
-  }
-
-  function getClueText(element, includeText) {
-    return `${element.className || ""} ${element.getAttribute("aria-label") || ""} ${element.getAttribute("title") || ""} ${includeText ? element.textContent || "" : ""}`;
-  }
-
-  function parseViewCount(text) {
-    const normalized = String(text || "")
-      .replace(/,/g, "")
-      .trim();
-    if (!normalized || normalized.includes(":")) return null;
-    const match = normalized.match(/(\d+(?:\.\d+)?)\s*([万亿]?)/);
-    if (!match) return null;
-    const value = Number(match[1]);
-    if (!Number.isFinite(value)) return null;
-    if (match[2] === "万") return value * 10000;
-    if (match[2] === "亿") return value * 100000000;
-    return value;
   }
 
   function containsMultipleVideos(element) {
