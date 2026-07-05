@@ -1411,6 +1411,14 @@
     return parseBlockedUserListText(text);
   }
 
+  function parseKeywordListText(text) {
+    return dedupeKeywords(
+      String(text || "")
+        .split(/\r?\n/)
+        .map(stripLineComment),
+    );
+  }
+
   function updateFollowingText(text, uid, following, username = "") {
     const normalizedUid = normalizeUid(uid);
     if (!normalizedUid) return text || "";
@@ -1426,15 +1434,11 @@
   }
 
   function parseVideoKeywordListText(text) {
-    return dedupeKeywords(
-      String(text || "")
-        .split(/\r?\n/)
-        .map(stripLineComment),
-    );
+    return parseKeywordListText(text);
   }
 
   function parseDanmakuKeywordListText(text) {
-    return parseVideoKeywordListText(text);
+    return parseKeywordListText(text);
   }
 
   function stripLineComment(line) {
