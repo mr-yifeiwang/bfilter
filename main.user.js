@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Bfilter
 // @namespace    https://github.com/mr-yifeiwang/bfilter
-// @version      0.13.1
+// @version      0.14.0
 // @description  Manage in-browser Bilibili followlist and blocklist
 // @author       mr-yifeiwang
 // @icon         https://raw.githubusercontent.com/mr-yifeiwang/bfilter/master/assets/logo-128x128.png
@@ -43,6 +43,7 @@
     hideLiveVideos: "bfilter:hide-live-videos",
     hideMangaVideos: "bfilter:hide-manga-videos",
     hideCourseVideos: "bfilter:hide-course-videos",
+    hideBangumiVideos: "bfilter:hide-bangumi-videos",
     addUsernamesToFollowing: "bfilter:add-usernames-to-following",
   };
 
@@ -111,6 +112,7 @@
     live: 'a[href*="live.bilibili.com/"]',
     manga: 'a[href*="manga.bilibili.com/"]',
     course: 'a[href*="bilibili.com/cheese/"]',
+    bangumi: 'a[href*="bilibili.com/bangumi/"]',
   };
   const BADGED_VIDEO_LINK_SELECTOR = Object.values(
     BADGED_VIDEO_LINK_SELECTORS,
@@ -264,6 +266,13 @@
       childOf: "hideBadgedVideos",
     },
     {
+      name: "hideBangumiVideos",
+      id: "bfilter-manager-hide-bangumi-videos",
+      label: "Bangumi",
+      defaultValue: false,
+      childOf: "hideBadgedVideos",
+    },
+    {
       name: "previewMode",
       id: "bfilter-manager-preview-mode",
       label: "Preview",
@@ -291,6 +300,7 @@
     hideLiveVideos: false,
     hideMangaVideos: false,
     hideCourseVideos: false,
+    hideBangumiVideos: false,
     addUsernamesToFollowing: true,
     registrationTimeThreshold: DEFAULT_REGISTRATION_TIME_THRESHOLD,
     shortVideoThreshold: DEFAULT_SHORT_VIDEO_THRESHOLD,
@@ -908,6 +918,7 @@
       settings.hideLiveVideos && BADGED_VIDEO_LINK_SELECTORS.live,
       settings.hideMangaVideos && BADGED_VIDEO_LINK_SELECTORS.manga,
       settings.hideCourseVideos && BADGED_VIDEO_LINK_SELECTORS.course,
+      settings.hideBangumiVideos && BADGED_VIDEO_LINK_SELECTORS.bangumi,
     ]
       .filter(Boolean)
       .join(",");

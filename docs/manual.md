@@ -146,7 +146,7 @@ This tab also includes video metadata filters:
 
 - **Hide short videos** with thresholds from `< 1 min` through `< 20 min`.
 - **Hide unpopular videos** with thresholds from `< 1k views` through `< 100k views`.
-- **Hide badged videos**, with selectable child types: **Live**, **Manga**, and **Course**.
+- **Hide badged videos**, with selectable child types: **Live**, **Manga**, **Course**, and **Bangumi**.
 
 Metadata filters are applied to card-like results and to recommendation areas on direct video pages. They are intentionally not applied to the primary video page owner/content area.
 
@@ -259,11 +259,12 @@ Available thresholds:
 
 When enabled, Bfilter can hide card-like links to selected Bilibili content families:
 
-| Type   | Link selector          |
-| ------ | ---------------------- |
-| Live   | `live.bilibili.com/`   |
-| Manga  | `manga.bilibili.com/`  |
-| Course | `bilibili.com/cheese/` |
+| Type    | Link selector           |
+| ------- | ----------------------- |
+| Live    | `live.bilibili.com/`    |
+| Manga   | `manga.bilibili.com/`   |
+| Course  | `bilibili.com/cheese/`  |
+| Bangumi | `bilibili.com/bangumi/` |
 
 The child type selector is disabled until **Hide badged videos** is enabled.
 
@@ -339,6 +340,7 @@ Bfilter persists these values:
 | Hide live videos            | `bfilter:hide-live-videos`            |
 | Hide manga videos           | `bfilter:hide-manga-videos`           |
 | Hide course videos          | `bfilter:hide-course-videos`          |
+| Hide bangumi videos         | `bfilter:hide-bangumi-videos`         |
 | Add usernames to following  | `bfilter:add-usernames-to-following`  |
 
 When `GM_addValueChangeListener` is available, Bfilter listens for remote value changes and refreshes runtime state across userscript contexts. Otherwise, it listens for the browser `storage` event as a fallback.
