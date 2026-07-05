@@ -308,11 +308,17 @@
   boot();
 
   function boot() {
-    replaceRuntimeBlockedUids(readSavedBlockedUids() || []);
-    replaceRuntimeFollowingUids(readSavedFollowingUids() || []);
-    replaceRuntimeBlockedVideoKeywords(readSavedBlockedVideoKeywords() || []);
+    replaceRuntimeBlockedUids(
+      parseBlockedUserListText(readSavedBlockedUserListText()),
+    );
+    replaceRuntimeFollowingUids(
+      parseFollowingUserListText(readSavedFollowingUserListText()),
+    );
+    replaceRuntimeBlockedVideoKeywords(
+      parseVideoKeywordListText(readSavedVideoKeywordListText()),
+    );
     replaceRuntimeBlockedDanmakuKeywords(
-      readSavedBlockedDanmakuKeywords() || [],
+      parseDanmakuKeywordListText(readSavedDanmakuKeywordListText()),
     );
     for (const { name } of BOOLEAN_CONTROLS) {
       const control = getControl(name);
@@ -1088,33 +1094,31 @@
   }
 
   function syncBlockedUids(savedValue) {
-    const savedUids = parseSavedBlockedUids(savedValue);
-    if (!savedUids) return;
-    replaceRuntimeBlockedUids(savedUids);
+    replaceRuntimeBlockedUids(parseBlockedUserListText(savedValue || ""));
     refreshConsequences();
     refreshBlocklistManagerPanel();
     renderUserPageBlockButton();
   }
 
   function syncFollowingUids(savedValue) {
-    replaceRuntimeFollowingUids(parseFollowingUidText(savedValue || ""));
+    replaceRuntimeFollowingUids(parseFollowingUserListText(savedValue || ""));
     refreshConsequences();
     refreshBlocklistManagerPanel();
     renderUserPageBlockButton();
   }
 
   function syncBlockedVideoKeywords(savedValue) {
-    const savedKeywords = parseSavedBlockedVideoKeywords(savedValue);
-    if (!savedKeywords) return;
-    replaceRuntimeBlockedVideoKeywords(savedKeywords);
+    replaceRuntimeBlockedVideoKeywords(
+      parseVideoKeywordListText(savedValue || ""),
+    );
     refreshConsequences();
     refreshBlocklistManagerPanel();
   }
 
   function syncBlockedDanmakuKeywords(savedValue) {
-    const savedKeywords = parseSavedBlockedDanmakuKeywords(savedValue);
-    if (!savedKeywords) return;
-    replaceRuntimeBlockedDanmakuKeywords(savedKeywords);
+    replaceRuntimeBlockedDanmakuKeywords(
+      parseDanmakuKeywordListText(savedValue || ""),
+    );
     refreshConsequences();
     refreshBlocklistManagerPanel();
   }
@@ -1134,31 +1138,19 @@
     renderUserPageBlockButton();
   }
 
-  function readSavedBlockedUids() {
+  function readSavedBlockedUserListText() {
     try {
       const saved =
         typeof GM_getValue === "function"
           ? GM_getValue(BLOCKLIST_STORAGE_KEY, null)
           : localStorage.getItem(BLOCKLIST_STORAGE_KEY);
-      return parseSavedBlockedUids(saved);
+      return String(saved || "");
     } catch (_error) {
-      return [];
+      return "";
     }
   }
 
-  function readSavedFollowingUids() {
-    try {
-      const saved =
-        typeof GM_getValue === "function"
-          ? GM_getValue(FOLLOWING_STORAGE_KEY, null)
-          : localStorage.getItem(FOLLOWING_STORAGE_KEY);
-      return parseFollowingUidText(saved || "");
-    } catch (_error) {
-      return [];
-    }
-  }
-
-  function readSavedFollowingText() {
+  function readSavedFollowingUserListText() {
     try {
       const saved =
         typeof GM_getValue === "function"
@@ -1170,56 +1162,28 @@
     }
   }
 
-  function parseSavedBlockedUids(saved) {
-    if (saved == null) return null;
-    try {
-      const parsed = typeof saved === "string" ? JSON.parse(saved) : saved;
-      return Array.isArray(parsed)
-        ? parsed.map(normalizeUid).filter(Boolean)
-        : [];
-    } catch (_error) {
-      return [];
-    }
-  }
-
-  function readSavedBlockedVideoKeywords() {
+  function readSavedVideoKeywordListText() {
     try {
       const saved =
         typeof GM_getValue === "function"
           ? GM_getValue(VIDEO_KEYWORD_BLOCKLIST_STORAGE_KEY, null)
           : localStorage.getItem(VIDEO_KEYWORD_BLOCKLIST_STORAGE_KEY);
-      return parseSavedBlockedVideoKeywords(saved);
+      return String(saved || "");
     } catch (_error) {
-      return [];
+      return "";
     }
   }
 
-  function readSavedBlockedDanmakuKeywords() {
+  function readSavedDanmakuKeywordListText() {
     try {
       const saved =
         typeof GM_getValue === "function"
           ? GM_getValue(DANMAKU_KEYWORD_BLOCKLIST_STORAGE_KEY, null)
           : localStorage.getItem(DANMAKU_KEYWORD_BLOCKLIST_STORAGE_KEY);
-      return parseSavedBlockedDanmakuKeywords(saved);
+      return String(saved || "");
     } catch (_error) {
-      return [];
+      return "";
     }
-  }
-
-  function parseSavedBlockedVideoKeywords(saved) {
-    if (saved == null) return null;
-    try {
-      const parsed = typeof saved === "string" ? JSON.parse(saved) : saved;
-      return Array.isArray(parsed)
-        ? parsed.map((keyword) => String(keyword || "")).filter(Boolean)
-        : [];
-    } catch (_error) {
-      return [];
-    }
-  }
-
-  function parseSavedBlockedDanmakuKeywords(saved) {
-    return parseSavedBlockedVideoKeywords(saved);
   }
 
   function readBooleanSetting(key, defaultValue) {
@@ -1314,9 +1278,10 @@
     }
   }
 
-  function saveBlockedUids() {
+  function saveBlockedUserListText(textValue) {
     try {
-      const value = JSON.stringify([...BLOCKED_UIDS]);
+      const value =
+        textValue == null ? getBlockedUidList().join("\n") : textValue;
       if (typeof GM_setValue === "function")
         GM_setValue(BLOCKLIST_STORAGE_KEY, value);
       else localStorage.setItem(BLOCKLIST_STORAGE_KEY, value);
@@ -1325,7 +1290,7 @@
     }
   }
 
-  function saveFollowingUids(textValue) {
+  function saveFollowingUserListText(textValue) {
     try {
       const value =
         textValue == null ? getFollowingUidList().join("\n") : textValue;
@@ -1337,9 +1302,10 @@
     }
   }
 
-  function saveBlockedVideoKeywords() {
+  function saveVideoKeywordListText(textValue) {
     try {
-      const value = JSON.stringify([...BLOCKED_VIDEO_KEYWORDS]);
+      const value =
+        textValue == null ? getBlockedVideoKeywordList().join("\n") : textValue;
       if (typeof GM_setValue === "function")
         GM_setValue(VIDEO_KEYWORD_BLOCKLIST_STORAGE_KEY, value);
       else localStorage.setItem(VIDEO_KEYWORD_BLOCKLIST_STORAGE_KEY, value);
@@ -1348,9 +1314,12 @@
     }
   }
 
-  function saveBlockedDanmakuKeywords() {
+  function saveDanmakuKeywordListText(textValue) {
     try {
-      const value = JSON.stringify([...BLOCKED_DANMAKU_KEYWORDS]);
+      const value =
+        textValue == null
+          ? getBlockedDanmakuKeywordList().join("\n")
+          : textValue;
       if (typeof GM_setValue === "function")
         GM_setValue(DANMAKU_KEYWORD_BLOCKLIST_STORAGE_KEY, value);
       else localStorage.setItem(DANMAKU_KEYWORD_BLOCKLIST_STORAGE_KEY, value);
@@ -1397,19 +1366,36 @@
     return [...FOLLOWING_UIDS];
   }
 
-  function getFollowingTextValue() {
-    return readSavedFollowingText() || getFollowingUidList().join("\n");
+  function getBlockedUserListTextValue() {
+    return readSavedBlockedUserListText() || getBlockedUidList().join("\n");
+  }
+
+  function getFollowingUserListTextValue() {
+    return readSavedFollowingUserListText() || getFollowingUidList().join("\n");
   }
 
   function getBlockedVideoKeywordList() {
     return [...BLOCKED_VIDEO_KEYWORDS];
   }
 
+  function getVideoKeywordListTextValue() {
+    return (
+      readSavedVideoKeywordListText() || getBlockedVideoKeywordList().join("\n")
+    );
+  }
+
   function getBlockedDanmakuKeywordList() {
     return [...BLOCKED_DANMAKU_KEYWORDS];
   }
 
-  function parseBlockedUidText(text) {
+  function getDanmakuKeywordListTextValue() {
+    return (
+      readSavedDanmakuKeywordListText() ||
+      getBlockedDanmakuKeywordList().join("\n")
+    );
+  }
+
+  function parseBlockedUserListText(text) {
     return [
       ...new Set(
         text
@@ -1421,8 +1407,8 @@
     ];
   }
 
-  function parseFollowingUidText(text) {
-    return parseBlockedUidText(text);
+  function parseFollowingUserListText(text) {
+    return parseBlockedUserListText(text);
   }
 
   function updateFollowingText(text, uid, following, username = "") {
@@ -1439,7 +1425,7 @@
     return nextLines.filter((line) => String(line || "").trim()).join("\n");
   }
 
-  function parseBlockedVideoKeywordText(text) {
+  function parseVideoKeywordListText(text) {
     return dedupeKeywords(
       String(text || "")
         .split(/\r?\n/)
@@ -1447,8 +1433,8 @@
     );
   }
 
-  function parseBlockedDanmakuKeywordText(text) {
-    return parseBlockedVideoKeywordText(text);
+  function parseDanmakuKeywordListText(text) {
+    return parseVideoKeywordListText(text);
   }
 
   function stripLineComment(line) {
@@ -1471,38 +1457,42 @@
   }
 
   function setUidBlocked(uid, blocked) {
-    replaceRuntimeBlockedUids(readSavedBlockedUids() || []);
+    replaceRuntimeBlockedUids(
+      parseBlockedUserListText(readSavedBlockedUserListText()),
+    );
     if (blocked) BLOCKED_UIDS.add(uid);
     else {
       BLOCKED_UIDS.delete(uid);
       unhideCardsForUid(uid);
     }
-    saveBlockedUids();
+    saveBlockedUserListText();
     refreshConsequences();
     refreshBlocklistManagerPanel();
   }
 
   function setUidFollowing(uid, following, username = "") {
     const followingText = updateFollowingText(
-      readSavedFollowingText(),
+      readSavedFollowingUserListText(),
       uid,
       following,
       settings.addUsernamesToFollowing ? username : "",
     );
-    replaceRuntimeFollowingUids(parseFollowingUidText(followingText));
+    replaceRuntimeFollowingUids(parseFollowingUserListText(followingText));
     if (following) FOLLOWING_UIDS.add(uid);
     else FOLLOWING_UIDS.delete(uid);
-    saveFollowingUids(followingText);
+    saveFollowingUserListText(followingText);
     refreshConsequences();
     refreshBlocklistManagerPanel();
   }
 
   function blockAllCommenters() {
-    replaceRuntimeBlockedUids(readSavedBlockedUids() || []);
+    replaceRuntimeBlockedUids(
+      parseBlockedUserListText(readSavedBlockedUserListText()),
+    );
     for (const item of document.querySelectorAll(COMMENT_ITEM_SELECTOR)) {
       for (const uid of getCommentAuthorUidsInside(item)) BLOCKED_UIDS.add(uid);
     }
-    saveBlockedUids();
+    saveBlockedUserListText();
     refreshConsequences();
     refreshBlocklistManagerPanel();
   }
@@ -1702,10 +1692,13 @@
   ) {
     if (!panel) return;
     const uids = getBlockedUidList();
+    const blockedUserText = getBlockedUserListTextValue();
     const followingUids = getFollowingUidList();
-    const followingText = getFollowingTextValue();
+    const followingText = getFollowingUserListTextValue();
     const videoKeywords = getBlockedVideoKeywordList();
+    const videoKeywordText = getVideoKeywordListTextValue();
     const danmakuKeywords = getBlockedDanmakuKeywordList();
+    const danmakuKeywordText = getDanmakuKeywordListTextValue();
     const textarea = panel.querySelector(`#${MANAGER_TEXTAREA_ID}`);
     const followingTextarea = panel.querySelector(
       `#${MANAGER_FOLLOWING_TEXTAREA_ID}`,
@@ -1728,7 +1721,7 @@
       textarea.value = getManagerTextValue(
         textValues,
         "users",
-        uids.join("\n"),
+        blockedUserText,
       );
       textarea.dataset.cleanValue = textarea.value;
       updateManagerCommentHighlight(textarea);
@@ -1746,7 +1739,7 @@
       videoKeywordsTextarea.value = getManagerTextValue(
         textValues,
         "videoKeywords",
-        videoKeywords.join("\n"),
+        videoKeywordText,
       );
       videoKeywordsTextarea.dataset.cleanValue = videoKeywordsTextarea.value;
       updateManagerCommentHighlight(videoKeywordsTextarea);
@@ -1755,7 +1748,7 @@
       danmakuKeywordsTextarea.value = getManagerTextValue(
         textValues,
         "danmakuKeywords",
-        danmakuKeywords.join("\n"),
+        danmakuKeywordText,
       );
       danmakuKeywordsTextarea.dataset.cleanValue =
         danmakuKeywordsTextarea.value;
@@ -1860,23 +1853,29 @@
         : "",
     };
     if (textarea)
-      replaceRuntimeBlockedUids(parseBlockedUidText(textarea.value));
+      replaceRuntimeBlockedUids(parseBlockedUserListText(textarea.value));
     if (followingTextarea)
       replaceRuntimeFollowingUids(
-        parseFollowingUidText(followingTextarea.value),
+        parseFollowingUserListText(followingTextarea.value),
       );
     if (videoKeywordsTextarea)
       replaceRuntimeBlockedVideoKeywords(
-        parseBlockedVideoKeywordText(videoKeywordsTextarea.value),
+        parseVideoKeywordListText(videoKeywordsTextarea.value),
       );
     if (danmakuKeywordsTextarea)
       replaceRuntimeBlockedDanmakuKeywords(
-        parseBlockedDanmakuKeywordText(danmakuKeywordsTextarea.value),
+        parseDanmakuKeywordListText(danmakuKeywordsTextarea.value),
       );
-    saveBlockedUids();
-    saveFollowingUids(followingTextarea ? followingTextarea.value : undefined);
-    saveBlockedVideoKeywords();
-    saveBlockedDanmakuKeywords();
+    saveBlockedUserListText(textarea ? textarea.value : undefined);
+    saveFollowingUserListText(
+      followingTextarea ? followingTextarea.value : undefined,
+    );
+    saveVideoKeywordListText(
+      videoKeywordsTextarea ? videoKeywordsTextarea.value : undefined,
+    );
+    saveDanmakuKeywordListText(
+      danmakuKeywordsTextarea ? danmakuKeywordsTextarea.value : undefined,
+    );
     refreshConsequences();
     refreshBlocklistManagerPanel(panel, textValues);
   }
