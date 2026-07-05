@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Bfilter
 // @namespace    https://github.com/mr-yifeiwang/bfilter
-// @version      0.14.0
+// @version      0.14.1
 // @description  Manage in-browser Bilibili followlist and blocklist
 // @author       mr-yifeiwang
 // @icon         https://raw.githubusercontent.com/mr-yifeiwang/bfilter/master/assets/logo-128x128.png
@@ -1008,7 +1008,10 @@
     return Boolean(
       isSearchPage() &&
       element &&
-      element.closest(SEARCH_PROTECTED_VIDEO_CARD_SELECTOR),
+      // Search user results use a wrapper around `.b-user-video-card`; protect
+      // both the card and its wrapper so preview mode does not paint the area red.
+      (element.closest(SEARCH_PROTECTED_VIDEO_CARD_SELECTOR) ||
+        element.querySelector(SEARCH_PROTECTED_VIDEO_CARD_SELECTOR)),
     );
   }
 
