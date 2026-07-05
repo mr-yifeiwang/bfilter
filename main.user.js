@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Bilibili Blocklist
-// @namespace    https://github.com/mr-yifeiwang/bilibili-blocklist
-// @version      0.12.0
-// @description  Hide Bilibili videos, comments, and danmakus conditionally
+// @name         Bfilter
+// @namespace    https://github.com/mr-yifeiwang/bfilter
+// @version      0.13.0
+// @description  Manage in-browser Bilibili followlist and blocklist
 // @author       mr-yifeiwang
 // @match        https://www.bilibili.com/*
 // @match        https://search.bilibili.com/*
@@ -13,60 +13,55 @@
 // @grant        GM_getValue
 // @grant        GM_setValue
 // @grant        GM_addValueChangeListener
-// @downloadURL  https://raw.githubusercontent.com/mr-yifeiwang/bilibili-blocklist/master/main.user.js
-// @updateURL    https://raw.githubusercontent.com/mr-yifeiwang/bilibili-blocklist/master/main.user.js
+// @downloadURL  https://raw.githubusercontent.com/mr-yifeiwang/bfilter/master/main.user.js
+// @updateURL    https://raw.githubusercontent.com/mr-yifeiwang/bfilter/master/main.user.js
 // ==/UserScript==
 
 (function () {
   "use strict";
 
-  const BLOCK_ATTR = "data-bilibili-uid-blocked";
-  const PREVIEW_ATTR = "data-bilibili-uid-previewed";
-  const FOLLOW_ATTR = "data-bilibili-uid-followed";
-  const BLOCKED_UID_ATTR = "data-bilibili-uid-blocked-uid";
+  const BLOCK_ATTR = "data-bfilter-blocked";
+  const PREVIEW_ATTR = "data-bfilter-previewed";
+  const FOLLOW_ATTR = "data-bfilter-followed";
+  const BLOCKED_UID_ATTR = "data-bfilter-blocked-uid";
 
-  const BLOCKLIST_STORAGE_KEY = "bilibili-uid-blocklist:blocklist";
-  const FOLLOWING_STORAGE_KEY = "bilibili-uid-blocklist:following";
-  const VIDEO_KEYWORD_BLOCKLIST_STORAGE_KEY =
-    "bilibili-uid-blocklist:video-keyword-blocklist";
+  const BLOCKLIST_STORAGE_KEY = "bfilter:blocklist";
+  const FOLLOWING_STORAGE_KEY = "bfilter:following";
+  const VIDEO_KEYWORD_BLOCKLIST_STORAGE_KEY = "bfilter:video-keyword-blocklist";
   const DANMAKU_KEYWORD_BLOCKLIST_STORAGE_KEY =
-    "bilibili-uid-blocklist:danmaku-keyword-blocklist";
+    "bfilter:danmaku-keyword-blocklist";
   const SETTING_KEYS = {
-    blockNewUsers: "bilibili-uid-blocklist:block-new-users",
-    registrationTimeThreshold:
-      "bilibili-uid-blocklist:registration-time-threshold",
-    previewMode: "bilibili-uid-blocklist:preview-mode",
-    hideShortVideos: "bilibili-uid-blocklist:hide-short-videos",
-    shortVideoThreshold: "bilibili-uid-blocklist:short-video-threshold",
-    hideUnpopularVideos: "bilibili-uid-blocklist:hide-unpopular-videos",
-    unpopularVideoThreshold: "bilibili-uid-blocklist:unpopular-video-threshold",
-    hideBadgedVideos: "bilibili-uid-blocklist:hide-badged-videos",
-    hideLiveVideos: "bilibili-uid-blocklist:hide-live-videos",
-    hideMangaVideos: "bilibili-uid-blocklist:hide-manga-videos",
-    hideCourseVideos: "bilibili-uid-blocklist:hide-course-videos",
-    addUsernamesToFollowing:
-      "bilibili-uid-blocklist:add-usernames-to-following",
+    blockNewUsers: "bfilter:block-new-users",
+    registrationTimeThreshold: "bfilter:registration-time-threshold",
+    previewMode: "bfilter:preview-mode",
+    hideShortVideos: "bfilter:hide-short-videos",
+    shortVideoThreshold: "bfilter:short-video-threshold",
+    hideUnpopularVideos: "bfilter:hide-unpopular-videos",
+    unpopularVideoThreshold: "bfilter:unpopular-video-threshold",
+    hideBadgedVideos: "bfilter:hide-badged-videos",
+    hideLiveVideos: "bfilter:hide-live-videos",
+    hideMangaVideos: "bfilter:hide-manga-videos",
+    hideCourseVideos: "bfilter:hide-course-videos",
+    addUsernamesToFollowing: "bfilter:add-usernames-to-following",
   };
 
-  const USER_BUTTON_ID = "bilibili-uid-blocklist-user-button";
-  const FOLLOW_BUTTON_ID = "bilibili-uid-blocklist-follow-button";
-  const MANAGER_BUTTON_ID = "bilibili-uid-blocklist-manager-button";
-  const FLOATING_BUTTON_CLASS = "bilibili-uid-blocklist-floating-button";
-  const PROFILE_BUTTON_CLASS = "bilibili-uid-blocklist-profile-button";
-  const MANAGER_PANEL_ID = "bilibili-uid-blocklist-manager-panel";
+  const USER_BUTTON_ID = "bfilter-user-button";
+  const FOLLOW_BUTTON_ID = "bfilter-follow-button";
+  const MANAGER_BUTTON_ID = "bfilter-manager-button";
+  const FLOATING_BUTTON_CLASS = "bfilter-floating-button";
+  const PROFILE_BUTTON_CLASS = "bfilter-profile-button";
+  const MANAGER_PANEL_ID = "bfilter-manager-panel";
   const SCRIPT_VERSION =
     typeof GM_info !== "undefined" && GM_info.script && GM_info.script.version;
-  const MANAGER_TEXTAREA_ID = "bilibili-uid-blocklist-manager-textarea";
-  const MANAGER_FOLLOWING_TEXTAREA_ID =
-    "bilibili-uid-blocklist-manager-following-textarea";
+  const MANAGER_TEXTAREA_ID = "bfilter-manager-textarea";
+  const MANAGER_FOLLOWING_TEXTAREA_ID = "bfilter-manager-following-textarea";
   const MANAGER_VIDEO_KEYWORDS_TEXTAREA_ID =
-    "bilibili-uid-blocklist-manager-video-keywords-textarea";
+    "bfilter-manager-video-keywords-textarea";
   const MANAGER_DANMAKU_KEYWORDS_TEXTAREA_ID =
-    "bilibili-uid-blocklist-manager-danmaku-keywords-textarea";
+    "bfilter-manager-danmaku-keywords-textarea";
 
-  const COMMENT_BLOCK_BTN_CLASS = "bilibili-uid-blocklist-comment-block-button";
-  const BLOCK_ALL_COMMENTERS_BTN_CLASS =
-    "bilibili-uid-blocklist-block-all-commenters-button";
+  const COMMENT_BLOCK_BTN_CLASS = "bfilter-comment-block-button";
+  const BLOCK_ALL_COMMENTERS_BTN_CLASS = "bfilter-block-all-commenters-button";
 
   const MAX_ANCESTOR_STEPS = 8;
   const MAX_CARD_AREA_RATIO = 0.75;
@@ -204,12 +199,12 @@
   const BOOLEAN_CONTROLS = [
     {
       name: "blockNewUsers",
-      id: "bilibili-uid-blocklist-manager-block-new-users",
+      id: "bfilter-manager-block-new-users",
       label: "Block new users",
       threshold: {
         setting: "registrationTimeThreshold",
         key: SETTING_KEYS.registrationTimeThreshold,
-        id: "bilibili-uid-blocklist-manager-registration-threshold",
+        id: "bfilter-manager-registration-threshold",
         options: REGISTRATION_TIME_THRESHOLD_OPTIONS,
         defaultValue: DEFAULT_REGISTRATION_TIME_THRESHOLD,
         fallbackIndex: REGISTRATION_TIME_THRESHOLD_OPTIONS.length - 1,
@@ -217,12 +212,12 @@
     },
     {
       name: "hideShortVideos",
-      id: "bilibili-uid-blocklist-manager-hide-short-videos",
+      id: "bfilter-manager-hide-short-videos",
       label: "Hide short videos",
       threshold: {
         setting: "shortVideoThreshold",
         key: SETTING_KEYS.shortVideoThreshold,
-        id: "bilibili-uid-blocklist-manager-short-video-threshold",
+        id: "bfilter-manager-short-video-threshold",
         options: SHORT_VIDEO_THRESHOLD_OPTIONS,
         defaultValue: DEFAULT_SHORT_VIDEO_THRESHOLD,
         fallbackIndex: 2,
@@ -230,12 +225,12 @@
     },
     {
       name: "hideUnpopularVideos",
-      id: "bilibili-uid-blocklist-manager-hide-unpopular-videos",
+      id: "bfilter-manager-hide-unpopular-videos",
       label: "Hide unpopular videos",
       threshold: {
         setting: "unpopularVideoThreshold",
         key: SETTING_KEYS.unpopularVideoThreshold,
-        id: "bilibili-uid-blocklist-manager-unpopular-video-threshold",
+        id: "bfilter-manager-unpopular-video-threshold",
         options: UNPOPULAR_VIDEO_THRESHOLD_OPTIONS,
         defaultValue: DEFAULT_UNPOPULAR_VIDEO_THRESHOLD,
         fallbackIndex: 2,
@@ -243,39 +238,39 @@
     },
     {
       name: "hideBadgedVideos",
-      id: "bilibili-uid-blocklist-manager-hide-badged-videos",
+      id: "bfilter-manager-hide-badged-videos",
       label: "Hide badged videos",
     },
     {
       name: "hideLiveVideos",
-      id: "bilibili-uid-blocklist-manager-hide-live-videos",
+      id: "bfilter-manager-hide-live-videos",
       label: "Live",
       defaultValue: false,
       childOf: "hideBadgedVideos",
     },
     {
       name: "hideMangaVideos",
-      id: "bilibili-uid-blocklist-manager-hide-manga-videos",
+      id: "bfilter-manager-hide-manga-videos",
       label: "Manga",
       defaultValue: false,
       childOf: "hideBadgedVideos",
     },
     {
       name: "hideCourseVideos",
-      id: "bilibili-uid-blocklist-manager-hide-course-videos",
+      id: "bfilter-manager-hide-course-videos",
       label: "Course",
       defaultValue: false,
       childOf: "hideBadgedVideos",
     },
     {
       name: "previewMode",
-      id: "bilibili-uid-blocklist-manager-preview-mode",
+      id: "bfilter-manager-preview-mode",
       label: "Preview",
       previewToggle: true,
     },
     {
       name: "addUsernamesToFollowing",
-      id: "bilibili-uid-blocklist-manager-add-usernames-to-following",
+      id: "bfilter-manager-add-usernames-to-following",
       label: "Add usernames by default",
       defaultValue: true,
       followingOption: true,
@@ -338,7 +333,7 @@
 
     setupStorageSync();
     renderUserPageBlockButton();
-    renderBlocklistManager();
+    renderBfilterManager();
 
     if (document.readyState === "loading") {
       document.addEventListener("DOMContentLoaded", start, { once: true });
@@ -380,7 +375,7 @@
 
   function refreshChromeAndScan() {
     renderUserPageBlockButton();
-    renderBlocklistManager();
+    renderBfilterManager();
     renderBlockAllCommentersButton();
     scheduleScan(document.documentElement, { force: true });
   }
@@ -1097,14 +1092,14 @@
   function syncBlockedUids(savedValue) {
     replaceRuntimeBlockedUids(parseBlockedUserListText(savedValue || ""));
     refreshConsequences();
-    refreshBlocklistManagerPanel();
+    refreshBfilterManagerPanel();
     renderUserPageBlockButton();
   }
 
   function syncFollowingUids(savedValue) {
     replaceRuntimeFollowingUids(parseFollowingUserListText(savedValue || ""));
     refreshConsequences();
-    refreshBlocklistManagerPanel();
+    refreshBfilterManagerPanel();
     renderUserPageBlockButton();
   }
 
@@ -1113,7 +1108,7 @@
       parseVideoKeywordListText(savedValue || ""),
     );
     refreshConsequences();
-    refreshBlocklistManagerPanel();
+    refreshBfilterManagerPanel();
   }
 
   function syncBlockedDanmakuKeywords(savedValue) {
@@ -1121,7 +1116,7 @@
       parseDanmakuKeywordListText(savedValue || ""),
     );
     refreshConsequences();
-    refreshBlocklistManagerPanel();
+    refreshBfilterManagerPanel();
   }
 
   function syncBooleanSetting(name, savedValue) {
@@ -1472,7 +1467,7 @@
     }
     saveBlockedUserListText();
     refreshConsequences();
-    refreshBlocklistManagerPanel();
+    refreshBfilterManagerPanel();
   }
 
   function setUidFollowing(uid, following, username = "") {
@@ -1487,7 +1482,7 @@
     else FOLLOWING_UIDS.delete(uid);
     saveFollowingUserListText(followingText);
     refreshConsequences();
-    refreshBlocklistManagerPanel();
+    refreshBfilterManagerPanel();
   }
 
   function blockAllCommenters() {
@@ -1499,11 +1494,11 @@
     }
     saveBlockedUserListText();
     refreshConsequences();
-    refreshBlocklistManagerPanel();
+    refreshBfilterManagerPanel();
   }
 
-  function renderBlocklistManager() {
-    const shouldShow = isBlocklistManagerPage();
+  function renderBfilterManager() {
+    const shouldShow = isBfilterManagerPage();
     let button = document.getElementById(MANAGER_BUTTON_ID);
     let panel = document.getElementById(MANAGER_PANEL_ID);
 
@@ -1518,23 +1513,23 @@
       button.id = MANAGER_BUTTON_ID;
       button.className = FLOATING_BUTTON_CLASS;
       button.type = "button";
-      button.textContent = "Open Blocklist";
+      button.textContent = "Open Bfilter";
       button.title = "View and edit blocked user UIDs";
       button.addEventListener("click", () => {
-        const currentPanel = ensureBlocklistManagerPanel();
+        const currentPanel = ensureBfilterManagerPanel();
         currentPanel.hidden = !currentPanel.hidden;
         if (!currentPanel.hidden) {
-          refreshBlocklistManagerPanel(currentPanel);
+          refreshBfilterManagerPanel(currentPanel);
           getActiveManagerTextarea(currentPanel)?.focus();
         }
       });
     }
 
     appendToPage(button);
-    appendToPage(ensureBlocklistManagerPanel());
+    appendToPage(ensureBfilterManagerPanel());
   }
 
-  function ensureBlocklistManagerPanel() {
+  function ensureBfilterManagerPanel() {
     let panel = document.getElementById(MANAGER_PANEL_ID);
     if (panel) return panel;
 
@@ -1542,27 +1537,27 @@
     panel.id = MANAGER_PANEL_ID;
     panel.hidden = true;
     panel.innerHTML = `
-      <div class="bilibili-uid-blocklist-manager-header">
-        <div class="bilibili-uid-blocklist-manager-title">Blocklist Manager <span class="bilibili-uid-blocklist-manager-version">${SCRIPT_VERSION}</span></div>
-        <button class="bilibili-uid-blocklist-manager-close" type="button" title="Close">×</button>
+      <div class="bfilter-manager-header">
+        <div class="bfilter-manager-title">Bfilter Manager <span class="bfilter-manager-version">${SCRIPT_VERSION}</span></div>
+        <button class="bfilter-manager-close" type="button" title="Close">×</button>
       </div>
-      <section class="bilibili-uid-blocklist-manager-section">
-        <div class="bilibili-uid-blocklist-manager-tabs" role="tablist">
-          <button class="bilibili-uid-blocklist-manager-tab" type="button" role="tab" aria-selected="true" data-tab="users">Users</button>
-          <button class="bilibili-uid-blocklist-manager-tab" type="button" role="tab" aria-selected="false" data-tab="video-keywords">Videos</button>
-          <button class="bilibili-uid-blocklist-manager-tab" type="button" role="tab" aria-selected="false" data-tab="danmaku-keywords">Danmakus</button>
-          <button class="bilibili-uid-blocklist-manager-tab" type="button" role="tab" aria-selected="false" data-tab="following">Following</button>
+      <section class="bfilter-manager-section">
+        <div class="bfilter-manager-tabs" role="tablist">
+          <button class="bfilter-manager-tab" type="button" role="tab" aria-selected="true" data-tab="users">Users</button>
+          <button class="bfilter-manager-tab" type="button" role="tab" aria-selected="false" data-tab="video-keywords">Videos</button>
+          <button class="bfilter-manager-tab" type="button" role="tab" aria-selected="false" data-tab="danmaku-keywords">Danmakus</button>
+          <button class="bfilter-manager-tab" type="button" role="tab" aria-selected="false" data-tab="following">Following</button>
         </div>
-        <div class="bilibili-uid-blocklist-manager-tab-panel" role="tabpanel" data-tab-panel="users">
+        <div class="bfilter-manager-tab-panel" role="tabpanel" data-tab-panel="users">
           ${BOOLEAN_CONTROLS.filter(
             (control) => control.name === "blockNewUsers",
           )
             .map(renderManagerOption)
             .join("")}
           ${renderManagerTextarea(MANAGER_TEXTAREA_ID)}
-          <div class="bilibili-uid-blocklist-manager-help" data-help="users"></div>
+          <div class="bfilter-manager-help" data-help="users"></div>
         </div>
-        <div class="bilibili-uid-blocklist-manager-tab-panel" role="tabpanel" data-tab-panel="video-keywords" hidden>
+        <div class="bfilter-manager-tab-panel" role="tabpanel" data-tab-panel="video-keywords" hidden>
           ${BOOLEAN_CONTROLS.filter((control) =>
             [
               "hideShortVideos",
@@ -1573,26 +1568,26 @@
             .map(renderManagerOption)
             .join("")}
           ${renderManagerTextarea(MANAGER_VIDEO_KEYWORDS_TEXTAREA_ID)}
-          <div class="bilibili-uid-blocklist-manager-help" data-help="video-keywords"></div>
+          <div class="bfilter-manager-help" data-help="video-keywords"></div>
         </div>
-        <div class="bilibili-uid-blocklist-manager-tab-panel" role="tabpanel" data-tab-panel="danmaku-keywords" hidden>
+        <div class="bfilter-manager-tab-panel" role="tabpanel" data-tab-panel="danmaku-keywords" hidden>
           ${renderManagerTextarea(MANAGER_DANMAKU_KEYWORDS_TEXTAREA_ID)}
-          <div class="bilibili-uid-blocklist-manager-help" data-help="danmaku-keywords"></div>
+          <div class="bfilter-manager-help" data-help="danmaku-keywords"></div>
         </div>
-        <div class="bilibili-uid-blocklist-manager-tab-panel" role="tabpanel" data-tab-panel="following" hidden>
+        <div class="bfilter-manager-tab-panel" role="tabpanel" data-tab-panel="following" hidden>
           ${BOOLEAN_CONTROLS.filter((control) => control.followingOption)
             .map(renderManagerOption)
             .join("")}
           ${renderManagerTextarea(MANAGER_FOLLOWING_TEXTAREA_ID)}
-          <div class="bilibili-uid-blocklist-manager-help" data-help="following"></div>
+          <div class="bfilter-manager-help" data-help="following"></div>
         </div>
-        <div class="bilibili-uid-blocklist-manager-actions">
-          <label class="bilibili-uid-blocklist-manager-preview-toggle" for="${getControl("previewMode").id}">
+        <div class="bfilter-manager-actions">
+          <label class="bfilter-manager-preview-toggle" for="${getControl("previewMode").id}">
             <input id="${getControl("previewMode").id}" type="checkbox" data-setting="previewMode">
-            <span class="bilibili-uid-blocklist-manager-preview-slider" aria-hidden="true"></span>
+            <span class="bfilter-manager-preview-slider" aria-hidden="true"></span>
             <span>Preview</span>
           </label>
-          <button class="bilibili-uid-blocklist-manager-action bilibili-uid-blocklist-manager-action-primary" type="button" data-action="save" disabled>Save</button>
+          <button class="bfilter-manager-action bfilter-manager-action-primary" type="button" data-action="save" disabled>Save</button>
         </div>
       </section>
     `;
@@ -1600,9 +1595,9 @@
     panel.addEventListener("click", (event) => {
       const target = event.target;
       if (!isElement(target)) return;
-      if (target.classList.contains("bilibili-uid-blocklist-manager-close"))
+      if (target.classList.contains("bfilter-manager-close"))
         panel.hidden = true;
-      if (target.matches(".bilibili-uid-blocklist-manager-tab[data-tab]")) {
+      if (target.matches(".bfilter-manager-tab[data-tab]")) {
         setActiveManagerTab(panel, target.getAttribute("data-tab"));
       }
       if (target.getAttribute("data-action") === "save") {
@@ -1628,10 +1623,7 @@
       "scroll",
       (event) => {
         const target = event.target;
-        if (
-          target &&
-          target.matches(".bilibili-uid-blocklist-manager-textarea")
-        )
+        if (target && target.matches(".bfilter-manager-textarea"))
           syncManagerCommentHighlightScroll(target);
       },
       true,
@@ -1656,29 +1648,29 @@
       refreshBooleanControls(panel);
     });
 
-    refreshBlocklistManagerPanel(panel);
+    refreshBfilterManagerPanel(panel);
     return panel;
   }
 
   function renderManagerTextarea(id) {
-    return `<div class="bilibili-uid-blocklist-manager-textarea-wrap"><pre class="bilibili-uid-blocklist-manager-textarea-highlight" aria-hidden="true"></pre><textarea id="${id}" class="bilibili-uid-blocklist-manager-textarea" spellcheck="false"></textarea></div>`;
+    return `<div class="bfilter-manager-textarea-wrap"><pre class="bfilter-manager-textarea-highlight" aria-hidden="true"></pre><textarea id="${id}" class="bfilter-manager-textarea" spellcheck="false"></textarea></div>`;
   }
 
   function renderManagerOption(control) {
-    const checkbox = `<label class="bilibili-uid-blocklist-manager-option" for="${control.id}"><input id="${control.id}" type="checkbox" data-setting="${control.name}"><span>${escapeHtml(control.label)}</span></label>`;
+    const checkbox = `<label class="bfilter-manager-option" for="${control.id}"><input id="${control.id}" type="checkbox" data-setting="${control.name}"><span>${escapeHtml(control.label)}</span></label>`;
     const children = BOOLEAN_CONTROLS.filter(
       (child) => child.childOf === control.name,
     );
     if (children.length) {
-      return `<div class="bilibili-uid-blocklist-manager-badged-video-control">${checkbox}${renderBadgedVideoTypeSelect(children)}</div>`;
+      return `<div class="bfilter-manager-badged-video-control">${checkbox}${renderBadgedVideoTypeSelect(children)}</div>`;
     }
     return control.threshold
-      ? `<div class="bilibili-uid-blocklist-manager-registration-time-control">${checkbox}${renderThresholdSelect(control)}</div>`
+      ? `<div class="bfilter-manager-registration-time-control">${checkbox}${renderThresholdSelect(control)}</div>`
       : checkbox;
   }
 
   function renderThresholdSelect(control) {
-    return `<select id="${control.threshold.id}" class="bilibili-uid-blocklist-manager-registration-threshold">${control.threshold.options
+    return `<select id="${control.threshold.id}" class="bfilter-manager-registration-threshold">${control.threshold.options
       .map(
         (option, index) =>
           `<option value="${index}">${escapeHtml(option.label)}</option>`,
@@ -1687,7 +1679,7 @@
   }
 
   function renderBadgedVideoTypeSelect(controls) {
-    return `<select class="bilibili-uid-blocklist-manager-badged-types" data-badged-video-types multiple size="1">${controls
+    return `<select class="bfilter-manager-badged-types" data-badged-video-types multiple size="1">${controls
       .map(
         (control) =>
           `<option value="${control.name}">${escapeHtml(control.label)}</option>`,
@@ -1695,7 +1687,7 @@
       .join("")}</select>`;
   }
 
-  function refreshBlocklistManagerPanel(
+  function refreshBfilterManagerPanel(
     panel = document.getElementById(MANAGER_PANEL_ID),
     textValues = {},
   ) {
@@ -1798,7 +1790,7 @@
   function getManagerCommentHighlight(textarea) {
     return textarea.parentElement
       ? textarea.parentElement.querySelector(
-          ".bilibili-uid-blocklist-manager-textarea-highlight",
+          ".bfilter-manager-textarea-highlight",
         )
       : null;
   }
@@ -1815,7 +1807,7 @@
   function renderManagerCommentHighlightLine(line) {
     const commentIndex = line.indexOf("#");
     if (commentIndex < 0) return escapeHtml(line);
-    return `${escapeHtml(line.slice(0, commentIndex))}<span class="bilibili-uid-blocklist-manager-comment">${escapeHtml(line.slice(commentIndex))}</span>`;
+    return `${escapeHtml(line.slice(0, commentIndex))}<span class="bfilter-manager-comment">${escapeHtml(line.slice(commentIndex))}</span>`;
   }
 
   function setActiveManagerTab(panel, tabName) {
@@ -1828,7 +1820,7 @@
       ? tabName
       : "users";
     for (const tab of panel.querySelectorAll(
-      ".bilibili-uid-blocklist-manager-tab[data-tab]",
+      ".bfilter-manager-tab[data-tab]",
     )) {
       tab.setAttribute(
         "aria-selected",
@@ -1890,7 +1882,7 @@
       danmakuKeywordsTextarea ? danmakuKeywordsTextarea.value : undefined,
     );
     refreshConsequences();
-    refreshBlocklistManagerPanel(panel, textValues);
+    refreshBfilterManagerPanel(panel, textValues);
   }
 
   function refreshBooleanControls(
@@ -1923,7 +1915,7 @@
       select.value = String(getOptionIndex(control));
       select.disabled = !settings[control.name];
       select.classList.toggle(
-        "bilibili-uid-blocklist-manager-registration-threshold-disabled",
+        "bfilter-manager-registration-threshold-disabled",
         !settings[control.name],
       );
     }
@@ -2174,10 +2166,10 @@
 
   function isCardBlockingPage() {
     // Deliberately exclude space.bilibili.com from card/comment scanning.
-    return !isUserPage() && isBlocklistManagerPage();
+    return !isUserPage() && isBfilterManagerPage();
   }
 
-  function isBlocklistManagerPage() {
+  function isBfilterManagerPage() {
     return (
       isBilibiliHomePage() ||
       isRankPage() ||
@@ -2252,37 +2244,37 @@
 
   function addStyle() {
     const style = document.createElement("style");
-    style.id = "bilibili-uid-blocklist-style";
+    style.id = "bfilter-style";
     style.textContent = `
       :root {
-        --bilibili-uid-blocklist-button-color: #e53935;
-        --bilibili-uid-blocklist-button-hover-color: #f04f4b;
-        --bilibili-uid-blocklist-follow-color: #18a058;
-        --bilibili-uid-blocklist-follow-background-color: #d2f0dc;
-        --bilibili-uid-blocklist-follow-outline-color: rgba(24, 160, 88, 0.65);
-        --bilibili-uid-blocklist-button-muted-color: #e3e5e7;
-        --bilibili-uid-blocklist-preview-background-color: #ffe8e8;
-        --bilibili-uid-blocklist-preview-outline-color: rgba(229, 57, 53, 0.55);
+        --bfilter-button-color: #e53935;
+        --bfilter-button-hover-color: #f04f4b;
+        --bfilter-follow-color: #18a058;
+        --bfilter-follow-background-color: #d2f0dc;
+        --bfilter-follow-outline-color: rgba(24, 160, 88, 0.65);
+        --bfilter-button-muted-color: #e3e5e7;
+        --bfilter-preview-background-color: #ffe8e8;
+        --bfilter-preview-outline-color: rgba(229, 57, 53, 0.55);
       }
       [${BLOCK_ATTR}="true"] { display: none !important; }
       .video-list.row > [class*="col_"][class*="mb_"]:has([${BLOCK_ATTR}="true"]) { display: none !important; }
       [${PREVIEW_ATTR}="true"] {
-        background-color: var(--bilibili-uid-blocklist-preview-background-color) !important;
-        outline: 2px solid var(--bilibili-uid-blocklist-preview-outline-color) !important;
+        background-color: var(--bfilter-preview-background-color) !important;
+        outline: 2px solid var(--bfilter-preview-outline-color) !important;
         outline-offset: -2px;
       }
       /* Search cards cover the marked target. Paint the visible inner surface. */
       [${PREVIEW_ATTR}="true"] .bili-video-card__wrap {
-        background-color: var(--bilibili-uid-blocklist-preview-background-color) !important;
+        background-color: var(--bfilter-preview-background-color) !important;
       }
       [${PREVIEW_ATTR}="true"] .bili-video-card__wrap[${PREVIEW_ATTR}="true"] {
         outline: none !important;
       }
       [${FOLLOW_ATTR}="true"], [${FOLLOW_ATTR}="true"] .bili-video-card__wrap {
-        background-color: var(--bilibili-uid-blocklist-follow-background-color) !important;
+        background-color: var(--bfilter-follow-background-color) !important;
       }
       [${FOLLOW_ATTR}="true"] {
-        outline: 2px solid var(--bilibili-uid-blocklist-follow-outline-color) !important;
+        outline: 2px solid var(--bfilter-follow-outline-color) !important;
         outline-offset: -2px;
       }
       [${FOLLOW_ATTR}="true"] .bili-video-card__wrap[${FOLLOW_ATTR}="true"] {
@@ -2298,27 +2290,27 @@
       .${PROFILE_BUTTON_CLASS} {
         display: inline-flex; flex-direction: column; align-items: center; justify-content: center;
         width: 120px; height: 64px; margin-right: 8px;
-        border: 1px solid var(--bilibili-uid-blocklist-button-color); border-radius: 0;
+        border: 1px solid var(--bfilter-button-color); border-radius: 0;
         font-size: 17px; font-weight: 700; line-height: 20px;
         cursor: pointer; font-family: inherit;
       }
       .${PROFILE_BUTTON_CLASS} span { font-size: 11px; font-weight: 500; line-height: 14px; }
       .nav-bar__main-right:has(> .${PROFILE_BUTTON_CLASS}) { display: flex; align-items: center; }
-      .${FLOATING_BUTTON_CLASS}, #${MANAGER_PANEL_ID} .bilibili-uid-blocklist-manager-action-primary {
-        color: #fff; background: var(--bilibili-uid-blocklist-button-color);
+      .${FLOATING_BUTTON_CLASS}, #${MANAGER_PANEL_ID} .bfilter-manager-action-primary {
+        color: #fff; background: var(--bfilter-button-color);
       }
-      .${FLOATING_BUTTON_CLASS}:hover, #${MANAGER_PANEL_ID} .bilibili-uid-blocklist-manager-action-primary:hover {
-        background: var(--bilibili-uid-blocklist-button-hover-color);
+      .${FLOATING_BUTTON_CLASS}:hover, #${MANAGER_PANEL_ID} .bfilter-manager-action-primary:hover {
+        background: var(--bfilter-button-hover-color);
       }
       .${PROFILE_BUTTON_CLASS} {
-        color: var(--bilibili-uid-blocklist-button-color); background: #fff;
+        color: var(--bfilter-button-color); background: #fff;
       }
       .${PROFILE_BUTTON_CLASS}:hover, .${PROFILE_BUTTON_CLASS}[data-blocked="true"] {
-        color: #fff; background: var(--bilibili-uid-blocklist-button-color);
+        color: #fff; background: var(--bfilter-button-color);
       }
-      .${PROFILE_BUTTON_CLASS}[data-blocked="true"]:hover { background: var(--bilibili-uid-blocklist-button-hover-color); }
-      .${PROFILE_BUTTON_CLASS}[data-following] { color: var(--bilibili-uid-blocklist-follow-color); border-color: var(--bilibili-uid-blocklist-follow-color); }
-      .${PROFILE_BUTTON_CLASS}[data-following]:hover, .${PROFILE_BUTTON_CLASS}[data-following="true"] { color: #fff; background: var(--bilibili-uid-blocklist-follow-color); }
+      .${PROFILE_BUTTON_CLASS}[data-blocked="true"]:hover { background: var(--bfilter-button-hover-color); }
+      .${PROFILE_BUTTON_CLASS}[data-following] { color: var(--bfilter-follow-color); border-color: var(--bfilter-follow-color); }
+      .${PROFILE_BUTTON_CLASS}[data-following]:hover, .${PROFILE_BUTTON_CLASS}[data-following="true"] { color: #fff; background: var(--bfilter-follow-color); }
       .${PROFILE_BUTTON_CLASS}:disabled, .${PROFILE_BUTTON_CLASS}:disabled:hover {
         color: #9499a0; background: #f1f2f3; border-color: #c9ccd0; cursor: not-allowed;
         text-decoration: line-through;
@@ -2332,71 +2324,71 @@
       }
       #${MANAGER_PANEL_ID}[hidden] { display: none !important; }
       #${MANAGER_PANEL_ID} button { font-weight: 700; }
-      #${MANAGER_PANEL_ID} .bilibili-uid-blocklist-manager-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
-      #${MANAGER_PANEL_ID} .bilibili-uid-blocklist-manager-title { font-size: 16px; font-weight: 700; }
-      #${MANAGER_PANEL_ID} .bilibili-uid-blocklist-manager-version { margin-left: 2px; color: #9499a0; font-size: 12px; font-weight: 500; }
-      #${MANAGER_PANEL_ID} .bilibili-uid-blocklist-manager-section { margin-top: 12px; }
-      #${MANAGER_PANEL_ID} .bilibili-uid-blocklist-manager-section:first-of-type { margin-top: 0; }
-      #${MANAGER_PANEL_ID} .bilibili-uid-blocklist-manager-section + .bilibili-uid-blocklist-manager-section { padding-top: 4px; }
-      #${MANAGER_PANEL_ID} .bilibili-uid-blocklist-manager-option { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; color: #18191c; font-size: 13px; cursor: pointer; }
-      #${MANAGER_PANEL_ID} .bilibili-uid-blocklist-manager-option:last-child { margin-bottom: 0; }
-      #${MANAGER_PANEL_ID} .bilibili-uid-blocklist-manager-option input { margin: 0; }
-      #${MANAGER_PANEL_ID} .bilibili-uid-blocklist-manager-option:has(input:disabled) { color: #9499a0; cursor: not-allowed; }
-      #${MANAGER_PANEL_ID} .bilibili-uid-blocklist-manager-badged-video-control { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
-      #${MANAGER_PANEL_ID} .bilibili-uid-blocklist-manager-badged-video-control .bilibili-uid-blocklist-manager-option { margin-bottom: 0; }
-      #${MANAGER_PANEL_ID} .bilibili-uid-blocklist-manager-badged-types,
-      #${MANAGER_PANEL_ID} .bilibili-uid-blocklist-manager-registration-threshold { box-sizing: border-box; width: 105px; height: 20px; border: 1px solid #c9ccd0; border-radius: 6px; padding: 0 4px; background: #fff; color: #18191c; font-size: 13px; appearance: auto; -webkit-appearance: auto; }
-      #${MANAGER_PANEL_ID} .bilibili-uid-blocklist-manager-badged-types:disabled { opacity: .42; }
-      #${MANAGER_PANEL_ID} .bilibili-uid-blocklist-manager-registration-time-control { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
-      #${MANAGER_PANEL_ID} .bilibili-uid-blocklist-manager-registration-time-control .bilibili-uid-blocklist-manager-option { margin-bottom: 0; }
-      #${MANAGER_PANEL_ID} .bilibili-uid-blocklist-manager-registration-threshold { transition: opacity .2s ease; }
-      #${MANAGER_PANEL_ID} .bilibili-uid-blocklist-manager-registration-threshold-disabled { opacity: .42; }
-      #${MANAGER_PANEL_ID} .bilibili-uid-blocklist-manager-tabs { display: flex; align-items: flex-end; gap: 4px; border-bottom: 1px solid #e3e5e7; }
-      #${MANAGER_PANEL_ID} .bilibili-uid-blocklist-manager-tab { position: relative; border: 1px solid transparent; border-bottom: 0; border-radius: 10px 10px 0 0; padding: 7px 14px; color: #61666d; background: transparent; font-size: 13px; cursor: pointer; }
-      #${MANAGER_PANEL_ID} .bilibili-uid-blocklist-manager-tab[aria-selected="true"] { border-color: #e3e5e7; color: var(--bilibili-uid-blocklist-button-color); background: #fff; cursor: default; }
-      #${MANAGER_PANEL_ID} .bilibili-uid-blocklist-manager-tab[data-tab="following"][aria-selected="true"] { color: var(--bilibili-uid-blocklist-follow-color); }
-      #${MANAGER_PANEL_ID} .bilibili-uid-blocklist-manager-tab[aria-selected="true"]::after { content: ""; position: absolute; right: 0; bottom: -1px; left: 0; height: 1px; background: #fff; }
-      #${MANAGER_PANEL_ID} .bilibili-uid-blocklist-manager-tab-panel { padding-top: 12px; }
-      #${MANAGER_PANEL_ID} .bilibili-uid-blocklist-manager-tab-panel[hidden] { display: none !important; }
-      #${MANAGER_PANEL_ID} .bilibili-uid-blocklist-manager-textarea-wrap { position: relative; }
-      #${MANAGER_PANEL_ID} .bilibili-uid-blocklist-manager-textarea-highlight,
-      #${MANAGER_PANEL_ID} .bilibili-uid-blocklist-manager-textarea { box-sizing: border-box; width: 100%; min-height: 160px; border: 1px solid #c9ccd0; border-radius: 10px; padding: 10px; font: 14px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
-      #${MANAGER_PANEL_ID} .bilibili-uid-blocklist-manager-textarea-highlight { position: absolute; inset: 0; margin: 0; overflow: hidden; color: #18191c; background: #f6f7f8; pointer-events: none; }
-      #${MANAGER_PANEL_ID} .bilibili-uid-blocklist-manager-textarea { position: relative; display: block; color: transparent; background: transparent; caret-color: #18191c; resize: vertical; }
-      #${MANAGER_PANEL_ID} .bilibili-uid-blocklist-manager-comment { color: #9499a0; }
-      #${MANAGER_PANEL_ID} .bilibili-uid-blocklist-manager-help { margin: 8px 0 12px; color: #9499a0; font-size: 12px; white-space: pre-line; }
-      #${MANAGER_PANEL_ID} .bilibili-uid-blocklist-manager-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-      #${MANAGER_PANEL_ID} .bilibili-uid-blocklist-manager-preview-toggle { display: inline-flex; align-items: center; gap: 8px; color: #61666d; font-size: 13px; font-weight: 700; cursor: pointer; user-select: none; }
-      #${MANAGER_PANEL_ID} .bilibili-uid-blocklist-manager-preview-toggle input { position: absolute; opacity: 0; pointer-events: none; }
-      #${MANAGER_PANEL_ID} .bilibili-uid-blocklist-manager-preview-slider { position: relative; width: 36px; height: 20px; border-radius: 999px; background: #c9ccd0; transition: background .2s ease; }
-      #${MANAGER_PANEL_ID} .bilibili-uid-blocklist-manager-preview-slider::before { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.25); transition: transform .2s ease; }
-      #${MANAGER_PANEL_ID} .bilibili-uid-blocklist-manager-preview-toggle input:checked + .bilibili-uid-blocklist-manager-preview-slider { background: var(--bilibili-uid-blocklist-button-color); }
-      #${MANAGER_PANEL_ID} .bilibili-uid-blocklist-manager-preview-toggle input:checked + .bilibili-uid-blocklist-manager-preview-slider::before { transform: translateX(16px); }
-      #${MANAGER_PANEL_ID} .bilibili-uid-blocklist-manager-action { border: 0; border-radius: 8px; padding: 7px 12px; color: #18191c; background: var(--bilibili-uid-blocklist-button-muted-color); font-size: 13px; cursor: pointer; }
-      #${MANAGER_PANEL_ID} .bilibili-uid-blocklist-manager-action:disabled { color: #9499a0; background: var(--bilibili-uid-blocklist-button-muted-color); cursor: not-allowed; }
-      #${MANAGER_PANEL_ID} .bilibili-uid-blocklist-manager-close { border: 0; border-radius: 50%; width: 28px; height: 28px; color: #61666d; background: #f1f2f3; font-size: 18px; line-height: 28px; cursor: pointer; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-title { font-size: 16px; font-weight: 700; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-version { margin-left: 2px; color: #9499a0; font-size: 12px; font-weight: 500; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-section { margin-top: 12px; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-section:first-of-type { margin-top: 0; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-section + .bfilter-manager-section { padding-top: 4px; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-option { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; color: #18191c; font-size: 13px; cursor: pointer; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-option:last-child { margin-bottom: 0; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-option input { margin: 0; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-option:has(input:disabled) { color: #9499a0; cursor: not-allowed; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-badged-video-control { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-badged-video-control .bfilter-manager-option { margin-bottom: 0; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-badged-types,
+      #${MANAGER_PANEL_ID} .bfilter-manager-registration-threshold { box-sizing: border-box; width: 105px; height: 20px; border: 1px solid #c9ccd0; border-radius: 6px; padding: 0 4px; background: #fff; color: #18191c; font-size: 13px; appearance: auto; -webkit-appearance: auto; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-badged-types:disabled { opacity: .42; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-registration-time-control { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-registration-time-control .bfilter-manager-option { margin-bottom: 0; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-registration-threshold { transition: opacity .2s ease; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-registration-threshold-disabled { opacity: .42; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-tabs { display: flex; align-items: flex-end; gap: 4px; border-bottom: 1px solid #e3e5e7; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-tab { position: relative; border: 1px solid transparent; border-bottom: 0; border-radius: 10px 10px 0 0; padding: 7px 14px; color: #61666d; background: transparent; font-size: 13px; cursor: pointer; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-tab[aria-selected="true"] { border-color: #e3e5e7; color: var(--bfilter-button-color); background: #fff; cursor: default; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-tab[data-tab="following"][aria-selected="true"] { color: var(--bfilter-follow-color); }
+      #${MANAGER_PANEL_ID} .bfilter-manager-tab[aria-selected="true"]::after { content: ""; position: absolute; right: 0; bottom: -1px; left: 0; height: 1px; background: #fff; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-tab-panel { padding-top: 12px; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-tab-panel[hidden] { display: none !important; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-textarea-wrap { position: relative; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-textarea-highlight,
+      #${MANAGER_PANEL_ID} .bfilter-manager-textarea { box-sizing: border-box; width: 100%; min-height: 160px; border: 1px solid #c9ccd0; border-radius: 10px; padding: 10px; font: 14px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-textarea-highlight { position: absolute; inset: 0; margin: 0; overflow: hidden; color: #18191c; background: #f6f7f8; pointer-events: none; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-textarea { position: relative; display: block; color: transparent; background: transparent; caret-color: #18191c; resize: vertical; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-comment { color: #9499a0; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-help { margin: 8px 0 12px; color: #9499a0; font-size: 12px; white-space: pre-line; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-preview-toggle { display: inline-flex; align-items: center; gap: 8px; color: #61666d; font-size: 13px; font-weight: 700; cursor: pointer; user-select: none; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-preview-toggle input { position: absolute; opacity: 0; pointer-events: none; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-preview-slider { position: relative; width: 36px; height: 20px; border-radius: 999px; background: #c9ccd0; transition: background .2s ease; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-preview-slider::before { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.25); transition: transform .2s ease; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-preview-toggle input:checked + .bfilter-manager-preview-slider { background: var(--bfilter-button-color); }
+      #${MANAGER_PANEL_ID} .bfilter-manager-preview-toggle input:checked + .bfilter-manager-preview-slider::before { transform: translateX(16px); }
+      #${MANAGER_PANEL_ID} .bfilter-manager-action { border: 0; border-radius: 8px; padding: 7px 12px; color: #18191c; background: var(--bfilter-button-muted-color); font-size: 13px; cursor: pointer; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-action:disabled { color: #9499a0; background: var(--bfilter-button-muted-color); cursor: not-allowed; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-close { border: 0; border-radius: 50%; width: 28px; height: 28px; color: #61666d; background: #f1f2f3; font-size: 18px; line-height: 28px; cursor: pointer; }
       .${COMMENT_BLOCK_BTN_CLASS} {
         display: inline-flex; align-items: center; justify-content: center;
         margin-left: 6px; padding: 0 6px; height: 18px;
-        border: 1px solid var(--bilibili-uid-blocklist-button-color); border-radius: 4px;
-        color: var(--bilibili-uid-blocklist-button-color); background: #fff;
+        border: 1px solid var(--bfilter-button-color); border-radius: 4px;
+        color: var(--bfilter-button-color); background: #fff;
         font-size: 11px; line-height: 1; cursor: pointer;
         vertical-align: middle; font-family: inherit;
         transition: background .15s, color .15s;
       }
       .${COMMENT_BLOCK_BTN_CLASS}:hover {
-        color: #fff; background: var(--bilibili-uid-blocklist-button-color);
+        color: #fff; background: var(--bfilter-button-color);
       }
       .${COMMENT_BLOCK_BTN_CLASS}[data-blocked="true"] {
-        color: #fff; background: var(--bilibili-uid-blocklist-button-color);
+        color: #fff; background: var(--bfilter-button-color);
       }
-      .${COMMENT_BLOCK_BTN_CLASS}[data-blocked="true"]:hover { background: var(--bilibili-uid-blocklist-button-hover-color); }
+      .${COMMENT_BLOCK_BTN_CLASS}[data-blocked="true"]:hover { background: var(--bfilter-button-hover-color); }
       .${BLOCK_ALL_COMMENTERS_BTN_CLASS} {
-        margin-left: 12px; padding: 4px 10px; border: 1px solid var(--bilibili-uid-blocklist-button-color);
-        border-radius: 6px; color: var(--bilibili-uid-blocklist-button-color); background: #fff;
+        margin-left: 12px; padding: 4px 10px; border: 1px solid var(--bfilter-button-color);
+        border-radius: 6px; color: var(--bfilter-button-color); background: #fff;
         font-size: 12px; font-weight: 700; cursor: pointer; font-family: inherit;
       }
-      .${BLOCK_ALL_COMMENTERS_BTN_CLASS}:hover { color: #fff; background: var(--bilibili-uid-blocklist-button-color); }
+      .${BLOCK_ALL_COMMENTERS_BTN_CLASS}:hover { color: #fff; background: var(--bfilter-button-color); }
     `;
 
     const append = () => {
