@@ -2,13 +2,13 @@
 
 Bfilter keeps a browser-based followlist and blocklist that are not tied to your Bilibili account, hiding blocked content and highlighting followed content.
 
-| Filters       | Users | Videos | Danmakus |
-| ------------- | ----- | ------ | -------- |
-| User UID      | ✓     | ✓      |          |
-| Creation time | ✓     |        |          |
-| Keyword       |       | ✓      | ✓        |
-| Duration      |       | ✓      |          |
-| Views         |       | ✓      |          |
+| Filters       | Users | Videos | Comments | Danmakus |
+| ------------- | ----- | ------ | -------- | -------- |
+| User UID      | ✓     | ✓      | ✓        |          |
+| Creation time | ✓     |        |          |          |
+| Keyword       |       | ✓      | ✓        | ✓        |
+| Duration      |       | ✓      |          |          |
+| Views         |       | ✓      |          |          |
 
 ## Installation
 
