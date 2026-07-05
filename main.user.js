@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Bfilter
 // @namespace    https://github.com/mr-yifeiwang/bfilter
-// @version      0.14.1
+// @version      0.14.2
 // @description  Manage in-browser Bilibili followlist and blocklist
 // @author       mr-yifeiwang
 // @icon         https://raw.githubusercontent.com/mr-yifeiwang/bfilter/master/assets/logo-128x128.png
@@ -2375,9 +2375,9 @@
       #${MANAGER_PANEL_ID} .bfilter-manager-tab-panel[hidden] { display: none !important; }
       #${MANAGER_PANEL_ID} .bfilter-manager-textarea-wrap { position: relative; }
       #${MANAGER_PANEL_ID} .bfilter-manager-textarea-highlight,
-      #${MANAGER_PANEL_ID} .bfilter-manager-textarea { box-sizing: border-box; width: 100%; min-height: 160px; border: 1px solid #c9ccd0; border-radius: 10px; padding: 10px; font: 14px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-textarea { box-sizing: border-box; width: 100%; min-height: 160px; border: 1px solid #c9ccd0; border-radius: 10px; padding: 10px; font-size: 14px; line-height: 1.5; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace !important; white-space: pre-wrap; overflow-wrap: anywhere; }
       #${MANAGER_PANEL_ID} .bfilter-manager-textarea-highlight { position: absolute; inset: 0; margin: 0; overflow: hidden; color: #18191c; background: #f6f7f8; pointer-events: none; }
-      #${MANAGER_PANEL_ID} .bfilter-manager-textarea { position: relative; display: block; color: transparent; background: transparent; caret-color: #18191c; resize: vertical; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-textarea { position: relative; display: block; color: transparent; -webkit-text-fill-color: transparent; background: transparent; caret-color: #18191c; resize: vertical; }
       #${MANAGER_PANEL_ID} .bfilter-manager-comment { color: #9499a0; }
       #${MANAGER_PANEL_ID} .bfilter-manager-help { margin: 8px 0 12px; color: #9499a0; font-size: 12px; white-space: pre-line; }
       #${MANAGER_PANEL_ID} .bfilter-manager-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; }

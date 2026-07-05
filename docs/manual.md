@@ -424,6 +424,7 @@ The CSS hides blocked targets with `display: none !important`, marks previewed t
 | Too much content is hidden                                       | Disable broad metadata filters first, then review video keywords and new-user thresholds.                            |
 | A direct video page hides recommendations but not the main video | This is intentional; the main video owner area is protected.                                                         |
 | Comment buttons do not appear                                    | Load comments first and confirm the page is a direct video, opus, or T page.                                         |
+| Manager textarea caret does not line up with text                | Disable custom font injection by other browser extensions.                                                           |
 | Changes in another tab do not appear                             | Refresh the page if the userscript manager does not support `GM_addValueChangeListener` reliably.                    |
 
 ## Developer reference
