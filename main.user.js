@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Bfilter
 // @namespace    https://github.com/mr-yifeiwang/bfilter
-// @version      0.14.2
+// @version      0.15.0
 // @description  Manage in-browser Bilibili followlist and blocklist
 // @author       mr-yifeiwang
 // @icon         https://raw.githubusercontent.com/mr-yifeiwang/bfilter/master/assets/logo-128x128.png
@@ -641,6 +641,7 @@
     for (const element of card.querySelectorAll(
       [
         ".bili-video-card__info--tit",
+        ".video-name",
         ".video-title",
         ".title-text",
         // Direct-video right-panel recommendations put the title on a
@@ -752,7 +753,9 @@
       isLikelyViewCountFallbackElement,
     );
     for (const element of [...preferred, ...fallback]) {
-      const count = parseViewCount(element.innerText || "");
+      const count = parseViewCount(
+        element.innerText || element.textContent || "",
+      );
       if (count != null) return count;
     }
     return null;
@@ -886,6 +889,7 @@
 
   function isPotentialVideoCard(element) {
     if (!isElement(element) || isUnsafePageContainer(element)) return false;
+    if (matches(element, ".video-card__content")) return false;
     if (isPotentialBadgedCard(element)) return true;
     if (!hasInOrSelf(element, VIDEO_LINK_SELECTOR)) return false;
     if (matches(element, CARD_SELECTOR)) return true;
@@ -971,7 +975,7 @@
   }
 
   function containsMultipleVideos(element) {
-    if (isRankPage() && matches(element, ".rank-item")) return false;
+    if (isPopularPage() && matches(element, ".rank-item")) return false;
 
     const hrefs = new Set();
     if (matches(element, VIDEO_LINK_SELECTOR)) addVideoHref(element, hrefs);
@@ -2195,7 +2199,7 @@
   function isBfilterManagerPage() {
     return (
       isBilibiliHomePage() ||
-      isRankPage() ||
+      isPopularPage() ||
       isSearchPage() ||
       isDirectVideoPage() ||
       isUserPage() ||
@@ -2214,10 +2218,10 @@
     return location.hostname === "search.bilibili.com";
   }
 
-  function isRankPage() {
+  function isPopularPage() {
     return (
       location.hostname === "www.bilibili.com" &&
-      /^\/v\/popular\/rank(?:\/|$)/.test(location.pathname)
+      /^\/v\/popular(?:\/|$)/.test(location.pathname)
     );
   }
 

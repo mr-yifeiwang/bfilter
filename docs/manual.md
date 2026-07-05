@@ -60,15 +60,15 @@ The current script metadata in `main.user.js` identifies the script as version `
 
 Bfilter shows the manager UI on these page types:
 
-| Page type     | URL shape                            | Main support                                                                           |
-| ------------- | ------------------------------------ | -------------------------------------------------------------------------------------- |
-| Bilibili home | `www.bilibili.com/`                  | Video card filtering and manager panel                                                 |
-| Search        | `search.bilibili.com/*`              | Video card filtering and manager panel                                                 |
-| Ranking       | `www.bilibili.com/v/popular/rank...` | Video card filtering and manager panel                                                 |
-| Direct video  | `www.bilibili.com/video/...`         | Recommended-card filtering, comment controls, danmaku keyword filtering, manager panel |
-| User space    | `space.bilibili.com/<uid>`           | Follow/block buttons and manager panel                                                 |
-| Opus          | `www.bilibili.com/opus/...`          | Comment controls and manager panel                                                     |
-| T page        | `t.bilibili.com/*`                   | Comment controls and manager panel                                                     |
+| Page type     | URL shape                       | Main support                                                                           |
+| ------------- | ------------------------------- | -------------------------------------------------------------------------------------- |
+| Bilibili home | `www.bilibili.com/`             | Video card filtering and manager panel                                                 |
+| Search        | `search.bilibili.com/*`         | Video card filtering and manager panel                                                 |
+| Popular       | `www.bilibili.com/v/popular...` | Video card filtering and manager panel                                                 |
+| Direct video  | `www.bilibili.com/video/...`    | Recommended-card filtering, comment controls, danmaku keyword filtering, manager panel |
+| User space    | `space.bilibili.com/<uid>`      | Follow/block buttons and manager panel                                                 |
+| Opus          | `www.bilibili.com/opus/...`     | Comment controls and manager panel                                                     |
+| T page        | `t.bilibili.com/*`              | Comment controls and manager panel                                                     |
 
 User-space pages deliberately do not run the normal card/comment scanner. They only render profile actions and the manager panel.
 
@@ -412,6 +412,7 @@ The CSS hides blocked targets with `display: none !important`, marks previewed t
 - Keyword matching is case-sensitive.
 - New-user detection is heuristic and based only on UID length.
 - View and duration extraction depend on visible card metadata.
+- Some pages do not expose specific types of metadata, so relevant filters are unavailable on those pages.
 - Bulk comment blocking only includes currently loaded comments.
 - Userscript manager storage behavior can vary by browser and manager.
 
