@@ -2,7 +2,7 @@
 
 # Bfilter
 
-Bfilter keeps a browser-based followlist and blocklist that are not tied to your Bilibili account, hiding blocked content and highlighting followed content.
+Bfilter keeps a browser-based followlist and blocklist that are not tied to your Bilibili account, hiding blocked content and highlighting followed content. For detailed documentation, please refer to the [manual](docs/manual.md).
 
 | Filters       | Users | Videos | Comments | Danmakus |
 | ------------- | ----- | ------ | -------- | -------- |
