@@ -1,3 +1,5 @@
+<p align="center"><img src="assets/logo-128x128.png" alt="Bfilter logo"></p>
+
 # Bfilter
 
 Bfilter keeps a browser-based followlist and blocklist that are not tied to your Bilibili account, hiding blocked content and highlighting followed content.

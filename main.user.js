@@ -4,6 +4,7 @@
 // @version      0.13.0
 // @description  Manage in-browser Bilibili followlist and blocklist
 // @author       mr-yifeiwang
+// @icon         https://raw.githubusercontent.com/mr-yifeiwang/bfilter/master/assets/logo-128x128.png
 // @match        https://www.bilibili.com/*
 // @match        https://search.bilibili.com/*
 // @match        https://space.bilibili.com/*
