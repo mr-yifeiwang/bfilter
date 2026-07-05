@@ -226,7 +226,7 @@ This filter applies to video uploaders and comment authors.
 
 Video keyword filtering concatenates detected title text and `title` attributes from title-like elements inside a card, then checks whether that text includes any blocked video keyword.
 
-Title sources include selectors such as `.bili-video-card__info--tit`, `.video-title`, `.title-text`, and video links with `title` attributes.
+Title sources include selectors such as `.bili-video-card__info--tit`, `.video-title`, `.title-text`, video links with `title` attributes, and nested title elements inside video links, such as direct-video recommendation cards.
 
 ### Short-video filter
 

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Bfilter
 // @namespace    https://github.com/mr-yifeiwang/bfilter
-// @version      0.13.0
+// @version      0.13.1
 // @description  Manage in-browser Bilibili followlist and blocklist
 // @author       mr-yifeiwang
 // @icon         https://raw.githubusercontent.com/mr-yifeiwang/bfilter/master/assets/logo-128x128.png
@@ -633,6 +633,14 @@
         ".bili-video-card__info--tit",
         ".video-title",
         ".title-text",
+        // Direct-video right-panel recommendations put the title on a
+        // nested element such as <a href="/video/..."><p class="title">...</p></a>.
+        'a[href*="/video/"] .title',
+        'a[href*="bilibili.com/video/"] .title',
+        'a[href*="/bangumi/play/"] .title',
+        'a[href*="/video/"] [title]',
+        'a[href*="bilibili.com/video/"] [title]',
+        'a[href*="/bangumi/play/"] [title]',
         'a[href*="/video/"][title]',
         'a[href*="bilibili.com/video/"][title]',
         'a[href*="/bangumi/play/"][title]',
