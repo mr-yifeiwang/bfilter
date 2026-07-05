@@ -2240,7 +2240,7 @@
 
   function addStyle() {
     const style = document.createElement("style");
-    style.id = "bilibili-uid-video-blocklist-style";
+    style.id = "bilibili-uid-blocklist-style";
     style.textContent = `
       :root {
         --buvb-button-color: #e53935;
