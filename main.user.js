@@ -2,7 +2,7 @@
 // @name         Bilibili Blocklist
 // @namespace    https://github.com/mr-yifeiwang/bilibili-blocklist
 // @version      0.12.0
-// @description  Hide Bilibili videos, comments, and danmukus conditionally
+// @description  Hide Bilibili videos, comments, and danmakus conditionally
 // @author       mr-yifeiwang
 // @match        https://www.bilibili.com/*
 // @match        https://search.bilibili.com/*
@@ -29,8 +29,8 @@
   const FOLLOWING_STORAGE_KEY = "bilibili-uid-blocklist:following";
   const VIDEO_KEYWORD_BLOCKLIST_STORAGE_KEY =
     "bilibili-uid-blocklist:video-keyword-blocklist";
-  const DANMUKU_KEYWORD_BLOCKLIST_STORAGE_KEY =
-    "bilibili-uid-blocklist:danmuku-keyword-blocklist";
+  const DANMAKU_KEYWORD_BLOCKLIST_STORAGE_KEY =
+    "bilibili-uid-blocklist:danmaku-keyword-blocklist";
   const SETTING_KEYS = {
     blockNewUsers: "bilibili-uid-blocklist:block-new-users",
     registrationTimeThreshold:
@@ -61,8 +61,8 @@
     "bilibili-uid-blocklist-manager-following-textarea";
   const MANAGER_VIDEO_KEYWORDS_TEXTAREA_ID =
     "bilibili-uid-blocklist-manager-video-keywords-textarea";
-  const MANAGER_DANMUKU_KEYWORDS_TEXTAREA_ID =
-    "bilibili-uid-blocklist-manager-danmuku-keywords-textarea";
+  const MANAGER_DANMAKU_KEYWORDS_TEXTAREA_ID =
+    "bilibili-uid-blocklist-manager-danmaku-keywords-textarea";
 
   const COMMENT_BLOCK_BTN_CLASS = "buvb-block-btn";
   const BLOCK_ALL_COMMENTERS_BTN_CLASS = "buvb-block-all-commenters-btn";
@@ -168,11 +168,11 @@
   const COMMENT_USER_LINK_SELECTOR =
     'a.user-name[href*="space.bilibili.com/"], a.sub-user-name[href*="space.bilibili.com/"]';
 
-  const DANMUKU_SELECTOR = [
+  const DANMAKU_SELECTOR = [
     ".bpx-player-row-dm-wrap .bili-danmaku-x-dm",
     ".bpx-player-dm li.bui-long-list-item",
   ].join(",");
-  const DANMUKU_TEXT_SELECTOR = ".dm-info-dm";
+  const DANMAKU_TEXT_SELECTOR = ".dm-info-dm";
 
   const REGISTRATION_TIME_THRESHOLD_OPTIONS = [
     { label: "> 2015", minDigits: 8 },
@@ -284,7 +284,7 @@
   const BLOCKED_UIDS = new Set();
   const FOLLOWING_UIDS = new Set();
   const BLOCKED_VIDEO_KEYWORDS = new Set();
-  const BLOCKED_DANMUKU_KEYWORDS = new Set();
+  const BLOCKED_DANMAKU_KEYWORDS = new Set();
   const settings = {
     blockNewUsers: false,
     previewMode: false,
@@ -311,8 +311,8 @@
     replaceRuntimeBlockedUids(readSavedBlockedUids() || []);
     replaceRuntimeFollowingUids(readSavedFollowingUids() || []);
     replaceRuntimeBlockedVideoKeywords(readSavedBlockedVideoKeywords() || []);
-    replaceRuntimeBlockedDanmukuKeywords(
-      readSavedBlockedDanmukuKeywords() || [],
+    replaceRuntimeBlockedDanmakuKeywords(
+      readSavedBlockedDanmakuKeywords() || [],
     );
     for (const { name } of BOOLEAN_CONTROLS) {
       const control = getControl(name);
@@ -408,11 +408,11 @@
         continue;
       }
 
-      const danmuku = resolveDanmuku(candidate);
-      if (danmuku) {
-        const reason = evaluateDanmuku(danmuku);
-        if (reason) applyConsequence(danmuku, reason);
-        else clearConsequence(danmuku);
+      const danmaku = resolveDanmaku(candidate);
+      if (danmaku) {
+        const reason = evaluateDanmaku(danmaku);
+        if (reason) applyConsequence(danmaku, reason);
+        else clearConsequence(danmaku);
         continue;
       }
 
@@ -446,8 +446,8 @@
     const candidates = new Set();
     addIfMatches(root, CARD_SELECTOR, candidates);
     addIfMatches(root, COMMENT_ITEM_SELECTOR, candidates);
-    addIfMatches(root, DANMUKU_SELECTOR, candidates);
-    addIfMatches(root, DANMUKU_TEXT_SELECTOR, candidates);
+    addIfMatches(root, DANMAKU_SELECTOR, candidates);
+    addIfMatches(root, DANMAKU_TEXT_SELECTOR, candidates);
     addIfMatches(root, UPLOADER_SELECTOR, candidates);
     addIfMatches(root, COMMENT_USER_LINK_SELECTOR, candidates);
     addIfMatches(root, VIDEO_LINK_SELECTOR, candidates);
@@ -455,8 +455,8 @@
     for (const selector of [
       CARD_SELECTOR,
       COMMENT_ITEM_SELECTOR,
-      DANMUKU_SELECTOR,
-      DANMUKU_TEXT_SELECTOR,
+      DANMAKU_SELECTOR,
+      DANMAKU_TEXT_SELECTOR,
       UPLOADER_SELECTOR,
       COMMENT_USER_LINK_SELECTOR,
       VIDEO_LINK_SELECTOR,
@@ -475,11 +475,11 @@
       : candidate.closest(COMMENT_ITEM_SELECTOR);
   }
 
-  function resolveDanmuku(candidate) {
+  function resolveDanmaku(candidate) {
     if (!isDirectVideoPage() || !isElement(candidate)) return null;
-    return matches(candidate, DANMUKU_SELECTOR)
+    return matches(candidate, DANMAKU_SELECTOR)
       ? candidate
-      : candidate.closest(DANMUKU_SELECTOR);
+      : candidate.closest(DANMAKU_SELECTOR);
   }
 
   function resolveVideoCard(candidate) {
@@ -519,9 +519,9 @@
     );
   }
 
-  function evaluateDanmuku(danmuku) {
-    const keyword = getMatchedDanmukuKeyword(getDanmukuText(danmuku));
-    return keyword ? { type: "danmuku-keyword", uid: "", keyword } : null;
+  function evaluateDanmaku(danmaku) {
+    const keyword = getMatchedDanmakuKeyword(getDanmakuText(danmaku));
+    return keyword ? { type: "danmaku-keyword", uid: "", keyword } : null;
   }
 
   function blockedUidReason(card) {
@@ -783,11 +783,11 @@
     );
   }
 
-  function getMatchedDanmukuKeyword(text) {
-    if (!BLOCKED_DANMUKU_KEYWORDS.size) return "";
+  function getMatchedDanmakuKeyword(text) {
+    if (!BLOCKED_DANMAKU_KEYWORDS.size) return "";
     const haystack = String(text || "");
     if (!haystack) return "";
-    return [...BLOCKED_DANMUKU_KEYWORDS].find((keyword) =>
+    return [...BLOCKED_DANMAKU_KEYWORDS].find((keyword) =>
       haystack.includes(keyword),
     );
   }
@@ -821,9 +821,9 @@
     return elements;
   }
 
-  function getDanmukuText(danmuku) {
-    const text = danmuku.querySelector(DANMUKU_TEXT_SELECTOR);
-    return text ? text.textContent || "" : danmuku.textContent || "";
+  function getDanmakuText(danmaku) {
+    const text = danmaku.querySelector(DANMAKU_TEXT_SELECTOR);
+    return text ? text.textContent || "" : danmaku.textContent || "";
   }
 
   function isNewUserUid(uid) {
@@ -1044,9 +1044,9 @@
         },
       );
       GM_addValueChangeListener(
-        DANMUKU_KEYWORD_BLOCKLIST_STORAGE_KEY,
+        DANMAKU_KEYWORD_BLOCKLIST_STORAGE_KEY,
         (_key, _oldValue, value, remote) => {
-          if (remote) syncBlockedDanmukuKeywords(value);
+          if (remote) syncBlockedDanmakuKeywords(value);
         },
       );
       for (const { name } of BOOLEAN_CONTROLS) {
@@ -1074,8 +1074,8 @@
         syncFollowingUids(event.newValue);
       if (event.key === VIDEO_KEYWORD_BLOCKLIST_STORAGE_KEY)
         syncBlockedVideoKeywords(event.newValue);
-      if (event.key === DANMUKU_KEYWORD_BLOCKLIST_STORAGE_KEY)
-        syncBlockedDanmukuKeywords(event.newValue);
+      if (event.key === DANMAKU_KEYWORD_BLOCKLIST_STORAGE_KEY)
+        syncBlockedDanmakuKeywords(event.newValue);
       for (const { name } of BOOLEAN_CONTROLS) {
         if (event.key === SETTING_KEYS[name])
           syncBooleanSetting(name, event.newValue);
@@ -1111,10 +1111,10 @@
     refreshBlocklistManagerPanel();
   }
 
-  function syncBlockedDanmukuKeywords(savedValue) {
-    const savedKeywords = parseSavedBlockedDanmukuKeywords(savedValue);
+  function syncBlockedDanmakuKeywords(savedValue) {
+    const savedKeywords = parseSavedBlockedDanmakuKeywords(savedValue);
     if (!savedKeywords) return;
-    replaceRuntimeBlockedDanmukuKeywords(savedKeywords);
+    replaceRuntimeBlockedDanmakuKeywords(savedKeywords);
     refreshConsequences();
     refreshBlocklistManagerPanel();
   }
@@ -1194,13 +1194,13 @@
     }
   }
 
-  function readSavedBlockedDanmukuKeywords() {
+  function readSavedBlockedDanmakuKeywords() {
     try {
       const saved =
         typeof GM_getValue === "function"
-          ? GM_getValue(DANMUKU_KEYWORD_BLOCKLIST_STORAGE_KEY, null)
-          : localStorage.getItem(DANMUKU_KEYWORD_BLOCKLIST_STORAGE_KEY);
-      return parseSavedBlockedDanmukuKeywords(saved);
+          ? GM_getValue(DANMAKU_KEYWORD_BLOCKLIST_STORAGE_KEY, null)
+          : localStorage.getItem(DANMAKU_KEYWORD_BLOCKLIST_STORAGE_KEY);
+      return parseSavedBlockedDanmakuKeywords(saved);
     } catch (_error) {
       return [];
     }
@@ -1218,7 +1218,7 @@
     }
   }
 
-  function parseSavedBlockedDanmukuKeywords(saved) {
+  function parseSavedBlockedDanmakuKeywords(saved) {
     return parseSavedBlockedVideoKeywords(saved);
   }
 
@@ -1307,10 +1307,10 @@
     }
   }
 
-  function replaceRuntimeBlockedDanmukuKeywords(nextKeywords) {
-    BLOCKED_DANMUKU_KEYWORDS.clear();
+  function replaceRuntimeBlockedDanmakuKeywords(nextKeywords) {
+    BLOCKED_DANMAKU_KEYWORDS.clear();
     for (const keyword of dedupeKeywords(nextKeywords)) {
-      BLOCKED_DANMUKU_KEYWORDS.add(keyword);
+      BLOCKED_DANMAKU_KEYWORDS.add(keyword);
     }
   }
 
@@ -1348,14 +1348,14 @@
     }
   }
 
-  function saveBlockedDanmukuKeywords() {
+  function saveBlockedDanmakuKeywords() {
     try {
-      const value = JSON.stringify([...BLOCKED_DANMUKU_KEYWORDS]);
+      const value = JSON.stringify([...BLOCKED_DANMAKU_KEYWORDS]);
       if (typeof GM_setValue === "function")
-        GM_setValue(DANMUKU_KEYWORD_BLOCKLIST_STORAGE_KEY, value);
-      else localStorage.setItem(DANMUKU_KEYWORD_BLOCKLIST_STORAGE_KEY, value);
+        GM_setValue(DANMAKU_KEYWORD_BLOCKLIST_STORAGE_KEY, value);
+      else localStorage.setItem(DANMAKU_KEYWORD_BLOCKLIST_STORAGE_KEY, value);
     } catch (_error) {
-      // Keep runtime danmuku keywords even if persistence fails.
+      // Keep runtime danmaku keywords even if persistence fails.
     }
   }
 
@@ -1405,8 +1405,8 @@
     return [...BLOCKED_VIDEO_KEYWORDS];
   }
 
-  function getBlockedDanmukuKeywordList() {
-    return [...BLOCKED_DANMUKU_KEYWORDS];
+  function getBlockedDanmakuKeywordList() {
+    return [...BLOCKED_DANMAKU_KEYWORDS];
   }
 
   function parseBlockedUidText(text) {
@@ -1447,7 +1447,7 @@
     );
   }
 
-  function parseBlockedDanmukuKeywordText(text) {
+  function parseBlockedDanmakuKeywordText(text) {
     return parseBlockedVideoKeywordText(text);
   }
 
@@ -1555,7 +1555,7 @@
         <div class="buvb-manager-tabs" role="tablist">
           <button class="buvb-manager-tab" type="button" role="tab" aria-selected="true" data-tab="users">Users</button>
           <button class="buvb-manager-tab" type="button" role="tab" aria-selected="false" data-tab="video-keywords">Videos</button>
-          <button class="buvb-manager-tab" type="button" role="tab" aria-selected="false" data-tab="danmuku-keywords">Danmukus</button>
+          <button class="buvb-manager-tab" type="button" role="tab" aria-selected="false" data-tab="danmaku-keywords">Danmakus</button>
           <button class="buvb-manager-tab" type="button" role="tab" aria-selected="false" data-tab="following">Following</button>
         </div>
         <div class="buvb-manager-tab-panel" role="tabpanel" data-tab-panel="users">
@@ -1580,9 +1580,9 @@
           ${renderManagerTextarea(MANAGER_VIDEO_KEYWORDS_TEXTAREA_ID)}
           <div class="buvb-manager-help" data-help="video-keywords"></div>
         </div>
-        <div class="buvb-manager-tab-panel" role="tabpanel" data-tab-panel="danmuku-keywords" hidden>
-          ${renderManagerTextarea(MANAGER_DANMUKU_KEYWORDS_TEXTAREA_ID)}
-          <div class="buvb-manager-help" data-help="danmuku-keywords"></div>
+        <div class="buvb-manager-tab-panel" role="tabpanel" data-tab-panel="danmaku-keywords" hidden>
+          ${renderManagerTextarea(MANAGER_DANMAKU_KEYWORDS_TEXTAREA_ID)}
+          <div class="buvb-manager-help" data-help="danmaku-keywords"></div>
         </div>
         <div class="buvb-manager-tab-panel" role="tabpanel" data-tab-panel="following" hidden>
           ${BOOLEAN_CONTROLS.filter((control) => control.followingOption)
@@ -1621,7 +1621,7 @@
         (target.id === MANAGER_TEXTAREA_ID ||
           target.id === MANAGER_FOLLOWING_TEXTAREA_ID ||
           target.id === MANAGER_VIDEO_KEYWORDS_TEXTAREA_ID ||
-          target.id === MANAGER_DANMUKU_KEYWORDS_TEXTAREA_ID)
+          target.id === MANAGER_DANMAKU_KEYWORDS_TEXTAREA_ID)
       ) {
         updateManagerCommentHighlight(target);
         updateManagerSaveButtonState(panel);
@@ -1705,7 +1705,7 @@
     const followingUids = getFollowingUidList();
     const followingText = getFollowingTextValue();
     const videoKeywords = getBlockedVideoKeywordList();
-    const danmukuKeywords = getBlockedDanmukuKeywordList();
+    const danmakuKeywords = getBlockedDanmakuKeywordList();
     const textarea = panel.querySelector(`#${MANAGER_TEXTAREA_ID}`);
     const followingTextarea = panel.querySelector(
       `#${MANAGER_FOLLOWING_TEXTAREA_ID}`,
@@ -1718,11 +1718,11 @@
     const videoKeywordsHelp = panel.querySelector(
       '[data-help="video-keywords"]',
     );
-    const danmukuKeywordsTextarea = panel.querySelector(
-      `#${MANAGER_DANMUKU_KEYWORDS_TEXTAREA_ID}`,
+    const danmakuKeywordsTextarea = panel.querySelector(
+      `#${MANAGER_DANMAKU_KEYWORDS_TEXTAREA_ID}`,
     );
-    const danmukuKeywordsHelp = panel.querySelector(
-      '[data-help="danmuku-keywords"]',
+    const danmakuKeywordsHelp = panel.querySelector(
+      '[data-help="danmaku-keywords"]',
     );
     if (textarea) {
       textarea.value = getManagerTextValue(
@@ -1751,15 +1751,15 @@
       videoKeywordsTextarea.dataset.cleanValue = videoKeywordsTextarea.value;
       updateManagerCommentHighlight(videoKeywordsTextarea);
     }
-    if (danmukuKeywordsTextarea) {
-      danmukuKeywordsTextarea.value = getManagerTextValue(
+    if (danmakuKeywordsTextarea) {
+      danmakuKeywordsTextarea.value = getManagerTextValue(
         textValues,
-        "danmukuKeywords",
-        danmukuKeywords.join("\n"),
+        "danmakuKeywords",
+        danmakuKeywords.join("\n"),
       );
-      danmukuKeywordsTextarea.dataset.cleanValue =
-        danmukuKeywordsTextarea.value;
-      updateManagerCommentHighlight(danmukuKeywordsTextarea);
+      danmakuKeywordsTextarea.dataset.cleanValue =
+        danmakuKeywordsTextarea.value;
+      updateManagerCommentHighlight(danmakuKeywordsTextarea);
     }
     if (help)
       help.innerHTML = `<strong>${uids.length}</strong> user(s) have been blocked.\nEnter one UID per line to block users.`;
@@ -1767,8 +1767,8 @@
       followingHelp.innerHTML = `<strong>${followingUids.length}</strong> user(s) are followed.\nEnter one UID per line to highlight users.`;
     if (videoKeywordsHelp)
       videoKeywordsHelp.innerHTML = `<strong>${videoKeywords.length}</strong> keyword(s) have been blocked.\nEnter one keyword per line to block videos containing it in their titles.`;
-    if (danmukuKeywordsHelp)
-      danmukuKeywordsHelp.innerHTML = `<strong>${danmukuKeywords.length}</strong> keyword(s) have been blocked.\nEnter one keyword per line to block danmukus containing it.`;
+    if (danmakuKeywordsHelp)
+      danmakuKeywordsHelp.innerHTML = `<strong>${danmakuKeywords.length}</strong> keyword(s) have been blocked.\nEnter one keyword per line to block danmakus containing it.`;
     refreshBooleanControls(panel);
     updateManagerSaveButtonState(panel);
   }
@@ -1818,7 +1818,7 @@
     const nextTab = [
       "users",
       "video-keywords",
-      "danmuku-keywords",
+      "danmaku-keywords",
       "following",
     ].includes(tabName)
       ? tabName
@@ -1848,15 +1848,15 @@
     const videoKeywordsTextarea = panel.querySelector(
       `#${MANAGER_VIDEO_KEYWORDS_TEXTAREA_ID}`,
     );
-    const danmukuKeywordsTextarea = panel.querySelector(
-      `#${MANAGER_DANMUKU_KEYWORDS_TEXTAREA_ID}`,
+    const danmakuKeywordsTextarea = panel.querySelector(
+      `#${MANAGER_DANMAKU_KEYWORDS_TEXTAREA_ID}`,
     );
     const textValues = {
       users: textarea ? textarea.value : "",
       following: followingTextarea ? followingTextarea.value : "",
       videoKeywords: videoKeywordsTextarea ? videoKeywordsTextarea.value : "",
-      danmukuKeywords: danmukuKeywordsTextarea
-        ? danmukuKeywordsTextarea.value
+      danmakuKeywords: danmakuKeywordsTextarea
+        ? danmakuKeywordsTextarea.value
         : "",
     };
     if (textarea)
@@ -1869,14 +1869,14 @@
       replaceRuntimeBlockedVideoKeywords(
         parseBlockedVideoKeywordText(videoKeywordsTextarea.value),
       );
-    if (danmukuKeywordsTextarea)
-      replaceRuntimeBlockedDanmukuKeywords(
-        parseBlockedDanmukuKeywordText(danmukuKeywordsTextarea.value),
+    if (danmakuKeywordsTextarea)
+      replaceRuntimeBlockedDanmakuKeywords(
+        parseBlockedDanmakuKeywordText(danmakuKeywordsTextarea.value),
       );
     saveBlockedUids();
     saveFollowingUids(followingTextarea ? followingTextarea.value : undefined);
     saveBlockedVideoKeywords();
-    saveBlockedDanmukuKeywords();
+    saveBlockedDanmakuKeywords();
     refreshConsequences();
     refreshBlocklistManagerPanel(panel, textValues);
   }
@@ -1925,8 +1925,8 @@
     const videoKeywordsTextarea = panel.querySelector(
       `#${MANAGER_VIDEO_KEYWORDS_TEXTAREA_ID}`,
     );
-    const danmukuKeywordsTextarea = panel.querySelector(
-      `#${MANAGER_DANMUKU_KEYWORDS_TEXTAREA_ID}`,
+    const danmakuKeywordsTextarea = panel.querySelector(
+      `#${MANAGER_DANMAKU_KEYWORDS_TEXTAREA_ID}`,
     );
     const saveButton = panel.querySelector('[data-action="save"]');
     if (saveButton)
@@ -1934,7 +1934,7 @@
         textarea,
         followingTextarea,
         videoKeywordsTextarea,
-        danmukuKeywordsTextarea,
+        danmakuKeywordsTextarea,
       ].some(
         (input) => input && input.value !== (input.dataset.cleanValue || ""),
       );

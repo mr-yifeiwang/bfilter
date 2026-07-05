@@ -1,8 +1,8 @@
 # Bilibili Blocklist
 
-Bilibili's built-in blocklist is account-bounded and sometimes limited. This script stores your own in-browser blocklist and hides matching videos, comments, and danmukus on supported pages.
+Bilibili's built-in blocklist is account-bounded and sometimes limited. This script stores your own in-browser blocklist and hides matching videos, comments, and danmakus on supported pages.
 
-| Filters       | Users | Videos | Danmukus |
+| Filters       | Users | Videos | Danmakus |
 | ------------- | ----- | ------ | -------- |
 | User UID      | ✓     | ✓      |          |
 | Creation time | ✓     |        |          |
