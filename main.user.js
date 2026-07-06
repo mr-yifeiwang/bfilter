@@ -2483,11 +2483,13 @@
       }
       #${MANAGER_PANEL_ID} {
         position: fixed; top: 62px; right: 24px; z-index: 999999;
-        width: min(420px, calc(100vw - 48px)); border: 1px solid rgba(0,0,0,.08);
+        box-sizing: border-box;
+        width: 450px; max-width: calc(100vw - 48px); border: 1px solid rgba(0,0,0,.08);
         border-radius: 14px; padding: 16px; color: #18191c; background: #fff;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         box-shadow: 0 12px 32px rgba(0,0,0,.22);
       }
+      #${MANAGER_PANEL_ID} *, #${MANAGER_PANEL_ID}::before, #${MANAGER_PANEL_ID}::after { box-sizing: border-box; }
       #${MANAGER_PANEL_ID}[hidden] { display: none !important; }
       #${MANAGER_PANEL_ID} button { font-weight: 700; }
       #${MANAGER_PANEL_ID} .bfilter-manager-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
@@ -2509,8 +2511,8 @@
       #${MANAGER_PANEL_ID} .bfilter-manager-registration-time-control .bfilter-manager-option { margin-bottom: 0; }
       #${MANAGER_PANEL_ID} .bfilter-manager-registration-threshold { transition: opacity .2s ease; }
       #${MANAGER_PANEL_ID} .bfilter-manager-registration-threshold-disabled { opacity: .42; }
-      #${MANAGER_PANEL_ID} .bfilter-manager-tabs { display: flex; align-items: flex-end; gap: 4px; border-bottom: 1px solid #e3e5e7; }
-      #${MANAGER_PANEL_ID} .bfilter-manager-tab { position: relative; border: 1px solid transparent; border-bottom: 0; border-radius: 10px 10px 0 0; padding: 7px 14px; color: #61666d; background: transparent; font-size: 13px; cursor: pointer; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-tabs { display: flex; align-items: flex-end; gap: 2px; border-bottom: 1px solid #e3e5e7; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-tab { position: relative; border: 1px solid transparent; border-bottom: 0; border-radius: 8px 8px 0 0; padding: 5px 9px; color: #61666d; background: transparent; font-size: 14px; cursor: pointer; }
       #${MANAGER_PANEL_ID} .bfilter-manager-tab[aria-selected="true"] { border-color: #e3e5e7; color: var(--bfilter-button-color); background: #fff; cursor: default; }
       #${MANAGER_PANEL_ID} .bfilter-manager-tab[data-tab="following"][aria-selected="true"] { color: var(--bfilter-follow-color); }
       #${MANAGER_PANEL_ID} .bfilter-manager-tab[aria-selected="true"]::after { content: ""; position: absolute; right: 0; bottom: -1px; left: 0; height: 1px; background: #fff; }
