@@ -8,6 +8,7 @@
   - [Manager panel](#manager-panel)
     - [Users tab](#users-tab)
     - [Videos tab](#videos-tab)
+    - [Comments tab](#comments-tab)
     - [Danmakus tab](#danmakus-tab)
     - [Following tab](#following-tab)
     - [Preview mode](#preview-mode)
@@ -16,6 +17,7 @@
     - [Followed users](#followed-users)
     - [New-user filter](#new-user-filter)
     - [Video keyword filter](#video-keyword-filter)
+    - [Comment keyword filter](#comment-keyword-filter)
     - [Short-video filter](#short-video-filter)
     - [Unpopular-video filter](#unpopular-video-filter)
     - [Badged-video filter](#badged-video-filter)
@@ -43,6 +45,7 @@ The script can:
 - Hide videos and comments from blocked user UIDs.
 - Highlight videos and comments from followed user UIDs.
 - Hide videos by title keywords.
+- Hide comments by text keywords.
 - Hide danmakus by text keywords on direct video pages.
 - Optionally hide accounts that look newly registered, based on UID length.
 - Optionally hide short videos, low-view videos, and selected non-standard content links such as live, manga, or course cards.
@@ -107,7 +110,7 @@ If the userscript manager APIs are unavailable, the script falls back to `localS
 
 ## Manager panel
 
-The floating **Open Bfilter** button creates a panel with four tabs: **Users**, **Videos**, **Danmakus**, and **Following**. The panel also includes a global **Preview** toggle and a **Save** button.
+The floating **Open Bfilter** button creates a panel with five tabs: **Users**, **Videos**, **Comments**, **Danmakus**, and **Following**. The panel also includes a global **Preview** toggle and a **Save** button.
 
 The Save button is enabled only when one or more textareas differ from their last loaded value. Changing checkboxes or dropdowns is saved immediately.
 
@@ -149,6 +152,15 @@ This tab also includes video metadata filters:
 - **Hide badged videos**, with selectable child types: **Live**, **Manga**, **Course**, and **Bangumi**.
 
 Metadata filters are applied to card-like results and to recommendation areas on direct video pages. They are intentionally not applied to the primary video page owner/content area.
+
+### Comments tab
+
+Use this tab to maintain text keywords for comment blocking.
+
+- Each line is one keyword.
+- Matching is case-sensitive and uses simple substring matching.
+- Text after `#` is treated as a comment.
+- Duplicate keyword lines are removed at runtime.
 
 ### Danmakus tab
 
@@ -197,7 +209,7 @@ For video cards, followed UIDs are checked first. If a card belongs to a followe
 5. Unpopular-video rule.
 6. Badged-video rule.
 
-For comments, followed author UIDs are highlighted before block checks. If not followed, comments are hidden/previewed by blocked UID or new-user rule.
+For comments, followed author UIDs are highlighted before block checks. If not followed, comments are hidden/previewed by blocked UID, comment keyword, or new-user rule.
 
 ### Blocked users
 
@@ -227,6 +239,10 @@ This filter applies to video uploaders and comment authors.
 Video keyword filtering concatenates detected title text and `title` attributes from title-like elements inside a card, then checks whether that text includes any blocked video keyword.
 
 Title sources include selectors such as `.bili-video-card__info--tit`, `.video-title`, `.title-text`, video links with `title` attributes, and nested title elements inside video links, such as direct-video recommendation cards.
+
+### Comment keyword filter
+
+Comment keyword filtering checks detected comment text, then hides or previews the matching comment item when it includes any blocked comment keyword.
 
 ### Short-video filter
 
@@ -328,6 +344,7 @@ Bfilter persists these values:
 | Blocked user list           | `bfilter:blocklist`                   |
 | Following user list         | `bfilter:following`                   |
 | Video keyword list          | `bfilter:video-keyword-blocklist`     |
+| Comment keyword list        | `bfilter:comment-keyword-blocklist`   |
 | Danmaku keyword list        | `bfilter:danmaku-keyword-blocklist`   |
 | Block new users             | `bfilter:block-new-users`             |
 | Registration-time threshold | `bfilter:registration-time-threshold` |
