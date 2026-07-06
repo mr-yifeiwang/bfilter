@@ -52,7 +52,7 @@ The script can:
 - Add quick block/follow controls to Bilibili user-space pages.
 - Add per-comment block buttons and a bulk “Block All Commenters” button on supported comment pages.
 
-The current script metadata in `main.user.js` identifies the script as version `0.13.0` and runs it at `document-start` on these URL families:
+The current script metadata in `main.user.js` identifies the script as version `0.17.0` and runs it at `document-start` on these URL families:
 
 - `https://www.bilibili.com/*`
 - `https://search.bilibili.com/*`
@@ -110,7 +110,7 @@ If the userscript manager APIs are unavailable, the script falls back to `localS
 
 ## Manager panel
 
-The floating **Open Bfilter** button creates a panel with five tabs: **Users**, **Videos**, **Comments**, **Danmakus**, and **Following**. The panel also includes a global **Preview** toggle and a **Save** button.
+The floating **Open Bfilter** button creates a panel with a vertical left-side tab list: **Users**, **Videos**, **Comments**, **Danmakus**, and **Following**. The panel also includes a global **Preview** toggle and a **Save** button.
 
 The Save button is enabled only when one or more textareas differ from their last loaded value. Changing checkboxes or dropdowns is saved immediately.
 
@@ -420,7 +420,7 @@ Important data attributes:
 | `data-bfilter-followed="true"`  | Target is follow-highlighted.                                      |
 | `data-bfilter-blocked-uid`      | Stores the UID associated with a block consequence when available. |
 
-The CSS hides blocked targets with `display: none !important`, marks previewed targets with a red background/outline, and marks followed targets with a green background/outline.
+The CSS hides blocked targets with `display: none !important`, marks previewed targets with a red background/outline, marks followed targets with a green background/outline, and lays out the manager panel with vertical tabs beside the active editor.
 
 ## Limitations
 
