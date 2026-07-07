@@ -181,6 +181,7 @@ Use this tab to maintain UIDs that should be highlighted instead of hidden.
 
 - Each line should contain one numeric UID.
 - A followed UID takes priority over blocking for matching cards/comments.
+- Select a UID and click **Go** to open `https://space.bilibili.com/<uid>/dynamic`. The **Go** button is only shown on this tab.
 - The user-space follow button can automatically append usernames as comments, for example `12345678 # username`.
 
 The **Add usernames by default** option controls whether the user-space follow action stores the current profile username after `#`. It defaults to enabled.

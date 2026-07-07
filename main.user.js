@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Bfilter
 // @namespace    https://github.com/mr-yifeiwang/bfilter
-// @version      0.19.0
+// @version      0.20.0
 // @description  Manage in-browser Bilibili followlist and blocklist
 // @author       mr-yifeiwang
 // @icon         https://raw.githubusercontent.com/mr-yifeiwang/bfilter/master/assets/logo-128x128.png
@@ -1716,6 +1716,7 @@
             <span>Preview</span>
           </label>
           <div class="bfilter-manager-action-buttons">
+            <button class="bfilter-manager-action bfilter-manager-action-primary" type="button" data-action="go-following" title="Open selected user space" hidden>Go</button>
             <button class="bfilter-manager-action bfilter-manager-action-primary" type="button" data-action="sort" title="Sort all Manager lists">Sort</button>
             <button class="bfilter-manager-action bfilter-manager-action-primary" type="button" data-action="save" disabled>Save</button>
           </div>
@@ -1730,6 +1731,9 @@
         panel.hidden = true;
       if (target.matches(".bfilter-manager-tab[data-tab]")) {
         setActiveManagerTab(panel, target.getAttribute("data-tab"));
+      }
+      if (target.getAttribute("data-action") === "go-following") {
+        openSelectedFollowingDynamic(panel);
       }
       if (target.getAttribute("data-action") === "sort") {
         if (
@@ -1925,6 +1929,7 @@
     if (danmakuKeywordsHelp)
       danmakuKeywordsHelp.innerHTML = `<strong>${danmakuKeywords.length}</strong> keyword(s) have been blocked.\nEnter one keyword per line to block danmakus containing it.`;
     refreshBooleanControls(panel);
+    refreshManagerGoButton(panel);
     updateManagerSaveButtonState(panel);
   }
 
@@ -1992,12 +1997,47 @@
     for (const tabPanel of panel.querySelectorAll("[data-tab-panel]")) {
       tabPanel.hidden = tabPanel.getAttribute("data-tab-panel") !== nextTab;
     }
+    refreshManagerGoButton(panel);
     getActiveManagerTextarea(panel)?.focus();
+  }
+
+  function refreshManagerGoButton(panel) {
+    const goButton = panel.querySelector('[data-action="go-following"]');
+    if (!goButton) return;
+    goButton.hidden = getActiveManagerTabName(panel) !== "following";
+  }
+
+  function getActiveManagerTabName(panel) {
+    const activeTab = panel.querySelector(
+      '.bfilter-manager-tab[data-tab][aria-selected="true"]',
+    );
+    return activeTab ? activeTab.getAttribute("data-tab") : "users";
   }
 
   function getActiveManagerTextarea(panel) {
     const activePanel = panel.querySelector("[data-tab-panel]:not([hidden])");
     return activePanel ? activePanel.querySelector("textarea") : null;
+  }
+
+  function openSelectedFollowingDynamic(panel) {
+    const textarea = panel.querySelector(`#${MANAGER_FOLLOWING_TEXTAREA_ID}`);
+    const uid = getSelectedFollowingUid(textarea);
+    if (!uid) {
+      alert(
+        "1. Select one numeric UID in the Following list. Do not include spaces, comments, or multiple lines in the selection.\n2. Click Go to visit the user space.",
+      );
+      return;
+    }
+    window.open(`https://space.bilibili.com/${uid}/dynamic`, "_blank");
+  }
+
+  function getSelectedFollowingUid(textarea) {
+    if (!textarea) return "";
+    const selectedText = textarea.value.slice(
+      textarea.selectionStart,
+      textarea.selectionEnd,
+    );
+    return normalizeUid(selectedText);
   }
 
   function sortManagerTextareas(panel) {
