@@ -434,7 +434,7 @@ Important data attributes:
 
 The CSS text is built by section helpers near `addStyle`: variables, visibility/marking rules, floating/profile buttons, manager panel, and comment buttons. `addStyle` itself only creates the style element, assigns `STYLE_ID`, fills it with `getStyleText()`, and appends it safely.
 
-The injected CSS hides blocked targets with `display: none !important`, marks previewed targets with a red background/outline, marks followed targets with a green background/outline, and lays out the manager panel with vertical tabs beside the active editor.
+The injected CSS hides blocked targets with `display: none !important`, marks previewed targets with a red background/outline, marks followed targets with a green background/outline, and lays out the manager panel with vertical tabs beside the active editor. Manager tab panels use a consistent minimum height so the panel does not shrink or grow when switching tabs.
 
 ## Limitations
 

@@ -2781,7 +2781,7 @@
       #${MANAGER_PANEL_ID} .bfilter-manager-tab[aria-selected="true"] { border-color: #e3e5e7; color: var(--bfilter-button-color); background: #fff; cursor: default; }
       #${MANAGER_PANEL_ID} .bfilter-manager-tab[data-tab="following"][aria-selected="true"] { color: var(--bfilter-follow-color); }
       #${MANAGER_PANEL_ID} .bfilter-manager-tab[aria-selected="true"]::after { content: ""; position: absolute; top: 0; right: -1px; bottom: 0; width: 1px; background: #fff; }
-      #${MANAGER_PANEL_ID} .bfilter-manager-tab-panel { grid-column: 2; grid-row: 1; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-tab-panel { grid-column: 2; grid-row: 1; min-height: 290px; }
       #${MANAGER_PANEL_ID} .bfilter-manager-tab-panel[hidden] { display: none !important; }
       #${MANAGER_PANEL_ID} .bfilter-manager-settings-section { display: grid; gap: 8px; }
       #${MANAGER_PANEL_ID} .bfilter-manager-settings-heading { color: #18191c; font-size: 13px; font-weight: 700; }
