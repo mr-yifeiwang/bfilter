@@ -110,9 +110,11 @@ If the userscript manager APIs are unavailable, the script falls back to `localS
 
 ## Manager panel
 
-The floating **Open Bfilter** button creates a panel with a vertical left-side tab list: **Users**, **Videos**, **Comments**, **Danmakus**, and **Following**. The panel also includes a global **Preview** toggle and a **Save** button.
+The floating **Open Bfilter** button creates a panel with a vertical left-side tab list: **Users**, **Videos**, **Comments**, **Danmakus**, and **Following**. The panel also includes a global **Preview** toggle, a **Sort** button, and a **Save** button.
 
 The Save button is enabled only when one or more textareas differ from their last loaded value. Changing checkboxes or dropdowns is saved immediately.
+
+Click **Sort** and confirm the warning to sort all Manager list textareas by their parsed entry text. Inline comments stay attached to their original lines. Click **Save** afterward to persist the sorted lists.
 
 ### Users tab
 

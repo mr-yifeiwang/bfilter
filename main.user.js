@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Bfilter
 // @namespace    https://github.com/mr-yifeiwang/bfilter
-// @version      0.18.0
+// @version      0.19.0
 // @description  Manage in-browser Bilibili followlist and blocklist
 // @author       mr-yifeiwang
 // @icon         https://raw.githubusercontent.com/mr-yifeiwang/bfilter/master/assets/logo-128x128.png
@@ -1715,7 +1715,10 @@
             <span class="bfilter-manager-preview-slider" aria-hidden="true"></span>
             <span>Preview</span>
           </label>
-          <button class="bfilter-manager-action bfilter-manager-action-primary" type="button" data-action="save" disabled>Save</button>
+          <div class="bfilter-manager-action-buttons">
+            <button class="bfilter-manager-action bfilter-manager-action-primary" type="button" data-action="sort" title="Sort all Manager lists">Sort</button>
+            <button class="bfilter-manager-action bfilter-manager-action-primary" type="button" data-action="save" disabled>Save</button>
+          </div>
         </div>
       </section>
     `;
@@ -1727,6 +1730,15 @@
         panel.hidden = true;
       if (target.matches(".bfilter-manager-tab[data-tab]")) {
         setActiveManagerTab(panel, target.getAttribute("data-tab"));
+      }
+      if (target.getAttribute("data-action") === "sort") {
+        if (
+          !confirm(
+            "WARNING: This action will sort all Manager lists. Continue?",
+          )
+        )
+          return;
+        sortManagerTextareas(panel);
       }
       if (target.getAttribute("data-action") === "save") {
         saveManagerTextareas(panel);
@@ -1986,6 +1998,56 @@
   function getActiveManagerTextarea(panel) {
     const activePanel = panel.querySelector("[data-tab-panel]:not([hidden])");
     return activePanel ? activePanel.querySelector("textarea") : null;
+  }
+
+  function sortManagerTextareas(panel) {
+    let changed = false;
+    for (const textarea of getManagerTextareas(panel)) {
+      const sorted = sortManagerListText(textarea.value);
+      if (sorted === textarea.value) continue;
+      textarea.value = sorted;
+      updateManagerCommentHighlight(textarea);
+      changed = true;
+    }
+    if (changed) updateManagerSaveButtonState(panel);
+    getActiveManagerTextarea(panel)?.focus();
+  }
+
+  function getManagerTextareas(panel) {
+    return [
+      MANAGER_TEXTAREA_ID,
+      MANAGER_FOLLOWING_TEXTAREA_ID,
+      MANAGER_VIDEO_KEYWORDS_TEXTAREA_ID,
+      MANAGER_COMMENT_KEYWORDS_TEXTAREA_ID,
+      MANAGER_DANMAKU_KEYWORDS_TEXTAREA_ID,
+    ]
+      .map((id) => panel.querySelector(`#${id}`))
+      .filter(Boolean);
+  }
+
+  function sortManagerListText(text) {
+    const value = String(text || "");
+    const newline = value.includes("\r\n") ? "\r\n" : "\n";
+    const entries = [];
+    const trailingLines = [];
+    value.split(/\r?\n/).forEach((line, index) => {
+      const key = stripLineComment(line);
+      const item = { line, key, index };
+      if (key) entries.push(item);
+      else trailingLines.push(item);
+    });
+    entries.sort(compareManagerListEntries);
+    return [...entries, ...trailingLines]
+      .map((item) => item.line)
+      .join(newline);
+  }
+
+  function compareManagerListEntries(a, b) {
+    const keyCompare = a.key.localeCompare(b.key, undefined, {
+      numeric: true,
+      sensitivity: "base",
+    });
+    return keyCompare || a.index - b.index;
   }
 
   function saveManagerTextareas(panel) {
@@ -2527,6 +2589,7 @@
       #${MANAGER_PANEL_ID} .bfilter-manager-comment { color: #9499a0; }
       #${MANAGER_PANEL_ID} .bfilter-manager-help { margin: 8px 0 12px; color: #9499a0; font-size: 12px; white-space: pre-line; }
       #${MANAGER_PANEL_ID} .bfilter-manager-actions { display: flex; grid-column: 1 / -1; align-items: center; justify-content: space-between; gap: 8px; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-action-buttons { display: inline-flex; align-items: center; gap: 8px; }
       #${MANAGER_PANEL_ID} .bfilter-manager-preview-toggle { display: inline-flex; align-items: center; gap: 8px; color: #61666d; font-size: 13px; font-weight: 700; cursor: pointer; user-select: none; }
       #${MANAGER_PANEL_ID} .bfilter-manager-preview-toggle input { position: absolute; opacity: 0; pointer-events: none; }
       #${MANAGER_PANEL_ID} .bfilter-manager-preview-slider { position: relative; width: 36px; height: 20px; border-radius: 999px; background: #c9ccd0; transition: background .2s ease; }
@@ -2534,6 +2597,7 @@
       #${MANAGER_PANEL_ID} .bfilter-manager-preview-toggle input:checked + .bfilter-manager-preview-slider { background: var(--bfilter-button-color); }
       #${MANAGER_PANEL_ID} .bfilter-manager-preview-toggle input:checked + .bfilter-manager-preview-slider::before { transform: translateX(16px); }
       #${MANAGER_PANEL_ID} .bfilter-manager-action { border: 0; border-radius: 8px; padding: 7px 12px; color: #18191c; background: var(--bfilter-button-muted-color); font-size: 13px; cursor: pointer; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-action:not(:disabled):active { transform: translateY(1px); }
       #${MANAGER_PANEL_ID} .bfilter-manager-action:disabled { color: #9499a0; background: var(--bfilter-button-muted-color); cursor: not-allowed; }
       #${MANAGER_PANEL_ID} .bfilter-manager-close { border: 0; border-radius: 50%; width: 28px; height: 28px; color: #61666d; background: #f1f2f3; font-size: 18px; line-height: 28px; cursor: pointer; }
       .${COMMENT_BLOCK_BTN_CLASS} {
