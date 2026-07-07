@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Bfilter
 // @namespace    https://github.com/mr-yifeiwang/bfilter
-// @version      0.20.0
+// @version      0.21.0
 // @description  Manage in-browser Bilibili followlist and blocklist
 // @author       mr-yifeiwang
 // @icon         https://raw.githubusercontent.com/mr-yifeiwang/bfilter/master/assets/logo-128x128.png
@@ -1672,6 +1672,7 @@
           <button class="bfilter-manager-tab" type="button" role="tab" aria-selected="false" data-tab="comment-keywords">Comments</button>
           <button class="bfilter-manager-tab" type="button" role="tab" aria-selected="false" data-tab="danmaku-keywords">Danmakus</button>
           <button class="bfilter-manager-tab" type="button" role="tab" aria-selected="false" data-tab="following">Following</button>
+          <button class="bfilter-manager-tab" type="button" role="tab" aria-selected="false" data-tab="settings">Settings</button>
         </div>
         <div class="bfilter-manager-tab-panel" role="tabpanel" data-tab-panel="users">
           ${BOOLEAN_CONTROLS.filter(
@@ -1709,6 +1710,16 @@
             .join("")}
           ${renderManagerTextarea(MANAGER_FOLLOWING_TEXTAREA_ID)}
           <div class="bfilter-manager-help" data-help="following"></div>
+        </div>
+        <div class="bfilter-manager-tab-panel" role="tabpanel" data-tab-panel="settings" hidden>
+          <div class="bfilter-manager-settings-section">
+            <div class="bfilter-manager-settings-heading">Migration</div>
+            <div class="bfilter-manager-settings-actions">
+              <button class="bfilter-manager-action bfilter-manager-action-primary" type="button" data-action="import" title="Import Bfilter data and settings">Import</button>
+              <button class="bfilter-manager-action bfilter-manager-action-primary" type="button" data-action="export" title="Export Bfilter data and settings">Export</button>
+            </div>
+          </div>
+          <input class="bfilter-manager-import-input" type="file" accept="application/json,.json" hidden>
         </div>
         <div class="bfilter-manager-actions">
           <label class="bfilter-manager-preview-toggle" for="${getControl("previewMode").id}">
@@ -1748,6 +1759,12 @@
       if (target.getAttribute("data-action") === "save") {
         saveManagerTextareas(panel);
       }
+      if (target.getAttribute("data-action") === "import") {
+        openManagerImportPicker(panel);
+      }
+      if (target.getAttribute("data-action") === "export") {
+        exportManagerData();
+      }
     });
 
     panel.addEventListener("input", (event) => {
@@ -1777,6 +1794,10 @@
 
     panel.addEventListener("change", (event) => {
       const target = event.target;
+      if (target && target.matches(".bfilter-manager-import-input")) {
+        importManagerDataFromInput(target, panel);
+        return;
+      }
       const thresholdControl = getThresholdControlBySlider(target);
       if (thresholdControl) {
         setThresholdIndex(thresholdControl, target.value);
@@ -1984,6 +2005,7 @@
       "comment-keywords",
       "danmaku-keywords",
       "following",
+      "settings",
     ].includes(tabName)
       ? tabName
       : "users";
@@ -2000,6 +2022,132 @@
     }
     refreshManagerGoButton(panel);
     getActiveManagerTextarea(panel)?.focus();
+  }
+
+  function openManagerImportPicker(panel) {
+    const input = panel.querySelector(".bfilter-manager-import-input");
+    if (!input) return;
+    input.value = "";
+    input.click();
+  }
+
+  function exportManagerData() {
+    const data = JSON.stringify(getManagerExportData(), null, 2);
+    const blob = new Blob([data], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `bfilter-backup-${getDateStamp()}.json`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  function getManagerExportData() {
+    const exportedSettings = {};
+    for (const { name } of BOOLEAN_CONTROLS) {
+      exportedSettings[name] = settings[name];
+    }
+    for (const control of getThresholdControls()) {
+      exportedSettings[control.threshold.setting] =
+        settings[control.threshold.setting];
+    }
+    return {
+      app: "Bfilter",
+      version: SCRIPT_VERSION || "",
+      exportedAt: new Date().toISOString(),
+      lists: {
+        users: readSavedBlockedUserListText(),
+        following: readSavedFollowingUserListText(),
+        videoKeywords: readSavedVideoKeywordListText(),
+        commentKeywords: readSavedCommentKeywordListText(),
+        danmakuKeywords: readSavedDanmakuKeywordListText(),
+      },
+      settings: exportedSettings,
+    };
+  }
+
+  function getDateStamp() {
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  function importManagerDataFromInput(input, panel) {
+    const file = input.files && input.files[0];
+    if (!file) return;
+    if (
+      !confirm(
+        "WARNING: Imported data will overwrite the existing data and settings. Continue?",
+      )
+    )
+      return;
+    const reader = new FileReader();
+    reader.addEventListener("load", () => {
+      try {
+        importManagerData(JSON.parse(String(reader.result || "")));
+        refreshBfilterManagerPanel(panel);
+        alert("Bfilter data and settings imported.");
+      } catch (_error) {
+        alert("Import failed. Select a valid Bfilter JSON export file.");
+      }
+    });
+    reader.addEventListener("error", () => {
+      alert("Import failed. The selected file could not be read.");
+    });
+    reader.readAsText(file);
+  }
+
+  function importManagerData(data) {
+    if (!data || typeof data !== "object") throw new Error("Invalid data");
+    const lists = data.lists;
+    const importedSettings = data.settings;
+    if (!lists || typeof lists !== "object") throw new Error("Invalid lists");
+    if (!importedSettings || typeof importedSettings !== "object")
+      throw new Error("Invalid settings");
+
+    const users = String(lists.users || "");
+    const following = String(lists.following || "");
+    const videoKeywords = String(lists.videoKeywords || "");
+    const commentKeywords = String(lists.commentKeywords || "");
+    const danmakuKeywords = String(lists.danmakuKeywords || "");
+
+    replaceRuntimeBlockedUids(parseBlockedUserListText(users));
+    replaceRuntimeFollowingUids(parseFollowingUserListText(following));
+    replaceRuntimeBlockedVideoKeywords(
+      parseVideoKeywordListText(videoKeywords),
+    );
+    replaceRuntimeBlockedCommentKeywords(
+      parseCommentKeywordListText(commentKeywords),
+    );
+    replaceRuntimeBlockedDanmakuKeywords(
+      parseDanmakuKeywordListText(danmakuKeywords),
+    );
+    saveBlockedUserListText(users);
+    saveFollowingUserListText(following);
+    saveVideoKeywordListText(videoKeywords);
+    saveCommentKeywordListText(commentKeywords);
+    saveDanmakuKeywordListText(danmakuKeywords);
+
+    for (const { name } of BOOLEAN_CONTROLS) {
+      const control = getControl(name);
+      settings[name] = parseBooleanSetting(
+        importedSettings[name],
+        control.defaultValue || false,
+      );
+      saveBooleanSetting(SETTING_KEYS[name], settings[name]);
+    }
+    for (const control of getThresholdControls()) {
+      const { setting, key, defaultValue, options } = control.threshold;
+      settings[setting] = parseLabelSetting(
+        importedSettings[setting],
+        defaultValue,
+        options,
+      );
+      saveLabelSetting(key, settings[setting]);
+    }
+
+    refreshConsequences();
+    renderUserPageBlockButton();
   }
 
   function refreshManagerGoButton(panel) {
@@ -2635,6 +2783,9 @@
       #${MANAGER_PANEL_ID} .bfilter-manager-tab[aria-selected="true"]::after { content: ""; position: absolute; top: 0; right: -1px; bottom: 0; width: 1px; background: #fff; }
       #${MANAGER_PANEL_ID} .bfilter-manager-tab-panel { grid-column: 2; grid-row: 1; }
       #${MANAGER_PANEL_ID} .bfilter-manager-tab-panel[hidden] { display: none !important; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-settings-section { display: grid; gap: 8px; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-settings-heading { color: #18191c; font-size: 13px; font-weight: 700; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-settings-actions { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
       #${MANAGER_PANEL_ID} .bfilter-manager-textarea-wrap { position: relative; }
       #${MANAGER_PANEL_ID} .bfilter-manager-textarea-highlight,
       #${MANAGER_PANEL_ID} .bfilter-manager-textarea { box-sizing: border-box; width: 100%; min-height: 160px; border: 1px solid #c9ccd0; border-radius: 10px; padding: 10px; font-size: 14px; line-height: 1.5; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace !important; white-space: pre-wrap; overflow-wrap: anywhere; }

@@ -11,6 +11,7 @@
     - [Comments tab](#comments-tab)
     - [Danmakus tab](#danmakus-tab)
     - [Following tab](#following-tab)
+    - [Settings tab](#settings-tab)
     - [Preview mode](#preview-mode)
   - [Filtering behavior](#filtering-behavior)
     - [Blocked users](#blocked-users)
@@ -52,7 +53,7 @@ The script can:
 - Add quick block/follow controls to Bilibili user-space pages.
 - Add per-comment block buttons and a bulk “Block All Commenters” button on supported comment pages.
 
-The current script metadata in `main.user.js` identifies the script as version `0.20.0` and runs it at `document-start` on these URL families:
+The current script metadata in `main.user.js` identifies the script as version `0.21.0` and runs it at `document-start` on these URL families:
 
 - `https://www.bilibili.com/*`
 - `https://search.bilibili.com/*`
@@ -110,7 +111,7 @@ If the userscript manager APIs are unavailable, the script falls back to `localS
 
 ## Manager panel
 
-The floating **Open Bfilter** button creates a panel with a vertical left-side tab list: **Users**, **Videos**, **Comments**, **Danmakus**, and **Following**. The panel also includes a global **Preview** toggle, a **Sort** button, and a **Save** button.
+The floating **Open Bfilter** button creates a panel with a vertical left-side tab list: **Users**, **Videos**, **Comments**, **Danmakus**, **Following**, and **Settings**. The panel also includes a global **Preview** toggle, a **Sort** button, and a **Save** button.
 
 The Save button is enabled only when one or more textareas differ from their last loaded value. Changing checkboxes or dropdowns is saved immediately.
 
@@ -185,6 +186,13 @@ Use this tab to maintain UIDs that should be highlighted instead of hidden.
 - The user-space follow button can automatically append usernames as comments, for example `12345678 # username`.
 
 The **Add usernames by default** option controls whether the user-space follow action stores the current profile username after `#`. It defaults to enabled.
+
+### Settings tab
+
+Use the **Migration** section in this tab to import or export Bfilter data and settings.
+
+- **Import** opens a JSON file picker. After a file is selected, Bfilter shows a warning that the imported data will overwrite the existing data and settings. Confirming replaces all Manager lists and saved settings with the imported values.
+- **Export** downloads a JSON backup containing all Manager lists and settings.
 
 ### Preview mode
 
