@@ -333,7 +333,8 @@ Parsing rules:
 - UID entries must normalize to digits only.
 - Empty lines are ignored.
 - Duplicates are removed while preserving first-seen order.
-- Keyword entries are not trimmed after comment stripping beyond the parser's normal comment-strip trim, and matching is exact substring matching.
+- Keyword entries are not trimmed after comment stripping beyond the parser's normal comment-strip trim, and matching is substring matching.
+- Keyword matching supports emoji text. Search text and keywords are NFC-normalized, and emoji/text variation selectors are ignored so common forms such as `❤` and `❤️` match each other.
 
 ## Persistence and synchronization
 

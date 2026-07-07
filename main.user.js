@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Bfilter
 // @namespace    https://github.com/mr-yifeiwang/bfilter
-// @version      0.17.0
+// @version      0.18.0
 // @description  Manage in-browser Bilibili followlist and blocklist
 // @author       mr-yifeiwang
 // @icon         https://raw.githubusercontent.com/mr-yifeiwang/bfilter/master/assets/logo-128x128.png
@@ -624,30 +624,31 @@
   }
 
   function getMatchedVideoKeyword(text) {
-    if (!BLOCKED_VIDEO_KEYWORDS.size) return "";
-    const haystack = String(text || "");
-    if (!haystack) return "";
-    return [...BLOCKED_VIDEO_KEYWORDS].find((keyword) =>
-      haystack.includes(keyword),
-    );
+    return getMatchedKeyword(text, BLOCKED_VIDEO_KEYWORDS);
   }
 
   function getMatchedCommentKeyword(text) {
-    if (!BLOCKED_COMMENT_KEYWORDS.size) return "";
-    const haystack = String(text || "");
-    if (!haystack) return "";
-    return [...BLOCKED_COMMENT_KEYWORDS].find((keyword) =>
-      haystack.includes(keyword),
-    );
+    return getMatchedKeyword(text, BLOCKED_COMMENT_KEYWORDS);
   }
 
   function getMatchedDanmakuKeyword(text) {
-    if (!BLOCKED_DANMAKU_KEYWORDS.size) return "";
-    const haystack = String(text || "");
+    return getMatchedKeyword(text, BLOCKED_DANMAKU_KEYWORDS);
+  }
+
+  function getMatchedKeyword(text, keywords) {
+    if (!keywords.size) return "";
+    const haystack = normalizeKeywordSearchText(text);
     if (!haystack) return "";
-    return [...BLOCKED_DANMAKU_KEYWORDS].find((keyword) =>
-      haystack.includes(keyword),
-    );
+    return [...keywords].find((keyword) => {
+      const needle = normalizeKeywordSearchText(keyword);
+      return needle && haystack.includes(needle);
+    });
+  }
+
+  function normalizeKeywordSearchText(value) {
+    return String(value || "")
+      .normalize("NFC")
+      .replace(/[\uFE0E\uFE0F]/g, "");
   }
 
   function getVideoTitleText(card) {
