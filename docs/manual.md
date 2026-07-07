@@ -52,7 +52,7 @@ The script can:
 - Add quick block/follow controls to Bilibili user-space pages.
 - Add per-comment block buttons and a bulk “Block All Commenters” button on supported comment pages.
 
-The current script metadata in `main.user.js` identifies the script as version `0.17.0` and runs it at `document-start` on these URL families:
+The current script metadata in `main.user.js` identifies the script as version `0.20.0` and runs it at `document-start` on these URL families:
 
 - `https://www.bilibili.com/*`
 - `https://search.bilibili.com/*`
@@ -413,7 +413,7 @@ For direct video pages, metadata filters are limited to recommendation areas to 
 
 ### Injected UI and styling
 
-Bfilter injects one `<style>` element with ID `bfilter-style`.
+Bfilter injects one `<style>` element with ID `bfilter-style`. The style element is injected idempotently: if the element already exists, no duplicate is added. Because the script runs at `document-start`, injection first tries `document.head` or `document.documentElement` and retries once on `DOMContentLoaded` if no parent is available yet.
 
 Important data attributes:
 
@@ -424,7 +424,9 @@ Important data attributes:
 | `data-bfilter-followed="true"`  | Target is follow-highlighted.                                      |
 | `data-bfilter-blocked-uid`      | Stores the UID associated with a block consequence when available. |
 
-The CSS hides blocked targets with `display: none !important`, marks previewed targets with a red background/outline, marks followed targets with a green background/outline, and lays out the manager panel with vertical tabs beside the active editor.
+The CSS text is built by section helpers near `addStyle`: variables, visibility/marking rules, floating/profile buttons, manager panel, and comment buttons. `addStyle` itself only creates the style element, assigns `STYLE_ID`, fills it with `getStyleText()`, and appends it safely.
+
+The injected CSS hides blocked targets with `display: none !important`, marks previewed targets with a red background/outline, marks followed targets with a green background/outline, and lays out the manager panel with vertical tabs beside the active editor.
 
 ## Limitations
 
@@ -453,18 +455,19 @@ The CSS hides blocked targets with `display: none !important`, marks previewed t
 
 Key code areas in `main.user.js`:
 
-| Area                   | Representative functions                                                                                  |
-| ---------------------- | --------------------------------------------------------------------------------------------------------- |
-| Startup and navigation | `boot`, `start`, `refreshChromeAndScan`, `patchHistory`                                                   |
-| Scan scheduling        | `scheduleScan`, `scan`, `collectCandidates`                                                               |
-| Candidate resolution   | `resolveCommentItem`, `resolveDanmaku`, `resolveVideoCard`                                                |
-| Rule evaluation        | `evaluateCard`, `evaluateComment`, `evaluateDanmaku`                                                      |
-| UID extraction         | `getUploaderUidsInside`, `getCommentAuthorUidsInside`, `addUidFromHref`, `normalizeUid`                   |
-| Metadata parsing       | `parseDurationSeconds`, `parseViewCount`, `getVideoDurationSeconds`, `getVideoViewCount`                  |
-| Consequences           | `applyConsequence`, `applyFollow`, `clearConsequence`, `refreshConsequences`                              |
-| Storage                | `readSaved...`, `save...`, `setupStorageSync`, `sync...`                                                  |
-| Manager UI             | `renderBfilterManager`, `ensureBfilterManagerPanel`, `refreshBfilterManagerPanel`, `saveManagerTextareas` |
-| User-space UI          | `renderUserPageBlockButton`, `setUidBlocked`, `setUidFollowing`                                           |
-| Comment UI             | `renderCommentBlockButtons`, `renderBlockAllCommentersButton`, `blockAllCommenters`                       |
+| Area                   | Representative functions                                                                                                                   |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| Startup and navigation | `boot`, `start`, `refreshChromeAndScan`, `patchHistory`                                                                                    |
+| Scan scheduling        | `scheduleScan`, `scan`, `collectCandidates`                                                                                                |
+| Candidate resolution   | `resolveCommentItem`, `resolveDanmaku`, `resolveVideoCard`                                                                                 |
+| Rule evaluation        | `evaluateCard`, `evaluateComment`, `evaluateDanmaku`                                                                                       |
+| UID extraction         | `getUploaderUidsInside`, `getCommentAuthorUidsInside`, `addUidFromHref`, `normalizeUid`                                                    |
+| Metadata parsing       | `parseDurationSeconds`, `parseViewCount`, `getVideoDurationSeconds`, `getVideoViewCount`                                                   |
+| Consequences           | `applyConsequence`, `applyFollow`, `clearConsequence`, `refreshConsequences`                                                               |
+| Storage                | `readSaved...`, `save...`, `setupStorageSync`, `sync...`                                                                                   |
+| Styling                | `getStyleText`, `getStyleVariables`, `getStyleVisibility`, `getStyleButtons`, `getStyleManagerPanel`, `getStyleCommentButtons`, `addStyle` |
+| Manager UI             | `renderBfilterManager`, `ensureBfilterManagerPanel`, `refreshBfilterManagerPanel`, `saveManagerTextareas`                                  |
+| User-space UI          | `renderUserPageBlockButton`, `setUidBlocked`, `setUidFollowing`                                                                            |
+| Comment UI             | `renderCommentBlockButtons`, `renderBlockAllCommentersButton`, `blockAllCommenters`                                                        |
 
 When modifying filters, keep the safety guards and direct-video protections in mind. Most regressions on Bilibili pages come from selecting too large a target or matching a container that includes multiple unrelated video links.

@@ -52,6 +52,7 @@
   const USER_BUTTON_ID = "bfilter-user-button";
   const FOLLOW_BUTTON_ID = "bfilter-follow-button";
   const MANAGER_BUTTON_ID = "bfilter-manager-button";
+  const STYLE_ID = "bfilter-style";
   const FLOATING_BUTTON_CLASS = "bfilter-floating-button";
   const PROFILE_BUTTON_CLASS = "bfilter-profile-button";
   const MANAGER_PANEL_ID = "bfilter-manager-panel";
@@ -2511,10 +2512,8 @@
     };
   }
 
-  function addStyle() {
-    const style = document.createElement("style");
-    style.id = "bfilter-style";
-    style.textContent = `
+  function getStyleVariables() {
+    return `
       :root {
         --bfilter-button-color: #e53935;
         --bfilter-button-hover-color: #f04f4b;
@@ -2525,6 +2524,11 @@
         --bfilter-preview-background-color: #ffe8e8;
         --bfilter-preview-outline-color: rgba(229, 57, 53, 0.55);
       }
+  `;
+  }
+
+  function getStyleVisibility() {
+    return `
       [${BLOCK_ATTR}="true"] { display: none !important; }
       .video-list.row > [class*="col_"][class*="mb_"]:has([${BLOCK_ATTR}="true"]) { display: none !important; }
       [${PREVIEW_ATTR}="true"] {
@@ -2549,6 +2553,11 @@
       [${FOLLOW_ATTR}="true"] .bili-video-card__wrap[${FOLLOW_ATTR}="true"] {
         outline: none !important;
       }
+  `;
+  }
+
+  function getStyleButtons() {
+    return `
       .${FLOATING_BUTTON_CLASS} {
         position: fixed; top: 10px; right: 24px; z-index: 999999; border: 0;
         border-radius: 18px; min-width: 120px; padding: 8px 16px;
@@ -2584,6 +2593,11 @@
         color: #9499a0; background: #f1f2f3; border-color: #c9ccd0; cursor: not-allowed;
         text-decoration: line-through;
       }
+  `;
+  }
+
+  function getStyleManagerPanel() {
+    return `
       #${MANAGER_PANEL_ID} {
         position: fixed; top: 62px; right: 24px; z-index: 999999;
         box-sizing: border-box;
@@ -2640,6 +2654,11 @@
       #${MANAGER_PANEL_ID} .bfilter-manager-action:not(:disabled):active { transform: translateY(1px); }
       #${MANAGER_PANEL_ID} .bfilter-manager-action:disabled { color: #9499a0; background: var(--bfilter-button-muted-color); cursor: not-allowed; }
       #${MANAGER_PANEL_ID} .bfilter-manager-close { border: 0; border-radius: 50%; width: 28px; height: 28px; color: #61666d; background: #f1f2f3; font-size: 18px; line-height: 28px; cursor: pointer; }
+  `;
+  }
+
+  function getStyleCommentButtons() {
+    return `
       .${COMMENT_BLOCK_BTN_CLASS} {
         display: inline-flex; align-items: center; justify-content: center;
         margin-left: 6px; padding: 0 6px; height: 18px;
@@ -2662,15 +2681,39 @@
         font-size: 12px; font-weight: 700; cursor: pointer; font-family: inherit;
       }
       .${BLOCK_ALL_COMMENTERS_BTN_CLASS}:hover { color: #fff; background: var(--bfilter-button-color); }
-    `;
+  `;
+  }
 
-    const append = () => {
+  function getStyleText() {
+    return [
+      getStyleVariables(),
+      getStyleVisibility(),
+      getStyleButtons(),
+      getStyleManagerPanel(),
+      getStyleCommentButtons(),
+    ].join("\n");
+  }
+
+  function addStyle() {
+    if (document.getElementById(STYLE_ID)) return;
+
+    const style = document.createElement("style");
+    style.id = STYLE_ID;
+    style.textContent = getStyleText();
+
+    const appendStyle = () => {
+      if (document.getElementById(STYLE_ID)) return;
+
       const parent = document.head || document.documentElement;
-      if (parent && !document.getElementById(style.id))
-        parent.appendChild(style);
+      if (!parent) return;
+
+      parent.appendChild(style);
     };
-    append();
+
+    appendStyle();
     if (!style.isConnected)
-      document.addEventListener("DOMContentLoaded", append, { once: true });
+      document.addEventListener("DOMContentLoaded", appendStyle, {
+        once: true,
+      });
   }
 })();
