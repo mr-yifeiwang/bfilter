@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Bfilter
 // @namespace    https://github.com/mr-yifeiwang/bfilter
-// @version      0.21.0
+// @version      0.22.0
 // @description  Manage in-browser Bilibili followlist and blocklist
 // @author       mr-yifeiwang
 // @icon         https://raw.githubusercontent.com/mr-yifeiwang/bfilter/master/assets/logo-128x128.png
@@ -33,6 +33,7 @@
     "bfilter:comment-keyword-blocklist";
   const DANMAKU_KEYWORD_BLOCKLIST_STORAGE_KEY =
     "bfilter:danmaku-keyword-blocklist";
+  const ACTIVE_MANAGER_TAB_STORAGE_KEY = "bfilter:active-manager-tab";
   const SETTING_KEYS = {
     blockNewUsers: "bfilter:block-new-users",
     registrationTimeThreshold: "bfilter:registration-time-threshold",
@@ -1660,6 +1661,7 @@
     panel = document.createElement("section");
     panel.id = MANAGER_PANEL_ID;
     panel.hidden = true;
+    const activeTab = readActiveManagerTabName();
     panel.innerHTML = `
       <div class="bfilter-manager-header">
         <div class="bfilter-manager-title">Bfilter Manager <span class="bfilter-manager-version">${SCRIPT_VERSION}</span></div>
@@ -1667,14 +1669,14 @@
       </div>
       <section class="bfilter-manager-section">
         <div class="bfilter-manager-tabs" role="tablist">
-          <button class="bfilter-manager-tab" type="button" role="tab" aria-selected="true" data-tab="users">Users</button>
-          <button class="bfilter-manager-tab" type="button" role="tab" aria-selected="false" data-tab="video-keywords">Videos</button>
-          <button class="bfilter-manager-tab" type="button" role="tab" aria-selected="false" data-tab="comment-keywords">Comments</button>
-          <button class="bfilter-manager-tab" type="button" role="tab" aria-selected="false" data-tab="danmaku-keywords">Danmakus</button>
-          <button class="bfilter-manager-tab" type="button" role="tab" aria-selected="false" data-tab="following">Following</button>
-          <button class="bfilter-manager-tab" type="button" role="tab" aria-selected="false" data-tab="settings">Settings</button>
+          <button class="bfilter-manager-tab" type="button" role="tab" aria-selected="${String(activeTab === "users")}" data-tab="users">Users</button>
+          <button class="bfilter-manager-tab" type="button" role="tab" aria-selected="${String(activeTab === "video-keywords")}" data-tab="video-keywords">Videos</button>
+          <button class="bfilter-manager-tab" type="button" role="tab" aria-selected="${String(activeTab === "comment-keywords")}" data-tab="comment-keywords">Comments</button>
+          <button class="bfilter-manager-tab" type="button" role="tab" aria-selected="${String(activeTab === "danmaku-keywords")}" data-tab="danmaku-keywords">Danmakus</button>
+          <button class="bfilter-manager-tab" type="button" role="tab" aria-selected="${String(activeTab === "following")}" data-tab="following">Following</button>
+          <button class="bfilter-manager-tab" type="button" role="tab" aria-selected="${String(activeTab === "settings")}" data-tab="settings">Settings</button>
         </div>
-        <div class="bfilter-manager-tab-panel" role="tabpanel" data-tab-panel="users">
+        <div class="bfilter-manager-tab-panel" role="tabpanel" data-tab-panel="users" ${activeTab === "users" ? "" : "hidden"}>
           ${BOOLEAN_CONTROLS.filter(
             (control) => control.name === "blockNewUsers",
           )
@@ -1683,7 +1685,7 @@
           ${renderManagerTextarea(MANAGER_TEXTAREA_ID)}
           <div class="bfilter-manager-help" data-help="users"></div>
         </div>
-        <div class="bfilter-manager-tab-panel" role="tabpanel" data-tab-panel="video-keywords" hidden>
+        <div class="bfilter-manager-tab-panel" role="tabpanel" data-tab-panel="video-keywords" ${activeTab === "video-keywords" ? "" : "hidden"}>
           ${BOOLEAN_CONTROLS.filter((control) =>
             [
               "hideShortVideos",
@@ -1696,22 +1698,22 @@
           ${renderManagerTextarea(MANAGER_VIDEO_KEYWORDS_TEXTAREA_ID)}
           <div class="bfilter-manager-help" data-help="video-keywords"></div>
         </div>
-        <div class="bfilter-manager-tab-panel" role="tabpanel" data-tab-panel="comment-keywords" hidden>
+        <div class="bfilter-manager-tab-panel" role="tabpanel" data-tab-panel="comment-keywords" ${activeTab === "comment-keywords" ? "" : "hidden"}>
           ${renderManagerTextarea(MANAGER_COMMENT_KEYWORDS_TEXTAREA_ID)}
           <div class="bfilter-manager-help" data-help="comment-keywords"></div>
         </div>
-        <div class="bfilter-manager-tab-panel" role="tabpanel" data-tab-panel="danmaku-keywords" hidden>
+        <div class="bfilter-manager-tab-panel" role="tabpanel" data-tab-panel="danmaku-keywords" ${activeTab === "danmaku-keywords" ? "" : "hidden"}>
           ${renderManagerTextarea(MANAGER_DANMAKU_KEYWORDS_TEXTAREA_ID)}
           <div class="bfilter-manager-help" data-help="danmaku-keywords"></div>
         </div>
-        <div class="bfilter-manager-tab-panel" role="tabpanel" data-tab-panel="following" hidden>
+        <div class="bfilter-manager-tab-panel" role="tabpanel" data-tab-panel="following" ${activeTab === "following" ? "" : "hidden"}>
           ${BOOLEAN_CONTROLS.filter((control) => control.followingOption)
             .map(renderManagerOption)
             .join("")}
           ${renderManagerTextarea(MANAGER_FOLLOWING_TEXTAREA_ID)}
           <div class="bfilter-manager-help" data-help="following"></div>
         </div>
-        <div class="bfilter-manager-tab-panel" role="tabpanel" data-tab-panel="settings" hidden>
+        <div class="bfilter-manager-tab-panel" role="tabpanel" data-tab-panel="settings" ${activeTab === "settings" ? "" : "hidden"}>
           <div class="bfilter-manager-settings-section">
             <div class="bfilter-manager-settings-heading">Migration</div>
             <div class="bfilter-manager-settings-actions">
@@ -1999,16 +2001,8 @@
   }
 
   function setActiveManagerTab(panel, tabName) {
-    const nextTab = [
-      "users",
-      "video-keywords",
-      "comment-keywords",
-      "danmaku-keywords",
-      "following",
-      "settings",
-    ].includes(tabName)
-      ? tabName
-      : "users";
+    const nextTab = getValidManagerTabName(tabName);
+    saveActiveManagerTabName(nextTab);
     for (const tab of panel.querySelectorAll(
       ".bfilter-manager-tab[data-tab]",
     )) {
@@ -2022,6 +2016,41 @@
     }
     refreshManagerGoButton(panel);
     getActiveManagerTextarea(panel)?.focus();
+  }
+
+  function getValidManagerTabName(tabName) {
+    return [
+      "users",
+      "video-keywords",
+      "comment-keywords",
+      "danmaku-keywords",
+      "following",
+      "settings",
+    ].includes(tabName)
+      ? tabName
+      : "users";
+  }
+
+  function readActiveManagerTabName() {
+    try {
+      const saved =
+        typeof GM_getValue === "function"
+          ? GM_getValue(ACTIVE_MANAGER_TAB_STORAGE_KEY, "users")
+          : localStorage.getItem(ACTIVE_MANAGER_TAB_STORAGE_KEY);
+      return getValidManagerTabName(saved);
+    } catch (_error) {
+      return "users";
+    }
+  }
+
+  function saveActiveManagerTabName(tabName) {
+    try {
+      if (typeof GM_setValue === "function")
+        GM_setValue(ACTIVE_MANAGER_TAB_STORAGE_KEY, tabName);
+      else localStorage.setItem(ACTIVE_MANAGER_TAB_STORAGE_KEY, tabName);
+    } catch (_error) {
+      // Keep the visible tab even if persistence fails.
+    }
   }
 
   function openManagerImportPicker(panel) {

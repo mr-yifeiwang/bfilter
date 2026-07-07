@@ -53,7 +53,7 @@ The script can:
 - Add quick block/follow controls to Bilibili user-space pages.
 - Add per-comment block buttons and a bulk “Block All Commenters” button on supported comment pages.
 
-The current script metadata in `main.user.js` identifies the script as version `0.21.0` and runs it at `document-start` on these URL families:
+The current script metadata in `main.user.js` identifies the script as version `0.22.0` and runs it at `document-start` on these URL families:
 
 - `https://www.bilibili.com/*`
 - `https://search.bilibili.com/*`
@@ -114,6 +114,8 @@ If the userscript manager APIs are unavailable, the script falls back to `localS
 The floating **Open Bfilter** button creates a panel with a vertical left-side tab list: **Users**, **Videos**, **Comments**, **Danmakus**, **Following**, and **Settings**. The panel also includes a global **Preview** toggle, a **Sort** button, and a **Save** button.
 
 The Save button is enabled only when one or more textareas differ from their last loaded value. Changing checkboxes or dropdowns is saved immediately.
+
+The manager remembers the last selected tab and opens that tab the next time the panel is created. For new users with no saved tab yet, the panel opens the **Users** tab.
 
 Click **Sort** and confirm the warning to sort all Manager list textareas by their parsed entry text. Inline comments stay attached to their original lines. Click **Save** afterward to persist the sorted lists.
 
