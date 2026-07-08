@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Bfilter
 // @namespace    https://github.com/mr-yifeiwang/bfilter
-// @version      0.22.0
+// @version      0.22.1
 // @description  Manage in-browser Bilibili followlist and blocklist
 // @author       mr-yifeiwang
 // @icon         https://raw.githubusercontent.com/mr-yifeiwang/bfilter/master/assets/logo-128x128.png
@@ -1778,21 +1778,9 @@
           target.id === MANAGER_VIDEO_KEYWORDS_TEXTAREA_ID ||
           target.id === MANAGER_COMMENT_KEYWORDS_TEXTAREA_ID ||
           target.id === MANAGER_DANMAKU_KEYWORDS_TEXTAREA_ID)
-      ) {
-        updateManagerCommentHighlight(target);
+      )
         updateManagerSaveButtonState(panel);
-      }
     });
-
-    panel.addEventListener(
-      "scroll",
-      (event) => {
-        const target = event.target;
-        if (target && target.matches(".bfilter-manager-textarea"))
-          syncManagerCommentHighlightScroll(target);
-      },
-      true,
-    );
 
     panel.addEventListener("change", (event) => {
       const target = event.target;
@@ -1822,7 +1810,7 @@
   }
 
   function renderManagerTextarea(id) {
-    return `<div class="bfilter-manager-textarea-wrap"><pre class="bfilter-manager-textarea-highlight" aria-hidden="true"></pre><textarea id="${id}" class="bfilter-manager-textarea" spellcheck="false"></textarea></div>`;
+    return `<textarea id="${id}" class="bfilter-manager-textarea" spellcheck="false"></textarea>`;
   }
 
   function renderManagerOption(control) {
@@ -1902,7 +1890,6 @@
         blockedUserText,
       );
       textarea.dataset.cleanValue = textarea.value;
-      updateManagerCommentHighlight(textarea);
     }
     if (followingTextarea) {
       followingTextarea.value = getManagerTextValue(
@@ -1911,7 +1898,6 @@
         followingText,
       );
       followingTextarea.dataset.cleanValue = followingTextarea.value;
-      updateManagerCommentHighlight(followingTextarea);
     }
     if (videoKeywordsTextarea) {
       videoKeywordsTextarea.value = getManagerTextValue(
@@ -1920,7 +1906,6 @@
         videoKeywordText,
       );
       videoKeywordsTextarea.dataset.cleanValue = videoKeywordsTextarea.value;
-      updateManagerCommentHighlight(videoKeywordsTextarea);
     }
     if (commentKeywordsTextarea) {
       commentKeywordsTextarea.value = getManagerTextValue(
@@ -1930,7 +1915,6 @@
       );
       commentKeywordsTextarea.dataset.cleanValue =
         commentKeywordsTextarea.value;
-      updateManagerCommentHighlight(commentKeywordsTextarea);
     }
     if (danmakuKeywordsTextarea) {
       danmakuKeywordsTextarea.value = getManagerTextValue(
@@ -1940,7 +1924,6 @@
       );
       danmakuKeywordsTextarea.dataset.cleanValue =
         danmakuKeywordsTextarea.value;
-      updateManagerCommentHighlight(danmakuKeywordsTextarea);
     }
     if (help)
       help.innerHTML = `<strong>${uids.length}</strong> user(s) have been blocked.\nEnter one UID per line to block users.`;
@@ -1961,43 +1944,6 @@
     return Object.prototype.hasOwnProperty.call(textValues, name)
       ? textValues[name]
       : fallback;
-  }
-
-  function updateManagerCommentHighlight(textarea) {
-    const highlight = getManagerCommentHighlight(textarea);
-    if (!highlight) return;
-    highlight.innerHTML = renderManagerCommentHighlight(textarea.value);
-    syncManagerCommentHighlightScroll(textarea);
-  }
-
-  function syncManagerCommentHighlightScroll(textarea) {
-    const highlight = getManagerCommentHighlight(textarea);
-    if (!highlight) return;
-    highlight.scrollTop = textarea.scrollTop;
-    highlight.scrollLeft = textarea.scrollLeft;
-  }
-
-  function getManagerCommentHighlight(textarea) {
-    return textarea.parentElement
-      ? textarea.parentElement.querySelector(
-          ".bfilter-manager-textarea-highlight",
-        )
-      : null;
-  }
-
-  function renderManagerCommentHighlight(text) {
-    return String(text || "")
-      .split(/(\r?\n)/)
-      .map((part) =>
-        /\r?\n/.test(part) ? part : renderManagerCommentHighlightLine(part),
-      )
-      .join("");
-  }
-
-  function renderManagerCommentHighlightLine(line) {
-    const commentIndex = line.indexOf("#");
-    if (commentIndex < 0) return escapeHtml(line);
-    return `${escapeHtml(line.slice(0, commentIndex))}<span class="bfilter-manager-comment">${escapeHtml(line.slice(commentIndex))}</span>`;
   }
 
   function setActiveManagerTab(panel, tabName) {
@@ -2223,7 +2169,6 @@
       const sorted = sortManagerListText(textarea.value);
       if (sorted === textarea.value) continue;
       textarea.value = sorted;
-      updateManagerCommentHighlight(textarea);
     }
     saveManagerTextareas(panel);
     getActiveManagerTextarea(panel)?.focus();
@@ -2812,12 +2757,7 @@
       #${MANAGER_PANEL_ID} .bfilter-manager-settings-section { display: grid; gap: 8px; }
       #${MANAGER_PANEL_ID} .bfilter-manager-settings-heading { color: #18191c; font-size: 13px; font-weight: 700; }
       #${MANAGER_PANEL_ID} .bfilter-manager-settings-actions { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-      #${MANAGER_PANEL_ID} .bfilter-manager-textarea-wrap { position: relative; }
-      #${MANAGER_PANEL_ID} .bfilter-manager-textarea-highlight,
-      #${MANAGER_PANEL_ID} .bfilter-manager-textarea { box-sizing: border-box; width: 100%; min-height: 160px; border: 1px solid #c9ccd0; border-radius: 10px; padding: 10px; font-size: 14px; line-height: 1.5; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace !important; white-space: pre-wrap; overflow-wrap: anywhere; }
-      #${MANAGER_PANEL_ID} .bfilter-manager-textarea-highlight { position: absolute; inset: 0; margin: 0; overflow: hidden; color: #18191c; background: #f6f7f8; pointer-events: none; }
-      #${MANAGER_PANEL_ID} .bfilter-manager-textarea { position: relative; display: block; color: transparent; -webkit-text-fill-color: transparent; background: transparent; caret-color: #18191c; resize: vertical; }
-      #${MANAGER_PANEL_ID} .bfilter-manager-comment { color: #9499a0; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-textarea { box-sizing: border-box; display: block; width: 100%; min-height: 160px; border: 1px solid #c9ccd0; border-radius: 10px; padding: 10px; color: #18191c; background: #f6f7f8; font-size: 14px; line-height: 1.5; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace !important; white-space: pre-wrap; overflow-wrap: anywhere; caret-color: #18191c; resize: vertical; }
       #${MANAGER_PANEL_ID} .bfilter-manager-help { margin: 8px 0 12px; color: #9499a0; font-size: 12px; white-space: pre-line; }
       #${MANAGER_PANEL_ID} .bfilter-manager-actions { display: flex; grid-column: 1 / -1; align-items: center; justify-content: space-between; gap: 8px; }
       #${MANAGER_PANEL_ID} .bfilter-manager-action-buttons { display: inline-flex; align-items: center; gap: 8px; }
