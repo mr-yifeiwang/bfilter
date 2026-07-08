@@ -2206,7 +2206,7 @@
       );
       return;
     }
-    window.open(`https://space.bilibili.com/${uid}/dynamic`, "_blank");
+    window.open(`https://space.bilibili.com/${uid}/upload`, "_blank");
   }
 
   function getSelectedFollowingUid(textarea) {
