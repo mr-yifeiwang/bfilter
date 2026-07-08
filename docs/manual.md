@@ -117,7 +117,7 @@ The Save button is enabled only when one or more textareas differ from their las
 
 The manager remembers the last selected tab and opens that tab the next time the panel is created. For new users with no saved tab yet, the panel opens the **Users** tab.
 
-Click **Sort** and confirm the warning to sort all Manager list textareas by their parsed entry text. Inline comments stay attached to their original lines. Click **Save** afterward to persist the sorted lists.
+Click **Sort** and confirm the warning to sort all Manager list textareas and remove duplicate, comment-only, and empty-line entries. Duplicate matching uses the entry text after removing inline comments. Inline comments stay attached to the kept original line, and the sorted lists are saved immediately.
 
 ### Users tab
 

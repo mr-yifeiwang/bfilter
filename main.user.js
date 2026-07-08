@@ -1752,7 +1752,7 @@
       if (target.getAttribute("data-action") === "sort") {
         if (
           !confirm(
-            "WARNING: This action will sort all Manager lists. Continue?",
+            "WARNING: This action will sort all Manager lists, and remove duplicate, comment-only, and empty-line entries. Continue?",
           )
         )
           return;
@@ -2219,15 +2219,13 @@
   }
 
   function sortManagerTextareas(panel) {
-    let changed = false;
     for (const textarea of getManagerTextareas(panel)) {
       const sorted = sortManagerListText(textarea.value);
       if (sorted === textarea.value) continue;
       textarea.value = sorted;
       updateManagerCommentHighlight(textarea);
-      changed = true;
     }
-    if (changed) updateManagerSaveButtonState(panel);
+    saveManagerTextareas(panel);
     getActiveManagerTextarea(panel)?.focus();
   }
 
@@ -2247,17 +2245,16 @@
     const value = String(text || "");
     const newline = value.includes("\r\n") ? "\r\n" : "\n";
     const entries = [];
-    const trailingLines = [];
+    const seenKeys = new Set();
     value.split(/\r?\n/).forEach((line, index) => {
       const key = stripLineComment(line);
-      const item = { line, key, index };
-      if (key) entries.push(item);
-      else trailingLines.push(item);
+      if (!key) return;
+      if (seenKeys.has(key)) return;
+      seenKeys.add(key);
+      entries.push({ line, key, index });
     });
     entries.sort(compareManagerListEntries);
-    return [...entries, ...trailingLines]
-      .map((item) => item.line)
-      .join(newline);
+    return entries.map((item) => item.line).join(newline);
   }
 
   function compareManagerListEntries(a, b) {
