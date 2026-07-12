@@ -210,6 +210,8 @@ Danmaku scanning is only resolved on direct video pages. Matching danmaku rows a
 
 The **Statistics** section appears on content-scanning pages and shows the current page's loaded videos, comments, and danmakus. It remains empty on user-space pages, where normal card/comment scanning is deliberately excluded. Each value shows the filtered count and percentage of uniquely observed items in that category (`hidden or previewed ÷ uniquely observed`). Followed and unmatched items are included in the observed total. Statistics are in memory only: they are not saved or exported.
 
+Each statistic uses a background color based on its filtered percentage: green for `0–20%`, orange for more than `20%` through `40%`, and red for more than `40%`.
+
 The values update as Bilibili lazy-loads content. They reset and recount after navigation, a full refresh, or a filtering/settings change that rescans the page.
 
 Use the **Hide** / **Show** toggle beside the Statistics heading to control a compact Statistics overlay beneath **Open Bfilter** outside the Manager. The left, off position hides it; the right, on position shows it. It is hidden by default, remains visible after the Manager closes, and updates with the same lazy-loaded values. This display preference is saved and included in Manager imports and exports.
