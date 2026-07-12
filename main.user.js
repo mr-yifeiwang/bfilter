@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Bfilter
 // @namespace    https://github.com/mr-yifeiwang/bfilter
-// @version      0.22.1
+// @version      0.23.0
 // @description  Manage in-browser Bilibili followlist and blocklist
 // @author       mr-yifeiwang
 // @icon         https://raw.githubusercontent.com/mr-yifeiwang/bfilter/master/assets/logo-128x128.png
@@ -37,6 +37,7 @@
   const SETTING_KEYS = {
     blockNewUsers: "bfilter:block-new-users",
     registrationTimeThreshold: "bfilter:registration-time-threshold",
+    hideAtOnlyComments: "bfilter:hide-at-only-comments",
     previewMode: "bfilter:preview-mode",
     hideShortVideos: "bfilter:hide-short-videos",
     shortVideoThreshold: "bfilter:short-video-threshold",
@@ -174,6 +175,8 @@
     'a.user-name[href*="space.bilibili.com/"], a.sub-user-name[href*="space.bilibili.com/"]';
   const COMMENT_TEXT_SELECTOR =
     ".reply-content, .reply-text, .sub-reply-content";
+  const COMMENT_MENTION_LINK_SELECTOR =
+    'a.jump-link.user[href*="space.bilibili.com/"]';
 
   const DANMAKU_SELECTOR = [
     ".bpx-player-row-dm-wrap .bili-danmaku-x-dm",
@@ -281,6 +284,12 @@
       childOf: "hideBadgedVideos",
     },
     {
+      name: "hideAtOnlyComments",
+      id: "bfilter-manager-hide-at-only-comments",
+      label: "Block @-only comments",
+      commentOption: true,
+    },
+    {
       name: "previewMode",
       id: "bfilter-manager-preview-mode",
       label: "Preview",
@@ -302,6 +311,7 @@
   const BLOCKED_DANMAKU_KEYWORDS = new Set();
   const settings = {
     blockNewUsers: false,
+    hideAtOnlyComments: false,
     previewMode: false,
     hideShortVideos: false,
     hideUnpopularVideos: false,
@@ -542,6 +552,7 @@
     return (
       blockedCommentAuthorReason(comment) ||
       blockedCommentKeywordReason(comment) ||
+      atOnlyCommentReason(comment) ||
       newCommentAuthorReason(comment)
     );
   }
@@ -568,6 +579,11 @@
   function blockedCommentKeywordReason(comment) {
     const keyword = getMatchedCommentKeyword(getCommentText(comment));
     return keyword ? { type: "comment-keyword", uid: "", keyword } : null;
+  }
+
+  function atOnlyCommentReason(comment) {
+    if (!settings.hideAtOnlyComments || !isAtOnlyComment(comment)) return null;
+    return { type: "comment-at-only", uid: "" };
   }
 
   function followedUidReason(card) {
@@ -697,8 +713,28 @@
   }
 
   function getCommentText(comment) {
-    const text = comment.querySelector(COMMENT_TEXT_SELECTOR);
+    const text = getCommentTextElement(comment);
     return text ? text.textContent || "" : comment.textContent || "";
+  }
+
+  function isAtOnlyComment(comment) {
+    const text = getCommentTextElement(comment);
+    if (!text || !text.querySelector(COMMENT_MENTION_LINK_SELECTOR))
+      return false;
+    const clone = text.cloneNode(true);
+    for (const link of clone.querySelectorAll(COMMENT_MENTION_LINK_SELECTOR)) {
+      if (
+        String(link.textContent || "")
+          .trim()
+          .startsWith("@")
+      )
+        link.remove();
+    }
+    return !String(clone.textContent || "").trim();
+  }
+
+  function getCommentTextElement(comment) {
+    return comment.querySelector(COMMENT_TEXT_SELECTOR);
   }
 
   function isNewUserUid(uid) {
@@ -1699,6 +1735,9 @@
           <div class="bfilter-manager-help" data-help="video-keywords"></div>
         </div>
         <div class="bfilter-manager-tab-panel" role="tabpanel" data-tab-panel="comment-keywords" ${activeTab === "comment-keywords" ? "" : "hidden"}>
+          ${BOOLEAN_CONTROLS.filter((control) => control.commentOption)
+            .map(renderManagerOption)
+            .join("")}
           ${renderManagerTextarea(MANAGER_COMMENT_KEYWORDS_TEXTAREA_ID)}
           <div class="bfilter-manager-help" data-help="comment-keywords"></div>
         </div>

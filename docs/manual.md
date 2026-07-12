@@ -19,6 +19,7 @@
     - [New-user filter](#new-user-filter)
     - [Video keyword filter](#video-keyword-filter)
     - [Comment keyword filter](#comment-keyword-filter)
+    - [At-only comment filter](#at-only-comment-filter)
     - [Short-video filter](#short-video-filter)
     - [Unpopular-video filter](#unpopular-video-filter)
     - [Badged-video filter](#badged-video-filter)
@@ -47,6 +48,7 @@ The script can:
 - Highlight videos and comments from followed user UIDs.
 - Hide videos by title keywords.
 - Hide comments by text keywords.
+- Optionally hide comments whose text only mentions other users.
 - Hide danmakus by text keywords on direct video pages.
 - Optionally hide accounts that look newly registered, based on UID length.
 - Optionally hide short videos, low-view videos, and selected non-standard content links such as live, manga, or course cards.
@@ -167,6 +169,8 @@ Use this tab to maintain text keywords for comment blocking.
 - Text after `#` is treated as a comment.
 - Duplicate keyword lines are removed at runtime.
 
+The tab also includes **Block @-only comments**. When enabled, Bfilter hides comments whose visible comment text consists only of one or more user mentions.
+
 ### Danmakus tab
 
 Use this tab to maintain danmaku text keywords.
@@ -222,7 +226,7 @@ For video cards, followed UIDs are checked first. If a card belongs to a followe
 5. Unpopular-video rule.
 6. Badged-video rule.
 
-For comments, followed author UIDs are highlighted before block checks. If not followed, comments are hidden/previewed by blocked UID, comment keyword, or new-user rule.
+For comments, followed author UIDs are highlighted before block checks. If not followed, comments are hidden/previewed by blocked UID, comment keyword, at-only comment rule, or new-user rule.
 
 ### Blocked users
 
@@ -256,6 +260,12 @@ Title sources include selectors such as `.bili-video-card__info--tit`, `.video-t
 ### Comment keyword filter
 
 Comment keyword filtering checks detected comment text, then hides or previews the matching comment item when it includes any blocked comment keyword.
+
+### At-only comment filter
+
+When enabled, Bfilter checks the detected comment body for user mention links. A comment is blocked when it contains one or more user mentions and no remaining non-whitespace text after those mentions are ignored.
+
+Comments with any additional text are not matched by this filter.
 
 ### Short-video filter
 
@@ -362,6 +372,7 @@ Bfilter persists these values:
 | Danmaku keyword list        | `bfilter:danmaku-keyword-blocklist`   |
 | Block new users             | `bfilter:block-new-users`             |
 | Registration-time threshold | `bfilter:registration-time-threshold` |
+| Block @-only comments       | `bfilter:hide-at-only-comments`       |
 | Preview mode                | `bfilter:preview-mode`                |
 | Hide short videos           | `bfilter:hide-short-videos`           |
 | Short-video threshold       | `bfilter:short-video-threshold`       |
