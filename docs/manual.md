@@ -176,7 +176,7 @@ This tab also includes video metadata filters:
 
 - **Hide by duration** with thresholds from `< 1 min` through `< 20 min`.
 - **Hide by views** with thresholds from `< 1k` through `< 100k`.
-- **Hide by types**, with selectable child types: **Live**, **Manga**, **Course**, and **Bangumi**.
+- **Hide by type**, with selectable child types: **Live**, **Manga**, **Course**, and **Bangumi**.
 
 Metadata filters are applied to card-like results and to recommendation areas on direct video pages. They are intentionally not applied to the primary video page owner/content area.
 
@@ -192,7 +192,7 @@ Use this tab to maintain text keywords for hiding comments.
 The tab also includes:
 
 - **Hide by mentions only**: hides comments whose visible comment text consists only of one or more user mentions.
-- **Hide by image**: hides comments with attached images. It does not match emoji images in comment text.
+- **Hide by images attached**: hides comments with attached images. It does not match emoji images in comment text.
 - **Hide by commenter level**: hides comments from the selected commenter level range. Its dropdown offers `≤ 1`, `≤ 2`, `≤ 3`, `≤ 4`, and `≤ 5` (default `≤ 2`).
 
 ### Danmakus tab
@@ -339,7 +339,7 @@ When enabled, Bfilter can hide card-like links to selected Bilibili content fami
 | Course  | `bilibili.com/cheese/`  |
 | Bangumi | `bilibili.com/bangumi/` |
 
-The child type selector is disabled until **Hide by types** is enabled.
+The child type selector is disabled until **Hide by type** is enabled.
 
 ### Comment filters
 
@@ -421,7 +421,7 @@ Storage uses the canonical filter identifiers below.
 | Hide by registration time           | `bfilter:hide-users-by-registration-time`            |
 | Registration-time threshold         | `bfilter:hide-users-by-registration-time-threshold`  |
 | Hide by mentions only               | `bfilter:hide-comments-by-mentions-only`             |
-| Hide by image                       | `bfilter:hide-comments-by-image`                     |
+| Hide by images attached             | `bfilter:hide-comments-by-images-attached`           |
 | Hide by commenter level             | `bfilter:hide-comments-by-commenter-level`           |
 | Commenter-level threshold           | `bfilter:hide-comments-by-commenter-level-threshold` |
 | Preview mode                        | `bfilter:preview-mode`                               |
@@ -429,7 +429,7 @@ Storage uses the canonical filter identifiers below.
 | Duration threshold                  | `bfilter:hide-videos-by-duration-threshold`          |
 | Hide by views                       | `bfilter:hide-videos-by-views`                       |
 | Views threshold                     | `bfilter:hide-videos-by-views-threshold`             |
-| Hide by types                       | `bfilter:hide-videos-by-types`                       |
+| Hide by type                        | `bfilter:hide-videos-by-type`                        |
 | Hide live videos                    | `bfilter:hide-videos-by-type-live`                   |
 | Hide manga videos                   | `bfilter:hide-videos-by-type-manga`                  |
 | Hide course videos                  | `bfilter:hide-videos-by-type-course`                 |

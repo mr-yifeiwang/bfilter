@@ -39,7 +39,7 @@
     hideUsersByRegistrationTimeThreshold:
       "bfilter:hide-users-by-registration-time-threshold",
     hideCommentsByMentionsOnly: "bfilter:hide-comments-by-mentions-only",
-    hideCommentsByImage: "bfilter:hide-comments-by-image",
+    hideCommentsByImagesAttached: "bfilter:hide-comments-by-images-attached",
     hideCommentsByCommenterLevel: "bfilter:hide-comments-by-commenter-level",
     hideCommentsByCommenterLevelThreshold:
       "bfilter:hide-comments-by-commenter-level-threshold",
@@ -48,7 +48,7 @@
     hideVideosByDurationThreshold: "bfilter:hide-videos-by-duration-threshold",
     hideVideosByViews: "bfilter:hide-videos-by-views",
     hideVideosByViewsThreshold: "bfilter:hide-videos-by-views-threshold",
-    hideVideosByTypes: "bfilter:hide-videos-by-types",
+    hideVideosByType: "bfilter:hide-videos-by-type",
     hideVideosByTypeLive: "bfilter:hide-videos-by-type-live",
     hideVideosByTypeManga: "bfilter:hide-videos-by-type-manga",
     hideVideosByTypeCourse: "bfilter:hide-videos-by-type-course",
@@ -270,37 +270,37 @@
       },
     },
     {
-      name: "hideVideosByTypes",
-      id: "bfilter-manager-hide-videos-by-types",
-      label: "Hide by types",
+      name: "hideVideosByType",
+      id: "bfilter-manager-hide-videos-by-type",
+      label: "Hide by type",
     },
     {
       name: "hideVideosByTypeLive",
       id: "bfilter-manager-hide-videos-by-type-live",
       label: "Live",
       defaultValue: false,
-      childOf: "hideVideosByTypes",
+      childOf: "hideVideosByType",
     },
     {
       name: "hideVideosByTypeManga",
       id: "bfilter-manager-hide-videos-by-type-manga",
       label: "Manga",
       defaultValue: false,
-      childOf: "hideVideosByTypes",
+      childOf: "hideVideosByType",
     },
     {
       name: "hideVideosByTypeCourse",
       id: "bfilter-manager-hide-videos-by-type-course",
       label: "Course",
       defaultValue: false,
-      childOf: "hideVideosByTypes",
+      childOf: "hideVideosByType",
     },
     {
       name: "hideVideosByTypeBangumi",
       id: "bfilter-manager-hide-videos-by-type-bangumi",
       label: "Bangumi",
       defaultValue: false,
-      childOf: "hideVideosByTypes",
+      childOf: "hideVideosByType",
     },
     {
       name: "hideCommentsByMentionsOnly",
@@ -309,9 +309,9 @@
       commentOption: true,
     },
     {
-      name: "hideCommentsByImage",
-      id: "bfilter-manager-hide-comments-by-image",
-      label: "Hide by image",
+      name: "hideCommentsByImagesAttached",
+      id: "bfilter-manager-hide-comments-by-images-attached",
+      label: "Hide by images attached",
       commentOption: true,
     },
     {
@@ -351,12 +351,12 @@
   const settings = {
     hideUsersByRegistrationTime: false,
     hideCommentsByMentionsOnly: false,
-    hideCommentsByImage: false,
+    hideCommentsByImagesAttached: false,
     hideCommentsByCommenterLevel: false,
     previewMode: false,
     hideVideosByDuration: false,
     hideVideosByViews: false,
-    hideVideosByTypes: false,
+    hideVideosByType: false,
     hideVideosByTypeLive: false,
     hideVideosByTypeManga: false,
     hideVideosByTypeCourse: false,
@@ -897,12 +897,12 @@
     renderUserPageActionButtons();
   }
 
-  function setVideoTypes(selectedOptions) {
+  function setVideoType(selectedOptions) {
     const selected = new Set(
       [...selectedOptions].map((option) => option.value).filter(Boolean),
     );
     for (const control of BOOLEAN_CONTROLS.filter(
-      (child) => child.childOf === "hideVideosByTypes",
+      (child) => child.childOf === "hideVideosByType",
     )) {
       settings[control.name] = selected.has(control.name);
       saveBooleanSetting(SETTING_KEYS[control.name], settings[control.name]);
@@ -1228,7 +1228,7 @@
 
   function isPotentialTypeCard(element) {
     return Boolean(
-      settings.hideVideosByTypes &&
+      settings.hideVideosByType &&
       matches(element, CARD_SELECTOR) &&
       hasTypeVideoLinkInside(element),
     );
@@ -1243,7 +1243,7 @@
   }
 
   function getActiveTypeVideoLinkSelector() {
-    if (!settings.hideVideosByTypes) return "";
+    if (!settings.hideVideosByType) return "";
     return [
       settings.hideVideosByTypeLive && TYPE_VIDEO_LINK_SELECTORS.live,
       settings.hideVideosByTypeManga && TYPE_VIDEO_LINK_SELECTORS.manga,
@@ -1327,7 +1327,7 @@
       registrationTimeReason(card) ||
       videoDurationReason(card) ||
       videoViewsReason(card) ||
-      videoTypesReason(card)
+      videoTypeReason(card)
     );
   }
 
@@ -1436,10 +1436,10 @@
       : null;
   }
 
-  function videoTypesReason(card) {
-    if (!settings.hideVideosByTypes || !canUseMetadataFilter(card)) return null;
+  function videoTypeReason(card) {
+    if (!settings.hideVideosByType || !canUseMetadataFilter(card)) return null;
     return hasTypeVideoLinkInside(card)
-      ? { type: "hide-videos-by-types", uid: "" }
+      ? { type: "hide-videos-by-type", uid: "" }
       : null;
   }
 
@@ -1608,9 +1608,9 @@
   }
 
   function imageCommentReason(comment) {
-    if (!settings.hideCommentsByImage) return null;
+    if (!settings.hideCommentsByImagesAttached) return null;
     return hasCommentImageAttachment(comment)
-      ? { type: "hide-comments-by-image", uid: "" }
+      ? { type: "hide-comments-by-images-attached", uid: "" }
       : null;
   }
 
@@ -1730,7 +1730,7 @@
   }
 
   function resolveConsequenceTarget(card, reason) {
-    if (isVideoTypesReason(reason)) {
+    if (isVideoTypeReason(reason)) {
       const searchResultCard = card.closest(".video-list-item");
       if (isSearchPage() && isSafeTargetShape(searchResultCard))
         return searchResultCard;
@@ -1747,8 +1747,8 @@
       : card;
   }
 
-  function isVideoTypesReason(reason) {
-    return reason && reason.type === "hide-videos-by-types";
+  function isVideoTypeReason(reason) {
+    return reason && reason.type === "hide-videos-by-type";
   }
 
   function isValidConsequenceTarget(target, card, reason) {
@@ -1966,7 +1966,7 @@
             [
               "hideVideosByDuration",
               "hideVideosByViews",
-              "hideVideosByTypes",
+              "hideVideosByType",
             ].includes(control.name),
           )
             .map(renderManagerOption)
@@ -2066,8 +2066,8 @@
         refreshThresholdControls(panel);
         return;
       }
-      if (target && target.matches("[data-hide-videos-by-types]")) {
-        setVideoTypes(target.selectedOptions);
+      if (target && target.matches("[data-hide-videos-by-type]")) {
+        setVideoType(target.selectedOptions);
         refreshBooleanControls(panel);
         return;
       }
@@ -2108,7 +2108,7 @@
   }
 
   function renderVideoTypeSelect(controls) {
-    return `<select class="bfilter-manager-video-types" data-hide-videos-by-types multiple size="1">${controls
+    return `<select class="bfilter-manager-video-types" data-hide-videos-by-type multiple size="1">${controls
       .map(
         (control) =>
           `<option value="${control.name}">${escapeHtml(control.label)}</option>`,
@@ -2580,10 +2580,10 @@
       input.checked = settings[control.name];
       input.disabled = Boolean(control.childOf && !settings[control.childOf]);
     }
-    const videoTypes = panel.querySelector("[data-hide-videos-by-types]");
-    if (videoTypes) {
-      videoTypes.disabled = !settings.hideVideosByTypes;
-      for (const option of videoTypes.options) {
+    const videoType = panel.querySelector("[data-hide-videos-by-type]");
+    if (videoType) {
+      videoType.disabled = !settings.hideVideosByType;
+      for (const option of videoType.options) {
         option.selected = settings[option.value];
       }
     }
