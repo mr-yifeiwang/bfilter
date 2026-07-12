@@ -29,6 +29,7 @@
     - [Comment filters](#comment-filters)
       - [Comment keyword filter](#comment-keyword-filter)
       - [At-only comment filter](#at-only-comment-filter)
+      - [Image comment filter](#image-comment-filter)
     - [Danmaku filters](#danmaku-filters)
       - [Danmaku keyword filter](#danmaku-keyword-filter)
   - [Data format](#data-format)
@@ -53,6 +54,7 @@ The script can:
 - Hide videos by title keywords.
 - Hide comments by text keywords.
 - Optionally hide comments whose text only mentions other users.
+- Optionally hide comments with attached images.
 - Hide danmakus by text keywords on direct video pages.
 - Optionally hide accounts that look newly registered, based on UID length.
 - Optionally hide short videos, low-view videos, and selected non-standard content links such as live, manga, or course cards.
@@ -186,6 +188,8 @@ Use this tab to maintain text keywords for comment blocking.
 
 The tab also includes **Block @-only comments**. When enabled, Bfilter hides comments whose visible comment text consists only of one or more user mentions.
 
+**Block comments with images** hides comments with attached images. It does not match emoji images in comment text.
+
 ### Danmakus tab
 
 Use this tab to maintain danmaku text keywords.
@@ -250,7 +254,7 @@ For video cards, followed UIDs are checked first. If a card belongs to a followe
 5. Unpopular-video rule.
 6. Badged-video rule.
 
-For comments, followed author UIDs are highlighted before block checks. If not followed, comments are hidden/previewed by blocked UID, comment keyword, at-only comment rule, or new-user rule.
+For comments, followed author UIDs are highlighted before block checks. If not followed, comments are hidden/previewed by blocked UID, comment keyword, at-only comment rule, image-attachment rule, or new-user rule.
 
 ### User filters
 
@@ -343,6 +347,10 @@ When enabled, Bfilter checks the detected comment body for user mention links. A
 
 Comments with any additional text are not matched by this filter.
 
+#### Image comment filter
+
+When enabled, Bfilter blocks comments that contain an attached image in the comment item's image exhibition area. Emoji images embedded in comment text do not match this filter.
+
 ### Danmaku filters
 
 Danmaku filters apply to detected player danmaku rows on direct video pages.
@@ -393,6 +401,7 @@ Bfilter persists these values:
 | Block new users             | `bfilter:block-new-users`             |
 | Registration-time threshold | `bfilter:registration-time-threshold` |
 | Block @-only comments       | `bfilter:hide-at-only-comments`       |
+| Block comments with images  | `bfilter:hide-image-comments`         |
 | Preview mode                | `bfilter:preview-mode`                |
 | Hide short videos           | `bfilter:hide-short-videos`           |
 | Short-video threshold       | `bfilter:short-video-threshold`       |

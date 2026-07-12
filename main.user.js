@@ -38,6 +38,7 @@
     blockNewUsers: "bfilter:block-new-users",
     registrationTimeThreshold: "bfilter:registration-time-threshold",
     hideAtOnlyComments: "bfilter:hide-at-only-comments",
+    hideImageComments: "bfilter:hide-image-comments",
     previewMode: "bfilter:preview-mode",
     hideShortVideos: "bfilter:hide-short-videos",
     shortVideoThreshold: "bfilter:short-video-threshold",
@@ -177,6 +178,7 @@
     ".reply-content, .reply-text, .sub-reply-content";
   const COMMENT_MENTION_LINK_SELECTOR =
     'a.jump-link.user[href*="space.bilibili.com/"]';
+  const COMMENT_ATTACHMENT_SELECTOR = ".image-exhibition img";
 
   const DANMAKU_SELECTOR = [
     ".bpx-player-row-dm-wrap .bili-danmaku-x-dm",
@@ -290,6 +292,12 @@
       commentOption: true,
     },
     {
+      name: "hideImageComments",
+      id: "bfilter-manager-hide-image-comments",
+      label: "Block comments with images",
+      commentOption: true,
+    },
+    {
       name: "previewMode",
       id: "bfilter-manager-preview-mode",
       label: "Preview",
@@ -312,6 +320,7 @@
   const settings = {
     blockNewUsers: false,
     hideAtOnlyComments: false,
+    hideImageComments: false,
     previewMode: false,
     hideShortVideos: false,
     hideUnpopularVideos: false,
@@ -1279,6 +1288,7 @@
       blockedCommentAuthorReason(comment) ||
       blockedCommentKeywordReason(comment) ||
       atOnlyCommentReason(comment) ||
+      imageCommentReason(comment) ||
       newCommentAuthorReason(comment)
     );
   }
@@ -1531,6 +1541,19 @@
   function atOnlyCommentReason(comment) {
     if (!settings.hideAtOnlyComments || !isAtOnlyComment(comment)) return null;
     return { type: "comment-at-only", uid: "" };
+  }
+
+  function imageCommentReason(comment) {
+    if (!settings.hideImageComments) return null;
+    return hasCommentImageAttachment(comment)
+      ? { type: "comment-image", uid: "" }
+      : null;
+  }
+
+  function hasCommentImageAttachment(comment) {
+    return [...comment.querySelectorAll(COMMENT_ATTACHMENT_SELECTOR)].some(
+      (image) => image.closest(COMMENT_ITEM_SELECTOR) === comment,
+    );
   }
 
   function getMatchedCommentKeyword(text) {
