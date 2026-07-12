@@ -413,713 +413,82 @@
     scheduleScan(document.documentElement, { force: true });
   }
 
-  function scheduleScan(root, options = {}) {
-    if (!isCardBlockingPage() || !isElement(root)) return;
-    pendingRoots.add(root);
-    if (options.force) pendingRoots.add(document.documentElement);
-    if (scheduled) return;
-
-    scheduled = true;
-    requestAnimationFrame(() => {
-      scheduled = false;
-      const roots = [...pendingRoots];
-      pendingRoots.clear();
-      for (const pendingRoot of roots) scan(pendingRoot, options);
-    });
+  function patchHistory(methodName) {
+    const original = history[methodName];
+    history[methodName] = function patchedHistoryMethod(...args) {
+      const result = original.apply(this, args);
+      setTimeout(refreshChromeAndScan, 0);
+      return result;
+    };
   }
 
-  function scan(root) {
-    if (!isCardBlockingPage() || !isElement(root)) return;
-
-    for (const candidate of collectCandidates(root)) {
-      const comment = resolveCommentItem(candidate);
-      if (comment) {
-        if (followedCommentAuthorReason(comment)) {
-          applyFollow(comment);
-          continue;
-        }
-        const reason = evaluateComment(comment);
-        if (reason) applyConsequence(comment, reason);
-        continue;
-      }
-
-      const danmaku = resolveDanmaku(candidate);
-      if (danmaku) {
-        const reason = evaluateDanmaku(danmaku);
-        if (reason) applyConsequence(danmaku, reason);
-        else clearConsequence(danmaku);
-        continue;
-      }
-
-      const card = resolveVideoCard(candidate);
-      if (!card) continue;
-
-      const followedUid = followedUidReason(card);
-      if (followedUid) {
-        const target = resolveConsequenceTarget(card, {
-          type: "uid",
-          uid: followedUid,
-        });
-        if (isValidConsequenceTarget(target, card, { uid: followedUid }))
-          applyFollow(target);
-        continue;
-      }
-
-      const reason = evaluateCard(card);
-      if (!reason) continue;
-
-      const target = resolveConsequenceTarget(card, reason);
-      if (isValidConsequenceTarget(target, card, reason)) {
-        applyConsequence(target, reason);
-      }
-    }
-    renderCommentBlockButtons();
-    renderBlockAllCommentersButton();
+  function isCardBlockingPage() {
+    // Deliberately exclude space.bilibili.com from card/comment scanning.
+    return !isUserPage() && isBfilterManagerPage();
   }
 
-  function collectCandidates(root) {
-    const candidates = new Set();
-    addIfMatches(root, CARD_SELECTOR, candidates);
-    addIfMatches(root, COMMENT_ITEM_SELECTOR, candidates);
-    addIfMatches(root, DANMAKU_SELECTOR, candidates);
-    addIfMatches(root, DANMAKU_TEXT_SELECTOR, candidates);
-    addIfMatches(root, UPLOADER_SELECTOR, candidates);
-    addIfMatches(root, COMMENT_USER_LINK_SELECTOR, candidates);
-    addIfMatches(root, VIDEO_LINK_SELECTOR, candidates);
-    addIfMatches(root, BADGED_VIDEO_LINK_SELECTOR, candidates);
-    for (const selector of [
-      CARD_SELECTOR,
-      COMMENT_ITEM_SELECTOR,
-      DANMAKU_SELECTOR,
-      DANMAKU_TEXT_SELECTOR,
-      UPLOADER_SELECTOR,
-      COMMENT_USER_LINK_SELECTOR,
-      VIDEO_LINK_SELECTOR,
-      BADGED_VIDEO_LINK_SELECTOR,
-    ]) {
-      for (const element of root.querySelectorAll(selector))
-        candidates.add(element);
-    }
-    return candidates;
-  }
-
-  function resolveCommentItem(candidate) {
-    if (!isElement(candidate)) return null;
-    return matches(candidate, COMMENT_ITEM_SELECTOR)
-      ? candidate
-      : candidate.closest(COMMENT_ITEM_SELECTOR);
-  }
-
-  function resolveDanmaku(candidate) {
-    if (!isDirectVideoPage() || !isElement(candidate)) return null;
-    return matches(candidate, DANMAKU_SELECTOR)
-      ? candidate
-      : candidate.closest(DANMAKU_SELECTOR);
-  }
-
-  function resolveVideoCard(candidate) {
-    if (!isElement(candidate) || isProtectedSearchVideoCard(candidate))
-      return null;
-    if (isPotentialVideoCard(candidate)) return candidate;
-
-    let best = null;
-    for (
-      let element = candidate, depth = 0;
-      element && depth <= MAX_ANCESTOR_STEPS;
-      element = element.parentElement, depth += 1
-    ) {
-      if (isUnsafePageContainer(element)) break;
-      if (matches(element, CARD_SELECTOR) && isPotentialVideoCard(element))
-        return element;
-      if (isPotentialVideoCard(element) && !isTooLargeToHide(element))
-        best = element;
-    }
-    return best;
-  }
-
-  function evaluateCard(card) {
+  function isBfilterManagerPage() {
     return (
-      blockedUidReason(card) ||
-      blockedVideoKeywordReason(card) ||
-      newUserReason(card) ||
-      shortVideoReason(card) ||
-      unpopularVideoReason(card) ||
-      badgedVideoReason(card)
+      isBilibiliHomePage() ||
+      isPopularPage() ||
+      isSearchPage() ||
+      isDirectVideoPage() ||
+      isUserPage() ||
+      isOpusPage() ||
+      isTPage()
     );
   }
 
-  function evaluateComment(comment) {
+  function isBilibiliHomePage() {
     return (
-      blockedCommentAuthorReason(comment) ||
-      blockedCommentKeywordReason(comment) ||
-      atOnlyCommentReason(comment) ||
-      newCommentAuthorReason(comment)
+      location.hostname === "www.bilibili.com" && location.pathname === "/"
     );
   }
 
-  function evaluateDanmaku(danmaku) {
-    const keyword = getMatchedDanmakuKeyword(getDanmakuText(danmaku));
-    return keyword ? { type: "danmaku-keyword", uid: "", keyword } : null;
+  function isSearchPage() {
+    return location.hostname === "search.bilibili.com";
   }
 
-  function blockedUidReason(card) {
-    const uid = getUploaderUidsInside(card).find((value) =>
-      BLOCKED_UIDS.has(value),
-    );
-    return uid ? { type: "uid", uid } : null;
-  }
-
-  function blockedCommentAuthorReason(comment) {
-    const uid = getCommentAuthorUidsInside(comment).find((value) =>
-      BLOCKED_UIDS.has(value),
-    );
-    return uid ? { type: "uid", uid } : null;
-  }
-
-  function blockedCommentKeywordReason(comment) {
-    const keyword = getMatchedCommentKeyword(getCommentText(comment));
-    return keyword ? { type: "comment-keyword", uid: "", keyword } : null;
-  }
-
-  function atOnlyCommentReason(comment) {
-    if (!settings.hideAtOnlyComments || !isAtOnlyComment(comment)) return null;
-    return { type: "comment-at-only", uid: "" };
-  }
-
-  function followedUidReason(card) {
-    return getUploaderUidsInside(card).find((uid) => FOLLOWING_UIDS.has(uid));
-  }
-
-  function followedCommentAuthorReason(comment) {
-    return getCommentAuthorUidsInside(comment).find((uid) =>
-      FOLLOWING_UIDS.has(uid),
-    );
-  }
-
-  function blockedVideoKeywordReason(card) {
-    const keyword = getMatchedVideoKeyword(getVideoTitleText(card));
-    return keyword ? { type: "video-keyword", uid: "", keyword } : null;
-  }
-
-  function newCommentAuthorReason(comment) {
-    if (!settings.blockNewUsers) return null;
-    const uid = getCommentAuthorUidsInside(comment).find(isNewUserUid);
-    return uid ? { type: "new-user", uid } : null;
-  }
-
-  function newUserReason(card) {
-    if (!settings.blockNewUsers) return null;
-    const uid = getUploaderUidsInside(card).find(isNewUserUid);
-    return uid ? { type: "new-user", uid } : null;
-  }
-
-  function shortVideoReason(card) {
-    if (!settings.hideShortVideos || !canUseMetadataFilter(card)) return null;
-    const seconds = getVideoDurationSeconds(card);
-    return seconds > 0 && seconds < getShortVideoThresholdSeconds()
-      ? { type: "short-video", uid: "" }
-      : null;
-  }
-
-  function unpopularVideoReason(card) {
-    if (!settings.hideUnpopularVideos || !canUseMetadataFilter(card))
-      return null;
-    const views = getVideoViewCount(card);
-    return views != null && views < getUnpopularVideoThresholdViews()
-      ? { type: "unpopular-video", uid: "" }
-      : null;
-  }
-
-  function badgedVideoReason(card) {
-    if (!settings.hideBadgedVideos || !canUseMetadataFilter(card)) return null;
-    return hasBadgedVideoLinkInside(card)
-      ? { type: "badged-video", uid: "" }
-      : null;
-  }
-
-  function canUseMetadataFilter(card) {
-    return !isDirectVideoPage() || isInsideRecommendationArea(card);
-  }
-
-  function getMatchedVideoKeyword(text) {
-    return getMatchedKeyword(text, BLOCKED_VIDEO_KEYWORDS);
-  }
-
-  function getMatchedCommentKeyword(text) {
-    return getMatchedKeyword(text, BLOCKED_COMMENT_KEYWORDS);
-  }
-
-  function getMatchedDanmakuKeyword(text) {
-    return getMatchedKeyword(text, BLOCKED_DANMAKU_KEYWORDS);
-  }
-
-  function getMatchedKeyword(text, keywords) {
-    if (!keywords.size) return "";
-    const haystack = normalizeKeywordSearchText(text);
-    if (!haystack) return "";
-    return [...keywords].find((keyword) => {
-      const needle = normalizeKeywordSearchText(keyword);
-      return needle && haystack.includes(needle);
-    });
-  }
-
-  function normalizeKeywordSearchText(value) {
-    return String(value || "")
-      .normalize("NFC")
-      .replace(/[\uFE0E\uFE0F]/g, "");
-  }
-
-  function getVideoTitleText(card) {
-    if (!isElement(card)) return "";
-    const values = [];
-    for (const element of getVideoTitleElements(card)) {
-      values.push(
-        element.textContent || "",
-        element.getAttribute("title") || "",
-      );
-    }
-    return values.join(" ");
-  }
-
-  function getVideoTitleElements(card) {
-    const elements = new Set();
-    for (const element of card.querySelectorAll(
-      [
-        ".bili-video-card__info--tit",
-        ".video-name",
-        ".video-title",
-        ".title-text",
-        // Direct-video right-panel recommendations put the title on a
-        // nested element such as <a href="/video/..."><p class="title">...</p></a>.
-        'a[href*="/video/"] .title',
-        'a[href*="bilibili.com/video/"] .title',
-        'a[href*="/bangumi/play/"] .title',
-        'a[href*="/video/"] [title]',
-        'a[href*="bilibili.com/video/"] [title]',
-        'a[href*="/bangumi/play/"] [title]',
-        'a[href*="/video/"][title]',
-        'a[href*="bilibili.com/video/"][title]',
-        'a[href*="/bangumi/play/"][title]',
-      ].join(","),
-    )) {
-      elements.add(element);
-    }
-    return elements;
-  }
-
-  function getDanmakuText(danmaku) {
-    const text = danmaku.querySelector(DANMAKU_TEXT_SELECTOR);
-    return text ? text.textContent || "" : danmaku.textContent || "";
-  }
-
-  function getCommentText(comment) {
-    const text = getCommentTextElement(comment);
-    return text ? text.textContent || "" : comment.textContent || "";
-  }
-
-  function isAtOnlyComment(comment) {
-    const text = getCommentTextElement(comment);
-    if (!text || !text.querySelector(COMMENT_MENTION_LINK_SELECTOR))
-      return false;
-    const clone = text.cloneNode(true);
-    for (const link of clone.querySelectorAll(COMMENT_MENTION_LINK_SELECTOR)) {
-      if (
-        String(link.textContent || "")
-          .trim()
-          .startsWith("@")
-      )
-        link.remove();
-    }
-    return !String(clone.textContent || "").trim();
-  }
-
-  function getCommentTextElement(comment) {
-    return comment.querySelector(COMMENT_TEXT_SELECTOR);
-  }
-
-  function isNewUserUid(uid) {
-    return /^\d+$/.test(uid) && uid.length >= getRegistrationTimeThreshold();
-  }
-
-  function getRegistrationTimeThreshold() {
-    return getRegistrationTimeThresholdOption().minDigits;
-  }
-
-  function getRegistrationTimeThresholdOption(
-    value = settings.registrationTimeThreshold,
-  ) {
+  function isPopularPage() {
     return (
-      REGISTRATION_TIME_THRESHOLD_OPTIONS.find(
-        (option) => option.label === value,
-      ) ||
-      REGISTRATION_TIME_THRESHOLD_OPTIONS[
-        REGISTRATION_TIME_THRESHOLD_OPTIONS.length - 1
-      ]
+      location.hostname === "www.bilibili.com" &&
+      /^\/v\/popular(?:\/|$)/.test(location.pathname)
     );
   }
 
-  function getShortVideoThresholdSeconds() {
-    return getShortVideoThresholdOption().seconds;
-  }
-
-  function getShortVideoThresholdOption(value = settings.shortVideoThreshold) {
+  function isDirectVideoPage() {
     return (
-      SHORT_VIDEO_THRESHOLD_OPTIONS.find((option) => option.label === value) ||
-      SHORT_VIDEO_THRESHOLD_OPTIONS[2]
+      location.hostname === "www.bilibili.com" &&
+      VIDEO_PATH_RE.test(location.pathname)
     );
   }
 
-  function getUnpopularVideoThresholdViews() {
-    return getUnpopularVideoThresholdOption().views;
-  }
-
-  function getUnpopularVideoThresholdOption(
-    value = settings.unpopularVideoThreshold,
-  ) {
+  function isOpusPage() {
     return (
-      UNPOPULAR_VIDEO_THRESHOLD_OPTIONS.find(
-        (option) => option.label === value,
-      ) || UNPOPULAR_VIDEO_THRESHOLD_OPTIONS[2]
+      location.hostname === "www.bilibili.com" &&
+      OPUS_PATH_RE.test(location.pathname)
     );
   }
 
-  function getVideoDurationSeconds(card) {
-    for (const element of getDurationElements(card)) {
-      const seconds = parseDurationSeconds(element.textContent || "");
-      if (seconds > 0) return seconds;
-    }
-    return 0;
+  function isTPage() {
+    return location.hostname === "t.bilibili.com";
   }
 
-  function getDurationElements(card) {
-    const elements = new Set(card.querySelectorAll(DURATION_SELECTOR));
-    if (matches(card, DURATION_SELECTOR)) elements.add(card);
-    for (const element of card.querySelectorAll("*")) {
-      if (
-        !element.children.length &&
-        /^\s*\d{1,2}:\d{2}(?::\d{2})?\s*$/.test(element.textContent || "")
-      ) {
-        elements.add(element);
-      }
-    }
-    return elements;
+  function getCurrentUserPageUid() {
+    if (!isUserPage()) return "";
+    const match = location.pathname.match(/^\/(\d+)(?:\/|$)/);
+    return match ? normalizeUid(match[1]) : "";
   }
 
-  function parseDurationSeconds(text) {
-    const match = String(text || "")
-      .trim()
-      .match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
-    if (!match) return 0;
-    return match[3] == null
-      ? Number(match[1]) * 60 + Number(match[2])
-      : Number(match[1]) * 3600 + Number(match[2]) * 60 + Number(match[3]);
+  function getCurrentUserPageUsername() {
+    if (!isUserPage()) return "";
+    const element = document.querySelector(".nickname");
+    return element ? String(element.textContent || "").trim() : "";
   }
 
-  function getVideoViewCount(card) {
-    const preferred = [...card.querySelectorAll(STAT_SELECTOR)].filter(
-      isViewCountElement,
-    );
-    const fallback = [...card.querySelectorAll(STAT_SELECTOR)].filter(
-      isLikelyViewCountFallbackElement,
-    );
-    for (const element of [...preferred, ...fallback]) {
-      const count = parseViewCount(
-        element.innerText || element.textContent || "",
-      );
-      if (count != null) return count;
-    }
-    return null;
-  }
-
-  function isViewCountElement(element) {
-    if (matches(element, DURATION_SELECTOR)) return false;
-    return /play|view|播放|观看/i.test(getClueText(element, true));
-  }
-
-  function isLikelyViewCountFallbackElement(element) {
-    const text = element.textContent || "";
-    if (text.includes(":")) return false;
-    if (parseViewCount(text) == null) return false;
-    return /stat|播放|观看|play|view/i.test(getClueText(element, false));
-  }
-
-  function getClueText(element, includeText) {
-    return `${element.className || ""} ${element.getAttribute("aria-label") || ""} ${element.getAttribute("title") || ""} ${includeText ? element.textContent || "" : ""}`;
-  }
-
-  function parseViewCount(text) {
-    const normalized = String(text || "")
-      .replace(/,/g, "")
-      .trim();
-    if (!normalized || normalized.includes(":")) return null;
-    const match = normalized.match(/(\d+(?:\.\d+)?)\s*([万亿]?)/);
-    if (!match) return null;
-    const value = Number(match[1]);
-    if (!Number.isFinite(value)) return null;
-    if (match[2] === "万") return value * 10000;
-    if (match[2] === "亿") return value * 100000000;
-    return value;
-  }
-
-  function resolveConsequenceTarget(card, reason) {
-    if (isBadgedVideoReason(reason)) {
-      const searchResultCard = card.closest(".video-list-item");
-      if (isSearchPage() && isSafeTargetShape(searchResultCard))
-        return searchResultCard;
-
-      const floorCard = card.closest(".floor-single-card");
-      if (isSafeTargetShape(floorCard)) return floorCard;
-    }
-
-    const recommendationContainer = card.closest(
-      RECOMMENDATION_CARD_CONTAINER_SELECTOR,
-    );
-    return isSafeTargetShape(recommendationContainer)
-      ? recommendationContainer
-      : card;
-  }
-
-  function isBadgedVideoReason(reason) {
-    return reason && reason.type === "badged-video";
-  }
-
-  function isValidConsequenceTarget(target, card, reason) {
-    if (!isSafeTargetShape(target)) return false;
-    if (isProtectedSearchVideoCard(card) || isProtectedSearchVideoCard(target))
-      return false;
-    if (isDirectVideoOwnerCard(target, reason.uid)) return false;
-    return true;
-  }
-
-  function isSafeTargetShape(element) {
-    return Boolean(
-      element &&
-      !isUnsafePageContainer(element) &&
-      !isTooLargeToHide(element) &&
-      isPotentialVideoCard(element) &&
-      !containsMultipleVideos(element),
-    );
-  }
-
-  function applyConsequence(target, reason) {
-    target.removeAttribute(FOLLOW_ATTR);
-    clearNestedConsequences(target);
-    target.removeAttribute(settings.previewMode ? BLOCK_ATTR : PREVIEW_ATTR);
-
-    const activeAttr = settings.previewMode ? PREVIEW_ATTR : BLOCK_ATTR;
-    if (
-      target.parentElement &&
-      target.parentElement.closest(`[${activeAttr}]`)
-    ) {
-      clearConsequence(target);
-      return;
-    }
-
-    target.setAttribute(activeAttr, "true");
-    target.setAttribute(BLOCKED_UID_ATTR, reason.uid || "");
-  }
-
-  function applyFollow(target) {
-    clearNestedConsequences(target);
-    clearConsequence(target);
-    target.setAttribute(FOLLOW_ATTR, "true");
-  }
-
-  function refreshConsequences() {
-    for (const element of document.querySelectorAll(
-      `[${BLOCK_ATTR}], [${PREVIEW_ATTR}], [${FOLLOW_ATTR}]`,
-    )) {
-      clearConsequence(element);
-    }
-    scan(document.documentElement);
-  }
-
-  function clearNestedConsequences(target) {
-    for (const nested of target.querySelectorAll(
-      `[${BLOCK_ATTR}], [${PREVIEW_ATTR}], [${FOLLOW_ATTR}]`,
-    )) {
-      clearConsequence(nested);
-    }
-  }
-
-  function clearConsequence(element) {
-    element.removeAttribute(BLOCK_ATTR);
-    element.removeAttribute(PREVIEW_ATTR);
-    element.removeAttribute(FOLLOW_ATTR);
-    element.removeAttribute(BLOCKED_UID_ATTR);
-  }
-
-  function unhideCardsForUid(uid) {
-    for (const element of document.querySelectorAll(
-      `[${BLOCKED_UID_ATTR}="${uid}"]`,
-    )) {
-      clearConsequence(element);
-    }
-  }
-
-  function isPotentialVideoCard(element) {
-    if (!isElement(element) || isUnsafePageContainer(element)) return false;
-    if (matches(element, ".video-card__content")) return false;
-    if (isPotentialBadgedCard(element)) return true;
-    if (!hasInOrSelf(element, VIDEO_LINK_SELECTOR)) return false;
-    if (matches(element, CARD_SELECTOR)) return true;
-    return (
-      hasInOrSelf(element, UPLOADER_SELECTOR) &&
-      (hasInOrSelf(element, VISUAL_SELECTOR) ||
-        hasInOrSelf(element, TITLE_SELECTOR))
-    );
-  }
-
-  function isPotentialBadgedCard(element) {
-    return Boolean(
-      settings.hideBadgedVideos &&
-      matches(element, CARD_SELECTOR) &&
-      hasBadgedVideoLinkInside(element),
-    );
-  }
-
-  function hasBadgedVideoLinkInside(card) {
-    const selector = getActiveBadgedVideoLinkSelector();
-    if (!selector) return false;
-    return [...card.querySelectorAll(selector)].some((link) =>
-      link.closest(CARD_SELECTOR),
-    );
-  }
-
-  function getActiveBadgedVideoLinkSelector() {
-    if (!settings.hideBadgedVideos) return "";
-    return [
-      settings.hideLiveVideos && BADGED_VIDEO_LINK_SELECTORS.live,
-      settings.hideMangaVideos && BADGED_VIDEO_LINK_SELECTORS.manga,
-      settings.hideCourseVideos && BADGED_VIDEO_LINK_SELECTORS.course,
-      settings.hideBangumiVideos && BADGED_VIDEO_LINK_SELECTORS.bangumi,
-    ]
-      .filter(Boolean)
-      .join(",");
-  }
-
-  function getUploaderUidsInside(container) {
-    const uids = new Set();
-    if (matches(container, UPLOADER_SELECTOR)) addUploaderUids(container, uids);
-    for (const element of container.querySelectorAll(UPLOADER_SELECTOR)) {
-      addUploaderUids(element, uids);
-    }
-    return [...uids];
-  }
-
-  function getCommentAuthorUidsInside(comment) {
-    const uids = new Set();
-    for (const link of comment.querySelectorAll(COMMENT_USER_LINK_SELECTOR)) {
-      if (link.closest(COMMENT_ITEM_SELECTOR) !== comment) continue;
-      addUidFromHref(link.getAttribute("href"), uids);
-    }
-    return [...uids];
-  }
-
-  function addUploaderUids(element, uids) {
-    if (element instanceof HTMLAnchorElement)
-      addUidFromHref(element.getAttribute("href"), uids);
-    for (const attr of UID_ATTRS) addUid(element.getAttribute(attr), uids);
-    if (element.dataset) {
-      addUid(element.dataset.usercardMid, uids);
-      addUid(element.dataset.mid, uids);
-    }
-  }
-
-  function addUidFromHref(href, uids) {
-    if (!href) return;
-    const match =
-      href.match(/space\.bilibili\.com\/(\d+)/i) ||
-      href.match(/^\/\/(?:space\.)?bilibili\.com\/(\d+)/i);
-    if (match) addUid(match[1], uids);
-  }
-
-  function addUid(value, uids) {
-    const uid = normalizeUid(value);
-    if (uid) uids.add(uid);
-  }
-
-  function normalizeUid(value) {
-    const match = value == null ? null : String(value).trim().match(/^\d+$/);
-    return match ? match[0] : "";
-  }
-
-  function containsMultipleVideos(element) {
-    if (isPopularPage() && matches(element, ".rank-item")) return false;
-
-    const hrefs = new Set();
-    if (matches(element, VIDEO_LINK_SELECTOR)) addVideoHref(element, hrefs);
-    for (const link of element.querySelectorAll(VIDEO_LINK_SELECTOR))
-      addVideoHref(link, hrefs);
-    return hrefs.size > 1;
-  }
-
-  function addVideoHref(link, hrefs) {
-    const href = link.getAttribute("href");
-    if (!href) return;
-    try {
-      hrefs.add(new URL(href, location.href).pathname.replace(/\/$/, ""));
-    } catch (_error) {
-      hrefs.add(href.split(/[?#]/)[0].replace(/\/$/, ""));
-    }
-  }
-
-  function isDirectVideoOwnerCard(card, uid) {
-    return Boolean(
-      uid &&
-      isDirectVideoPage() &&
-      uid === findDirectPageUploaderUid() &&
-      !matches(card, RECOMMENDATION_AREA_SELECTOR) &&
-      !isInsideRecommendationArea(card),
-    );
-  }
-
-  function isInsideRecommendationArea(element) {
-    return Boolean(element && element.closest(RECOMMENDATION_AREA_SELECTOR));
-  }
-
-  function isProtectedSearchVideoCard(element) {
-    return Boolean(
-      isSearchPage() &&
-      element &&
-      // Search user results use a wrapper around `.b-user-video-card`; protect
-      // both the card and its wrapper so preview mode does not paint the area red.
-      (element.closest(SEARCH_PROTECTED_VIDEO_CARD_SELECTOR) ||
-        element.querySelector(SEARCH_PROTECTED_VIDEO_CARD_SELECTOR)),
-    );
-  }
-
-  function findDirectPageUploaderUid() {
-    const fromState = findUidInInitialState();
-    if (fromState) return fromState;
-
-    const ownerLink = document.querySelector(VIDEO_OWNER_SELECTOR);
-    if (ownerLink && !isInsideRecommendationArea(ownerLink)) {
-      const uids = new Set();
-      addUploaderUids(ownerLink, uids);
-      if ([...uids][0]) return [...uids][0];
-    }
-
-    const spaceLink = document.querySelector('a[href*="space.bilibili.com/"]');
-    if (spaceLink && !isInsideRecommendationArea(spaceLink)) {
-      const uids = new Set();
-      addUploaderUids(spaceLink, uids);
-      if ([...uids][0]) return [...uids][0];
-    }
-
-    return "";
-  }
-
-  function findUidInInitialState() {
-    for (const script of document.scripts || []) {
-      const text = script.textContent || "";
-      if (!text.includes("mid")) continue;
-      const ownerMid = text.match(/"owner"\s*:\s*\{[^}]*"mid"\s*:\s*(\d+)/);
-      if (ownerMid) return ownerMid[1];
-      const upMid = text.match(/"upData"\s*:\s*\{[^}]*"mid"\s*:\s*(\d+)/);
-      if (upMid) return upMid[1];
-    }
-    return "";
+  function isUserPage() {
+    if (location.hostname !== "space.bilibili.com") return false;
+    return /^\/\d+(?:\/|$)/.test(location.pathname);
   }
 
   function setupStorageSync() {
@@ -1617,45 +986,786 @@
     return values;
   }
 
-  function setUidBlocked(uid, blocked) {
-    replaceRuntimeBlockedUids(
-      parseBlockedUserListText(readSavedBlockedUserListText()),
-    );
-    if (blocked) BLOCKED_UIDS.add(uid);
-    else {
-      BLOCKED_UIDS.delete(uid);
-      unhideCardsForUid(uid);
-    }
-    saveBlockedUserListText();
-    refreshConsequences();
-    refreshBfilterManagerPanel();
+  function getControl(name) {
+    return BOOLEAN_CONTROLS.find((control) => control.name === name);
   }
 
-  function setUidFollowing(uid, following, username = "") {
-    const followingText = updateFollowingText(
-      readSavedFollowingUserListText(),
-      uid,
-      following,
-      settings.addUsernamesToFollowing ? username : "",
-    );
-    replaceRuntimeFollowingUids(parseFollowingUserListText(followingText));
-    if (following) FOLLOWING_UIDS.add(uid);
-    else FOLLOWING_UIDS.delete(uid);
-    saveFollowingUserListText(followingText);
-    refreshConsequences();
-    refreshBfilterManagerPanel();
+  function getThresholdControls() {
+    return BOOLEAN_CONTROLS.filter((control) => control.threshold);
   }
 
-  function blockAllCommenters() {
-    replaceRuntimeBlockedUids(
-      parseBlockedUserListText(readSavedBlockedUserListText()),
+  function getThresholdControlBySlider(element) {
+    return getThresholdControls().find(
+      (control) => element && element.id === control.threshold.id,
     );
-    for (const item of document.querySelectorAll(COMMENT_ITEM_SELECTOR)) {
-      for (const uid of getCommentAuthorUidsInside(item)) BLOCKED_UIDS.add(uid);
+  }
+
+  function getOptionIndex(
+    control,
+    value = settings[control.threshold.setting],
+  ) {
+    const { options, fallbackIndex } = control.threshold;
+    const index = options.findIndex((option) => option.label === value);
+    return index < 0 ? fallbackIndex : index;
+  }
+
+  function scheduleScan(root, options = {}) {
+    if (!isCardBlockingPage() || !isElement(root)) return;
+    pendingRoots.add(root);
+    if (options.force) pendingRoots.add(document.documentElement);
+    if (scheduled) return;
+
+    scheduled = true;
+    requestAnimationFrame(() => {
+      scheduled = false;
+      const roots = [...pendingRoots];
+      pendingRoots.clear();
+      for (const pendingRoot of roots) scan(pendingRoot, options);
+    });
+  }
+
+  function scan(root) {
+    if (!isCardBlockingPage() || !isElement(root)) return;
+
+    for (const candidate of collectCandidates(root)) {
+      const comment = resolveCommentItem(candidate);
+      if (comment) {
+        if (followedCommentAuthorReason(comment)) {
+          applyFollow(comment);
+          continue;
+        }
+        const reason = evaluateComment(comment);
+        if (reason) applyConsequence(comment, reason);
+        continue;
+      }
+
+      const danmaku = resolveDanmaku(candidate);
+      if (danmaku) {
+        const reason = evaluateDanmaku(danmaku);
+        if (reason) applyConsequence(danmaku, reason);
+        else clearConsequence(danmaku);
+        continue;
+      }
+
+      const card = resolveVideoCard(candidate);
+      if (!card) continue;
+
+      const followedUid = followedUidReason(card);
+      if (followedUid) {
+        const target = resolveConsequenceTarget(card, {
+          type: "uid",
+          uid: followedUid,
+        });
+        if (isValidConsequenceTarget(target, card, { uid: followedUid }))
+          applyFollow(target);
+        continue;
+      }
+
+      const reason = evaluateCard(card);
+      if (!reason) continue;
+
+      const target = resolveConsequenceTarget(card, reason);
+      if (isValidConsequenceTarget(target, card, reason)) {
+        applyConsequence(target, reason);
+      }
     }
-    saveBlockedUserListText();
-    refreshConsequences();
-    refreshBfilterManagerPanel();
+    renderCommentBlockButtons();
+    renderBlockAllCommentersButton();
+  }
+
+  function collectCandidates(root) {
+    const candidates = new Set();
+    addIfMatches(root, CARD_SELECTOR, candidates);
+    addIfMatches(root, COMMENT_ITEM_SELECTOR, candidates);
+    addIfMatches(root, DANMAKU_SELECTOR, candidates);
+    addIfMatches(root, DANMAKU_TEXT_SELECTOR, candidates);
+    addIfMatches(root, UPLOADER_SELECTOR, candidates);
+    addIfMatches(root, COMMENT_USER_LINK_SELECTOR, candidates);
+    addIfMatches(root, VIDEO_LINK_SELECTOR, candidates);
+    addIfMatches(root, BADGED_VIDEO_LINK_SELECTOR, candidates);
+    for (const selector of [
+      CARD_SELECTOR,
+      COMMENT_ITEM_SELECTOR,
+      DANMAKU_SELECTOR,
+      DANMAKU_TEXT_SELECTOR,
+      UPLOADER_SELECTOR,
+      COMMENT_USER_LINK_SELECTOR,
+      VIDEO_LINK_SELECTOR,
+      BADGED_VIDEO_LINK_SELECTOR,
+    ]) {
+      for (const element of root.querySelectorAll(selector))
+        candidates.add(element);
+    }
+    return candidates;
+  }
+
+  function addIfMatches(element, selector, set) {
+    if (matches(element, selector)) set.add(element);
+  }
+
+  function hasInOrSelf(element, selector) {
+    return (
+      matches(element, selector) || Boolean(element.querySelector(selector))
+    );
+  }
+
+  function matches(element, selector) {
+    return isElement(element) && element.matches(selector);
+  }
+
+  function isElement(value) {
+    return value instanceof Element;
+  }
+
+  function appendToPage(element) {
+    if (!element.isConnected)
+      (document.body || document.documentElement).appendChild(element);
+  }
+
+  function resolveCommentItem(candidate) {
+    if (!isElement(candidate)) return null;
+    return matches(candidate, COMMENT_ITEM_SELECTOR)
+      ? candidate
+      : candidate.closest(COMMENT_ITEM_SELECTOR);
+  }
+
+  function resolveDanmaku(candidate) {
+    if (!isDirectVideoPage() || !isElement(candidate)) return null;
+    return matches(candidate, DANMAKU_SELECTOR)
+      ? candidate
+      : candidate.closest(DANMAKU_SELECTOR);
+  }
+
+  function resolveVideoCard(candidate) {
+    if (!isElement(candidate) || isProtectedSearchVideoCard(candidate))
+      return null;
+    if (isPotentialVideoCard(candidate)) return candidate;
+
+    let best = null;
+    for (
+      let element = candidate, depth = 0;
+      element && depth <= MAX_ANCESTOR_STEPS;
+      element = element.parentElement, depth += 1
+    ) {
+      if (isUnsafePageContainer(element)) break;
+      if (matches(element, CARD_SELECTOR) && isPotentialVideoCard(element))
+        return element;
+      if (isPotentialVideoCard(element) && !isTooLargeToHide(element))
+        best = element;
+    }
+    return best;
+  }
+
+  function isPotentialVideoCard(element) {
+    if (!isElement(element) || isUnsafePageContainer(element)) return false;
+    if (matches(element, ".video-card__content")) return false;
+    if (isPotentialBadgedCard(element)) return true;
+    if (!hasInOrSelf(element, VIDEO_LINK_SELECTOR)) return false;
+    if (matches(element, CARD_SELECTOR)) return true;
+    return (
+      hasInOrSelf(element, UPLOADER_SELECTOR) &&
+      (hasInOrSelf(element, VISUAL_SELECTOR) ||
+        hasInOrSelf(element, TITLE_SELECTOR))
+    );
+  }
+
+  function isPotentialBadgedCard(element) {
+    return Boolean(
+      settings.hideBadgedVideos &&
+      matches(element, CARD_SELECTOR) &&
+      hasBadgedVideoLinkInside(element),
+    );
+  }
+
+  function hasBadgedVideoLinkInside(card) {
+    const selector = getActiveBadgedVideoLinkSelector();
+    if (!selector) return false;
+    return [...card.querySelectorAll(selector)].some((link) =>
+      link.closest(CARD_SELECTOR),
+    );
+  }
+
+  function getActiveBadgedVideoLinkSelector() {
+    if (!settings.hideBadgedVideos) return "";
+    return [
+      settings.hideLiveVideos && BADGED_VIDEO_LINK_SELECTORS.live,
+      settings.hideMangaVideos && BADGED_VIDEO_LINK_SELECTORS.manga,
+      settings.hideCourseVideos && BADGED_VIDEO_LINK_SELECTORS.course,
+      settings.hideBangumiVideos && BADGED_VIDEO_LINK_SELECTORS.bangumi,
+    ]
+      .filter(Boolean)
+      .join(",");
+  }
+
+  function getUploaderUidsInside(container) {
+    const uids = new Set();
+    if (matches(container, UPLOADER_SELECTOR)) addUploaderUids(container, uids);
+    for (const element of container.querySelectorAll(UPLOADER_SELECTOR)) {
+      addUploaderUids(element, uids);
+    }
+    return [...uids];
+  }
+
+  function getCommentAuthorUidsInside(comment) {
+    const uids = new Set();
+    for (const link of comment.querySelectorAll(COMMENT_USER_LINK_SELECTOR)) {
+      if (link.closest(COMMENT_ITEM_SELECTOR) !== comment) continue;
+      addUidFromHref(link.getAttribute("href"), uids);
+    }
+    return [...uids];
+  }
+
+  function addUploaderUids(element, uids) {
+    if (element instanceof HTMLAnchorElement)
+      addUidFromHref(element.getAttribute("href"), uids);
+    for (const attr of UID_ATTRS) addUid(element.getAttribute(attr), uids);
+    if (element.dataset) {
+      addUid(element.dataset.usercardMid, uids);
+      addUid(element.dataset.mid, uids);
+    }
+  }
+
+  function addUidFromHref(href, uids) {
+    if (!href) return;
+    const match =
+      href.match(/space\.bilibili\.com\/(\d+)/i) ||
+      href.match(/^\/\/(?:space\.)?bilibili\.com\/(\d+)/i);
+    if (match) addUid(match[1], uids);
+  }
+
+  function addUid(value, uids) {
+    const uid = normalizeUid(value);
+    if (uid) uids.add(uid);
+  }
+
+  function normalizeUid(value) {
+    const match = value == null ? null : String(value).trim().match(/^\d+$/);
+    return match ? match[0] : "";
+  }
+
+  function containsMultipleVideos(element) {
+    if (isPopularPage() && matches(element, ".rank-item")) return false;
+
+    const hrefs = new Set();
+    if (matches(element, VIDEO_LINK_SELECTOR)) addVideoHref(element, hrefs);
+    for (const link of element.querySelectorAll(VIDEO_LINK_SELECTOR))
+      addVideoHref(link, hrefs);
+    return hrefs.size > 1;
+  }
+
+  function addVideoHref(link, hrefs) {
+    const href = link.getAttribute("href");
+    if (!href) return;
+    try {
+      hrefs.add(new URL(href, location.href).pathname.replace(/\/$/, ""));
+    } catch (_error) {
+      hrefs.add(href.split(/[?#]/)[0].replace(/\/$/, ""));
+    }
+  }
+
+  function evaluateCard(card) {
+    return (
+      blockedUidReason(card) ||
+      blockedVideoKeywordReason(card) ||
+      newUserReason(card) ||
+      shortVideoReason(card) ||
+      unpopularVideoReason(card) ||
+      badgedVideoReason(card)
+    );
+  }
+
+  function evaluateComment(comment) {
+    return (
+      blockedCommentAuthorReason(comment) ||
+      blockedCommentKeywordReason(comment) ||
+      atOnlyCommentReason(comment) ||
+      newCommentAuthorReason(comment)
+    );
+  }
+
+  function evaluateDanmaku(danmaku) {
+    const keyword = getMatchedDanmakuKeyword(getDanmakuText(danmaku));
+    return keyword ? { type: "danmaku-keyword", uid: "", keyword } : null;
+  }
+
+  function followedUidReason(card) {
+    return getUploaderUidsInside(card).find((uid) => FOLLOWING_UIDS.has(uid));
+  }
+
+  function followedCommentAuthorReason(comment) {
+    return getCommentAuthorUidsInside(comment).find((uid) =>
+      FOLLOWING_UIDS.has(uid),
+    );
+  }
+
+  function blockedUidReason(card) {
+    const uid = getUploaderUidsInside(card).find((value) =>
+      BLOCKED_UIDS.has(value),
+    );
+    return uid ? { type: "uid", uid } : null;
+  }
+
+  function blockedCommentAuthorReason(comment) {
+    const uid = getCommentAuthorUidsInside(comment).find((value) =>
+      BLOCKED_UIDS.has(value),
+    );
+    return uid ? { type: "uid", uid } : null;
+  }
+
+  function newUserReason(card) {
+    if (!settings.blockNewUsers) return null;
+    const uid = getUploaderUidsInside(card).find(isNewUserUid);
+    return uid ? { type: "new-user", uid } : null;
+  }
+
+  function newCommentAuthorReason(comment) {
+    if (!settings.blockNewUsers) return null;
+    const uid = getCommentAuthorUidsInside(comment).find(isNewUserUid);
+    return uid ? { type: "new-user", uid } : null;
+  }
+
+  function isNewUserUid(uid) {
+    return /^\d+$/.test(uid) && uid.length >= getRegistrationTimeThreshold();
+  }
+
+  function getRegistrationTimeThreshold() {
+    return getRegistrationTimeThresholdOption().minDigits;
+  }
+
+  function getRegistrationTimeThresholdOption(
+    value = settings.registrationTimeThreshold,
+  ) {
+    return (
+      REGISTRATION_TIME_THRESHOLD_OPTIONS.find(
+        (option) => option.label === value,
+      ) ||
+      REGISTRATION_TIME_THRESHOLD_OPTIONS[
+        REGISTRATION_TIME_THRESHOLD_OPTIONS.length - 1
+      ]
+    );
+  }
+
+  function blockedVideoKeywordReason(card) {
+    const keyword = getMatchedVideoKeyword(getVideoTitleText(card));
+    return keyword ? { type: "video-keyword", uid: "", keyword } : null;
+  }
+
+  function shortVideoReason(card) {
+    if (!settings.hideShortVideos || !canUseMetadataFilter(card)) return null;
+    const seconds = getVideoDurationSeconds(card);
+    return seconds > 0 && seconds < getShortVideoThresholdSeconds()
+      ? { type: "short-video", uid: "" }
+      : null;
+  }
+
+  function unpopularVideoReason(card) {
+    if (!settings.hideUnpopularVideos || !canUseMetadataFilter(card))
+      return null;
+    const views = getVideoViewCount(card);
+    return views != null && views < getUnpopularVideoThresholdViews()
+      ? { type: "unpopular-video", uid: "" }
+      : null;
+  }
+
+  function badgedVideoReason(card) {
+    if (!settings.hideBadgedVideos || !canUseMetadataFilter(card)) return null;
+    return hasBadgedVideoLinkInside(card)
+      ? { type: "badged-video", uid: "" }
+      : null;
+  }
+
+  function canUseMetadataFilter(card) {
+    return !isDirectVideoPage() || isInsideRecommendationArea(card);
+  }
+
+  function getMatchedVideoKeyword(text) {
+    return getMatchedKeyword(text, BLOCKED_VIDEO_KEYWORDS);
+  }
+
+  function getVideoTitleText(card) {
+    if (!isElement(card)) return "";
+    const values = [];
+    for (const element of getVideoTitleElements(card)) {
+      values.push(
+        element.textContent || "",
+        element.getAttribute("title") || "",
+      );
+    }
+    return values.join(" ");
+  }
+
+  function getVideoTitleElements(card) {
+    const elements = new Set();
+    for (const element of card.querySelectorAll(
+      [
+        ".bili-video-card__info--tit",
+        ".video-name",
+        ".video-title",
+        ".title-text",
+        // Direct-video right-panel recommendations put the title on a
+        // nested element such as <a href="/video/..."><p class="title">...</p></a>.
+        'a[href*="/video/"] .title',
+        'a[href*="bilibili.com/video/"] .title',
+        'a[href*="/bangumi/play/"] .title',
+        'a[href*="/video/"] [title]',
+        'a[href*="bilibili.com/video/"] [title]',
+        'a[href*="/bangumi/play/"] [title]',
+        'a[href*="/video/"][title]',
+        'a[href*="bilibili.com/video/"][title]',
+        'a[href*="/bangumi/play/"][title]',
+      ].join(","),
+    )) {
+      elements.add(element);
+    }
+    return elements;
+  }
+
+  function getShortVideoThresholdSeconds() {
+    return getShortVideoThresholdOption().seconds;
+  }
+
+  function getShortVideoThresholdOption(value = settings.shortVideoThreshold) {
+    return (
+      SHORT_VIDEO_THRESHOLD_OPTIONS.find((option) => option.label === value) ||
+      SHORT_VIDEO_THRESHOLD_OPTIONS[2]
+    );
+  }
+
+  function getUnpopularVideoThresholdViews() {
+    return getUnpopularVideoThresholdOption().views;
+  }
+
+  function getUnpopularVideoThresholdOption(
+    value = settings.unpopularVideoThreshold,
+  ) {
+    return (
+      UNPOPULAR_VIDEO_THRESHOLD_OPTIONS.find(
+        (option) => option.label === value,
+      ) || UNPOPULAR_VIDEO_THRESHOLD_OPTIONS[2]
+    );
+  }
+
+  function getVideoDurationSeconds(card) {
+    for (const element of getDurationElements(card)) {
+      const seconds = parseDurationSeconds(element.textContent || "");
+      if (seconds > 0) return seconds;
+    }
+    return 0;
+  }
+
+  function getDurationElements(card) {
+    const elements = new Set(card.querySelectorAll(DURATION_SELECTOR));
+    if (matches(card, DURATION_SELECTOR)) elements.add(card);
+    for (const element of card.querySelectorAll("*")) {
+      if (
+        !element.children.length &&
+        /^\s*\d{1,2}:\d{2}(?::\d{2})?\s*$/.test(element.textContent || "")
+      ) {
+        elements.add(element);
+      }
+    }
+    return elements;
+  }
+
+  function parseDurationSeconds(text) {
+    const match = String(text || "")
+      .trim()
+      .match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+    if (!match) return 0;
+    return match[3] == null
+      ? Number(match[1]) * 60 + Number(match[2])
+      : Number(match[1]) * 3600 + Number(match[2]) * 60 + Number(match[3]);
+  }
+
+  function getVideoViewCount(card) {
+    const preferred = [...card.querySelectorAll(STAT_SELECTOR)].filter(
+      isViewCountElement,
+    );
+    const fallback = [...card.querySelectorAll(STAT_SELECTOR)].filter(
+      isLikelyViewCountFallbackElement,
+    );
+    for (const element of [...preferred, ...fallback]) {
+      const count = parseViewCount(
+        element.innerText || element.textContent || "",
+      );
+      if (count != null) return count;
+    }
+    return null;
+  }
+
+  function isViewCountElement(element) {
+    if (matches(element, DURATION_SELECTOR)) return false;
+    return /play|view|播放|观看/i.test(getClueText(element, true));
+  }
+
+  function isLikelyViewCountFallbackElement(element) {
+    const text = element.textContent || "";
+    if (text.includes(":")) return false;
+    if (parseViewCount(text) == null) return false;
+    return /stat|播放|观看|play|view/i.test(getClueText(element, false));
+  }
+
+  function getClueText(element, includeText) {
+    return `${element.className || ""} ${element.getAttribute("aria-label") || ""} ${element.getAttribute("title") || ""} ${includeText ? element.textContent || "" : ""}`;
+  }
+
+  function parseViewCount(text) {
+    const normalized = String(text || "")
+      .replace(/,/g, "")
+      .trim();
+    if (!normalized || normalized.includes(":")) return null;
+    const match = normalized.match(/(\d+(?:\.\d+)?)\s*([万亿]?)/);
+    if (!match) return null;
+    const value = Number(match[1]);
+    if (!Number.isFinite(value)) return null;
+    if (match[2] === "万") return value * 10000;
+    if (match[2] === "亿") return value * 100000000;
+    return value;
+  }
+
+  function blockedCommentKeywordReason(comment) {
+    const keyword = getMatchedCommentKeyword(getCommentText(comment));
+    return keyword ? { type: "comment-keyword", uid: "", keyword } : null;
+  }
+
+  function atOnlyCommentReason(comment) {
+    if (!settings.hideAtOnlyComments || !isAtOnlyComment(comment)) return null;
+    return { type: "comment-at-only", uid: "" };
+  }
+
+  function getMatchedCommentKeyword(text) {
+    return getMatchedKeyword(text, BLOCKED_COMMENT_KEYWORDS);
+  }
+
+  function getCommentText(comment) {
+    const text = getCommentTextElement(comment);
+    return text ? text.textContent || "" : comment.textContent || "";
+  }
+
+  function isAtOnlyComment(comment) {
+    const text = getCommentTextElement(comment);
+    if (!text || !text.querySelector(COMMENT_MENTION_LINK_SELECTOR))
+      return false;
+    const clone = text.cloneNode(true);
+    for (const link of clone.querySelectorAll(COMMENT_MENTION_LINK_SELECTOR)) {
+      if (
+        String(link.textContent || "")
+          .trim()
+          .startsWith("@")
+      )
+        link.remove();
+    }
+    return !String(clone.textContent || "").trim();
+  }
+
+  function getCommentTextElement(comment) {
+    return comment.querySelector(COMMENT_TEXT_SELECTOR);
+  }
+
+  function getMatchedDanmakuKeyword(text) {
+    return getMatchedKeyword(text, BLOCKED_DANMAKU_KEYWORDS);
+  }
+
+  function getDanmakuText(danmaku) {
+    const text = danmaku.querySelector(DANMAKU_TEXT_SELECTOR);
+    return text ? text.textContent || "" : danmaku.textContent || "";
+  }
+
+  function getMatchedKeyword(text, keywords) {
+    if (!keywords.size) return "";
+    const haystack = normalizeKeywordSearchText(text);
+    if (!haystack) return "";
+    return [...keywords].find((keyword) => {
+      const needle = normalizeKeywordSearchText(keyword);
+      return needle && haystack.includes(needle);
+    });
+  }
+
+  function normalizeKeywordSearchText(value) {
+    return String(value || "")
+      .normalize("NFC")
+      .replace(/[\uFE0E\uFE0F]/g, "");
+  }
+
+  function isUnsafePageContainer(element) {
+    return (
+      !element ||
+      ["HTML", "BODY", "HEAD"].includes(element.tagName) ||
+      element === document.documentElement ||
+      element === document.body
+    );
+  }
+
+  function isTooLargeToHide(element) {
+    const rect = element.getBoundingClientRect();
+    if (!rect.width || !rect.height) return false;
+    return (
+      (rect.width * rect.height) /
+        Math.max(1, window.innerWidth * window.innerHeight) >
+      MAX_CARD_AREA_RATIO
+    );
+  }
+
+  function resolveConsequenceTarget(card, reason) {
+    if (isBadgedVideoReason(reason)) {
+      const searchResultCard = card.closest(".video-list-item");
+      if (isSearchPage() && isSafeTargetShape(searchResultCard))
+        return searchResultCard;
+
+      const floorCard = card.closest(".floor-single-card");
+      if (isSafeTargetShape(floorCard)) return floorCard;
+    }
+
+    const recommendationContainer = card.closest(
+      RECOMMENDATION_CARD_CONTAINER_SELECTOR,
+    );
+    return isSafeTargetShape(recommendationContainer)
+      ? recommendationContainer
+      : card;
+  }
+
+  function isBadgedVideoReason(reason) {
+    return reason && reason.type === "badged-video";
+  }
+
+  function isValidConsequenceTarget(target, card, reason) {
+    if (!isSafeTargetShape(target)) return false;
+    if (isProtectedSearchVideoCard(card) || isProtectedSearchVideoCard(target))
+      return false;
+    if (isDirectVideoOwnerCard(target, reason.uid)) return false;
+    return true;
+  }
+
+  function isSafeTargetShape(element) {
+    return Boolean(
+      element &&
+      !isUnsafePageContainer(element) &&
+      !isTooLargeToHide(element) &&
+      isPotentialVideoCard(element) &&
+      !containsMultipleVideos(element),
+    );
+  }
+
+  function applyConsequence(target, reason) {
+    target.removeAttribute(FOLLOW_ATTR);
+    clearNestedConsequences(target);
+    target.removeAttribute(settings.previewMode ? BLOCK_ATTR : PREVIEW_ATTR);
+
+    const activeAttr = settings.previewMode ? PREVIEW_ATTR : BLOCK_ATTR;
+    if (
+      target.parentElement &&
+      target.parentElement.closest(`[${activeAttr}]`)
+    ) {
+      clearConsequence(target);
+      return;
+    }
+
+    target.setAttribute(activeAttr, "true");
+    target.setAttribute(BLOCKED_UID_ATTR, reason.uid || "");
+  }
+
+  function applyFollow(target) {
+    clearNestedConsequences(target);
+    clearConsequence(target);
+    target.setAttribute(FOLLOW_ATTR, "true");
+  }
+
+  function refreshConsequences() {
+    for (const element of document.querySelectorAll(
+      `[${BLOCK_ATTR}], [${PREVIEW_ATTR}], [${FOLLOW_ATTR}]`,
+    )) {
+      clearConsequence(element);
+    }
+    scan(document.documentElement);
+  }
+
+  function clearNestedConsequences(target) {
+    for (const nested of target.querySelectorAll(
+      `[${BLOCK_ATTR}], [${PREVIEW_ATTR}], [${FOLLOW_ATTR}]`,
+    )) {
+      clearConsequence(nested);
+    }
+  }
+
+  function clearConsequence(element) {
+    element.removeAttribute(BLOCK_ATTR);
+    element.removeAttribute(PREVIEW_ATTR);
+    element.removeAttribute(FOLLOW_ATTR);
+    element.removeAttribute(BLOCKED_UID_ATTR);
+  }
+
+  function unhideCardsForUid(uid) {
+    for (const element of document.querySelectorAll(
+      `[${BLOCKED_UID_ATTR}="${uid}"]`,
+    )) {
+      clearConsequence(element);
+    }
+  }
+
+  function isDirectVideoOwnerCard(card, uid) {
+    return Boolean(
+      uid &&
+      isDirectVideoPage() &&
+      uid === findDirectPageUploaderUid() &&
+      !matches(card, RECOMMENDATION_AREA_SELECTOR) &&
+      !isInsideRecommendationArea(card),
+    );
+  }
+
+  function isInsideRecommendationArea(element) {
+    return Boolean(element && element.closest(RECOMMENDATION_AREA_SELECTOR));
+  }
+
+  function isProtectedSearchVideoCard(element) {
+    return Boolean(
+      isSearchPage() &&
+      element &&
+      // Search user results use a wrapper around `.b-user-video-card`; protect
+      // both the card and its wrapper so preview mode does not paint the area red.
+      (element.closest(SEARCH_PROTECTED_VIDEO_CARD_SELECTOR) ||
+        element.querySelector(SEARCH_PROTECTED_VIDEO_CARD_SELECTOR)),
+    );
+  }
+
+  function findDirectPageUploaderUid() {
+    const fromState = findUidInInitialState();
+    if (fromState) return fromState;
+
+    const ownerLink = document.querySelector(VIDEO_OWNER_SELECTOR);
+    if (ownerLink && !isInsideRecommendationArea(ownerLink)) {
+      const uids = new Set();
+      addUploaderUids(ownerLink, uids);
+      if ([...uids][0]) return [...uids][0];
+    }
+
+    const spaceLink = document.querySelector('a[href*="space.bilibili.com/"]');
+    if (spaceLink && !isInsideRecommendationArea(spaceLink)) {
+      const uids = new Set();
+      addUploaderUids(spaceLink, uids);
+      if ([...uids][0]) return [...uids][0];
+    }
+
+    return "";
+  }
+
+  function findUidInInitialState() {
+    for (const script of document.scripts || []) {
+      const text = script.textContent || "";
+      if (!text.includes("mid")) continue;
+      const ownerMid = text.match(/"owner"\s*:\s*\{[^}]*"mid"\s*:\s*(\d+)/);
+      if (ownerMid) return ownerMid[1];
+      const upMid = text.match(/"upData"\s*:\s*\{[^}]*"mid"\s*:\s*(\d+)/);
+      if (upMid) return upMid[1];
+    }
+    return "";
+  }
+
+  function escapeHtml(text) {
+    return String(text).replace(
+      /[&<>"]/g,
+      (char) =>
+        ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[char],
+    );
   }
 
   function renderBfilterManager() {
@@ -1706,10 +1816,10 @@
       <section class="bfilter-manager-section">
         <div class="bfilter-manager-tabs" role="tablist">
           <button class="bfilter-manager-tab" type="button" role="tab" aria-selected="${String(activeTab === "users")}" data-tab="users">Users</button>
+          <button class="bfilter-manager-tab" type="button" role="tab" aria-selected="${String(activeTab === "following")}" data-tab="following">Following</button>
           <button class="bfilter-manager-tab" type="button" role="tab" aria-selected="${String(activeTab === "video-keywords")}" data-tab="video-keywords">Videos</button>
           <button class="bfilter-manager-tab" type="button" role="tab" aria-selected="${String(activeTab === "comment-keywords")}" data-tab="comment-keywords">Comments</button>
           <button class="bfilter-manager-tab" type="button" role="tab" aria-selected="${String(activeTab === "danmaku-keywords")}" data-tab="danmaku-keywords">Danmakus</button>
-          <button class="bfilter-manager-tab" type="button" role="tab" aria-selected="${String(activeTab === "following")}" data-tab="following">Following</button>
           <button class="bfilter-manager-tab" type="button" role="tab" aria-selected="${String(activeTab === "settings")}" data-tab="settings">Settings</button>
         </div>
         <div class="bfilter-manager-tab-panel" role="tabpanel" data-tab-panel="users" ${activeTab === "users" ? "" : "hidden"}>
@@ -1720,6 +1830,13 @@
             .join("")}
           ${renderManagerTextarea(MANAGER_TEXTAREA_ID)}
           <div class="bfilter-manager-help" data-help="users"></div>
+        </div>
+        <div class="bfilter-manager-tab-panel" role="tabpanel" data-tab-panel="following" ${activeTab === "following" ? "" : "hidden"}>
+          ${BOOLEAN_CONTROLS.filter((control) => control.followingOption)
+            .map(renderManagerOption)
+            .join("")}
+          ${renderManagerTextarea(MANAGER_FOLLOWING_TEXTAREA_ID)}
+          <div class="bfilter-manager-help" data-help="following"></div>
         </div>
         <div class="bfilter-manager-tab-panel" role="tabpanel" data-tab-panel="video-keywords" ${activeTab === "video-keywords" ? "" : "hidden"}>
           ${BOOLEAN_CONTROLS.filter((control) =>
@@ -1744,13 +1861,6 @@
         <div class="bfilter-manager-tab-panel" role="tabpanel" data-tab-panel="danmaku-keywords" ${activeTab === "danmaku-keywords" ? "" : "hidden"}>
           ${renderManagerTextarea(MANAGER_DANMAKU_KEYWORDS_TEXTAREA_ID)}
           <div class="bfilter-manager-help" data-help="danmaku-keywords"></div>
-        </div>
-        <div class="bfilter-manager-tab-panel" role="tabpanel" data-tab-panel="following" ${activeTab === "following" ? "" : "hidden"}>
-          ${BOOLEAN_CONTROLS.filter((control) => control.followingOption)
-            .map(renderManagerOption)
-            .join("")}
-          ${renderManagerTextarea(MANAGER_FOLLOWING_TEXTAREA_ID)}
-          <div class="bfilter-manager-help" data-help="following"></div>
         </div>
         <div class="bfilter-manager-tab-panel" role="tabpanel" data-tab-panel="settings" ${activeTab === "settings" ? "" : "hidden"}>
           <div class="bfilter-manager-settings-section">
@@ -2372,6 +2482,35 @@
       );
   }
 
+  function setUidBlocked(uid, blocked) {
+    replaceRuntimeBlockedUids(
+      parseBlockedUserListText(readSavedBlockedUserListText()),
+    );
+    if (blocked) BLOCKED_UIDS.add(uid);
+    else {
+      BLOCKED_UIDS.delete(uid);
+      unhideCardsForUid(uid);
+    }
+    saveBlockedUserListText();
+    refreshConsequences();
+    refreshBfilterManagerPanel();
+  }
+
+  function setUidFollowing(uid, following, username = "") {
+    const followingText = updateFollowingText(
+      readSavedFollowingUserListText(),
+      uid,
+      following,
+      settings.addUsernamesToFollowing ? username : "",
+    );
+    replaceRuntimeFollowingUids(parseFollowingUserListText(followingText));
+    if (following) FOLLOWING_UIDS.add(uid);
+    else FOLLOWING_UIDS.delete(uid);
+    saveFollowingUserListText(followingText);
+    refreshConsequences();
+    refreshBfilterManagerPanel();
+  }
+
   function renderUserPageBlockButton() {
     const uid = getCurrentUserPageUid();
     let button = document.getElementById(USER_BUTTON_ID);
@@ -2455,6 +2594,18 @@
       : `${blocked ? "Unblock" : "Block"} Bilibili user UID ${uid}`;
   }
 
+  function blockAllCommenters() {
+    replaceRuntimeBlockedUids(
+      parseBlockedUserListText(readSavedBlockedUserListText()),
+    );
+    for (const item of document.querySelectorAll(COMMENT_ITEM_SELECTOR)) {
+      for (const uid of getCommentAuthorUidsInside(item)) BLOCKED_UIDS.add(uid);
+    }
+    saveBlockedUserListText();
+    refreshConsequences();
+    refreshBfilterManagerPanel();
+  }
+
   function renderCommentBlockButtons() {
     if (!isOpusPage() && !isDirectVideoPage() && !isTPage()) return;
     for (const item of document.querySelectorAll(COMMENT_ITEM_SELECTOR)) {
@@ -2517,157 +2668,6 @@
       blockAllCommenters();
     });
     navBar.appendChild(btn);
-  }
-
-  function getControl(name) {
-    return BOOLEAN_CONTROLS.find((control) => control.name === name);
-  }
-
-  function getThresholdControls() {
-    return BOOLEAN_CONTROLS.filter((control) => control.threshold);
-  }
-
-  function getThresholdControlBySlider(element) {
-    return getThresholdControls().find(
-      (control) => element && element.id === control.threshold.id,
-    );
-  }
-
-  function getOptionIndex(
-    control,
-    value = settings[control.threshold.setting],
-  ) {
-    const { options, fallbackIndex } = control.threshold;
-    const index = options.findIndex((option) => option.label === value);
-    return index < 0 ? fallbackIndex : index;
-  }
-
-  function escapeHtml(text) {
-    return String(text).replace(
-      /[&<>"]/g,
-      (char) =>
-        ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[char],
-    );
-  }
-
-  function addIfMatches(element, selector, set) {
-    if (matches(element, selector)) set.add(element);
-  }
-
-  function hasInOrSelf(element, selector) {
-    return (
-      matches(element, selector) || Boolean(element.querySelector(selector))
-    );
-  }
-
-  function matches(element, selector) {
-    return isElement(element) && element.matches(selector);
-  }
-
-  function isElement(value) {
-    return value instanceof Element;
-  }
-
-  function appendToPage(element) {
-    if (!element.isConnected)
-      (document.body || document.documentElement).appendChild(element);
-  }
-
-  function isUnsafePageContainer(element) {
-    return (
-      !element ||
-      ["HTML", "BODY", "HEAD"].includes(element.tagName) ||
-      element === document.documentElement ||
-      element === document.body
-    );
-  }
-
-  function isTooLargeToHide(element) {
-    const rect = element.getBoundingClientRect();
-    if (!rect.width || !rect.height) return false;
-    return (
-      (rect.width * rect.height) /
-        Math.max(1, window.innerWidth * window.innerHeight) >
-      MAX_CARD_AREA_RATIO
-    );
-  }
-
-  function isCardBlockingPage() {
-    // Deliberately exclude space.bilibili.com from card/comment scanning.
-    return !isUserPage() && isBfilterManagerPage();
-  }
-
-  function isBfilterManagerPage() {
-    return (
-      isBilibiliHomePage() ||
-      isPopularPage() ||
-      isSearchPage() ||
-      isDirectVideoPage() ||
-      isUserPage() ||
-      isOpusPage() ||
-      isTPage()
-    );
-  }
-
-  function isBilibiliHomePage() {
-    return (
-      location.hostname === "www.bilibili.com" && location.pathname === "/"
-    );
-  }
-
-  function isSearchPage() {
-    return location.hostname === "search.bilibili.com";
-  }
-
-  function isPopularPage() {
-    return (
-      location.hostname === "www.bilibili.com" &&
-      /^\/v\/popular(?:\/|$)/.test(location.pathname)
-    );
-  }
-
-  function isDirectVideoPage() {
-    return (
-      location.hostname === "www.bilibili.com" &&
-      VIDEO_PATH_RE.test(location.pathname)
-    );
-  }
-
-  function isOpusPage() {
-    return (
-      location.hostname === "www.bilibili.com" &&
-      OPUS_PATH_RE.test(location.pathname)
-    );
-  }
-
-  function isTPage() {
-    return location.hostname === "t.bilibili.com";
-  }
-
-  function getCurrentUserPageUid() {
-    if (!isUserPage()) return "";
-    const match = location.pathname.match(/^\/(\d+)(?:\/|$)/);
-    return match ? normalizeUid(match[1]) : "";
-  }
-
-  function getCurrentUserPageUsername() {
-    if (!isUserPage()) return "";
-    const element = document.querySelector(".nickname");
-    return element ? String(element.textContent || "").trim() : "";
-  }
-
-  function isUserPage() {
-    if (location.hostname !== "space.bilibili.com") return false;
-    return /^\/\d+(?:\/|$)/.test(location.pathname);
-  }
-
-  function patchHistory(methodName) {
-    const original = history[methodName];
-    history[methodName] = function patchedHistoryMethod(...args) {
-      const result = original.apply(this, args);
-      setTimeout(refreshChromeAndScan, 0);
-      return result;
-    };
   }
 
   function getStyleVariables() {

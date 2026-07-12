@@ -2,40 +2,44 @@
 
 - [Manual](#manual)
   - [Overview](#overview)
-  - [Supported pages](#supported-pages)
   - [Installation](#installation)
+  - [Supported pages](#supported-pages)
   - [Quick start](#quick-start)
   - [Manager panel](#manager-panel)
     - [Users tab](#users-tab)
+    - [Following tab](#following-tab)
     - [Videos tab](#videos-tab)
     - [Comments tab](#comments-tab)
     - [Danmakus tab](#danmakus-tab)
-    - [Following tab](#following-tab)
     - [Settings tab](#settings-tab)
     - [Preview mode](#preview-mode)
-  - [Filtering behavior](#filtering-behavior)
-    - [Blocked users](#blocked-users)
-    - [Followed users](#followed-users)
-    - [New-user filter](#new-user-filter)
-    - [Video keyword filter](#video-keyword-filter)
-    - [Comment keyword filter](#comment-keyword-filter)
-    - [At-only comment filter](#at-only-comment-filter)
-    - [Short-video filter](#short-video-filter)
-    - [Unpopular-video filter](#unpopular-video-filter)
-    - [Badged-video filter](#badged-video-filter)
-    - [Danmaku keyword filter](#danmaku-keyword-filter)
   - [Page actions](#page-actions)
     - [User-space actions](#user-space-actions)
     - [Comment actions](#comment-actions)
+  - [Filtering behavior](#filtering-behavior)
+    - [User filters](#user-filters)
+      - [Blocked users](#blocked-users)
+      - [Followed users](#followed-users)
+      - [New-user filter](#new-user-filter)
+    - [Video filters](#video-filters)
+      - [Video keyword filter](#video-keyword-filter)
+      - [Short-video filter](#short-video-filter)
+      - [Unpopular-video filter](#unpopular-video-filter)
+      - [Badged-video filter](#badged-video-filter)
+    - [Comment filters](#comment-filters)
+      - [Comment keyword filter](#comment-keyword-filter)
+      - [At-only comment filter](#at-only-comment-filter)
+    - [Danmaku filters](#danmaku-filters)
+      - [Danmaku keyword filter](#danmaku-keyword-filter)
   - [Data format](#data-format)
   - [Persistence and synchronization](#persistence-and-synchronization)
+  - [Limitations](#limitations)
+  - [Troubleshooting](#troubleshooting)
   - [Implementation notes](#implementation-notes)
     - [Boot flow](#boot-flow)
     - [Scanning flow](#scanning-flow)
     - [Safety guards](#safety-guards)
     - [Injected UI and styling](#injected-ui-and-styling)
-  - [Limitations](#limitations)
-  - [Troubleshooting](#troubleshooting)
   - [Developer reference](#developer-reference)
 
 ## Overview
@@ -55,28 +59,12 @@ The script can:
 - Add quick block/follow controls to Bilibili user-space pages.
 - Add per-comment block buttons and a bulk “Block All Commenters” button on supported comment pages.
 
-The current script metadata in `main.user.js` identifies the script as version `0.22.0` and runs it at `document-start` on these URL families:
+The current script metadata in `main.user.js` identifies the script as version `0.23.0` and runs it at `document-start` on these URL families:
 
 - `https://www.bilibili.com/*`
 - `https://search.bilibili.com/*`
 - `https://space.bilibili.com/*`
 - `https://t.bilibili.com/*`
-
-## Supported pages
-
-Bfilter shows the manager UI on these page types:
-
-| Page type     | URL shape                       | Main support                                                                           |
-| ------------- | ------------------------------- | -------------------------------------------------------------------------------------- |
-| Bilibili home | `www.bilibili.com/`             | Video card filtering and manager panel                                                 |
-| Search        | `search.bilibili.com/*`         | Video card filtering and manager panel                                                 |
-| Popular       | `www.bilibili.com/v/popular...` | Video card filtering and manager panel                                                 |
-| Direct video  | `www.bilibili.com/video/...`    | Recommended-card filtering, comment controls, danmaku keyword filtering, manager panel |
-| User space    | `space.bilibili.com/<uid>`      | Follow/block buttons and manager panel                                                 |
-| Opus          | `www.bilibili.com/opus/...`     | Comment controls and manager panel                                                     |
-| T page        | `t.bilibili.com/*`              | Comment controls and manager panel                                                     |
-
-User-space pages deliberately do not run the normal card/comment scanner. They only render profile actions and the manager panel.
 
 ## Installation
 
@@ -96,6 +84,22 @@ The script uses these userscript grants when available:
 
 If the userscript manager APIs are unavailable, the script falls back to `localStorage` for most persisted values.
 
+## Supported pages
+
+Bfilter shows the manager UI on these page types:
+
+| Page type     | URL shape                       | Main support                                                                           |
+| ------------- | ------------------------------- | -------------------------------------------------------------------------------------- |
+| Bilibili home | `www.bilibili.com/`             | Video card filtering and manager panel                                                 |
+| Search        | `search.bilibili.com/*`         | Video card filtering and manager panel                                                 |
+| Popular       | `www.bilibili.com/v/popular...` | Video card filtering and manager panel                                                 |
+| Direct video  | `www.bilibili.com/video/...`    | Recommended-card filtering, comment controls, danmaku keyword filtering, manager panel |
+| User space    | `space.bilibili.com/<uid>`      | Follow/block buttons and manager panel                                                 |
+| Opus          | `www.bilibili.com/opus/...`     | Comment controls and manager panel                                                     |
+| T page        | `t.bilibili.com/*`              | Comment controls and manager panel                                                     |
+
+User-space pages deliberately do not run the normal card/comment scanner. They only render profile actions and the manager panel.
+
 ## Quick start
 
 1. Open a supported Bilibili page.
@@ -113,7 +117,7 @@ If the userscript manager APIs are unavailable, the script falls back to `localS
 
 ## Manager panel
 
-The floating **Open Bfilter** button creates a panel with a vertical left-side tab list: **Users**, **Videos**, **Comments**, **Danmakus**, **Following**, and **Settings**. The panel also includes a global **Preview** toggle, a **Sort** button, and a **Save** button.
+The floating **Open Bfilter** button creates a panel with a vertical left-side tab list: **Users**, **Following**, **Videos**, **Comments**, **Danmakus**, and **Settings**. The panel also includes a global **Preview** toggle, a **Sort** button, and a **Save** button.
 
 The Save button is enabled only when one or more textareas differ from their last loaded value. Changing checkboxes or dropdowns is saved immediately.
 
@@ -142,6 +146,17 @@ Available new-user thresholds:
 | `> 2022` | UID has at least 15 digits |
 
 The default threshold label is `> 2022`.
+
+### Following tab
+
+Use this tab to maintain UIDs that should be highlighted instead of hidden.
+
+- Each line should contain one numeric UID.
+- A followed UID takes priority over blocking for matching cards/comments.
+- Select a UID and click **Go** to open `https://space.bilibili.com/<uid>/upload/`. The **Go** button is only shown on this tab.
+- The user-space follow button can automatically append usernames as comments, for example `12345678 # username`.
+
+The **Add usernames by default** option controls whether the user-space follow action stores the current profile username after `#`. It defaults to enabled.
 
 ### Videos tab
 
@@ -182,17 +197,6 @@ Use this tab to maintain danmaku text keywords.
 
 Danmaku scanning is only resolved on direct video pages. Matching danmaku rows are hidden or previewed according to the global preview setting.
 
-### Following tab
-
-Use this tab to maintain UIDs that should be highlighted instead of hidden.
-
-- Each line should contain one numeric UID.
-- A followed UID takes priority over blocking for matching cards/comments.
-- Select a UID and click **Go** to open `https://space.bilibili.com/<uid>/upload/`. The **Go** button is only shown on this tab.
-- The user-space follow button can automatically append usernames as comments, for example `12345678 # username`.
-
-The **Add usernames by default** option controls whether the user-space follow action stores the current profile username after `#`. It defaults to enabled.
-
 ### Settings tab
 
 Use the **Migration** section in this tab to import or export Bfilter data and settings.
@@ -208,108 +212,6 @@ Preview mode changes blocking consequences from “hide” to “mark visibly.�
 - On: matching targets receive `data-bfilter-previewed="true"` and are highlighted with a red preview background/outline.
 
 Preview mode is useful for checking whether rules are too broad before hiding content.
-
-## Filtering behavior
-
-Bfilter evaluates candidates in this order:
-
-1. Comments.
-2. Danmakus.
-3. Video cards.
-
-For video cards, followed UIDs are checked first. If a card belongs to a followed UID, it is highlighted and later block checks are skipped for that card. Otherwise Bfilter looks for the first matching block reason in this order:
-
-1. Blocked UID.
-2. Video keyword.
-3. New-user rule.
-4. Short-video rule.
-5. Unpopular-video rule.
-6. Badged-video rule.
-
-For comments, followed author UIDs are highlighted before block checks. If not followed, comments are hidden/previewed by blocked UID, comment keyword, at-only comment rule, or new-user rule.
-
-### Blocked users
-
-Blocked users are identified by numeric UIDs discovered from links and attributes such as:
-
-- `space.bilibili.com/<uid>` links.
-- `data-usercard-mid`.
-- `data-mid`.
-- `mid`.
-
-When a card/comment contains a blocked UID, Bfilter marks the target as blocked unless a safety guard rejects the target.
-
-### Followed users
-
-Followed users are stored separately from blocked users. Matching cards/comments receive `data-bfilter-followed="true"`, which gives them a green visual treatment.
-
-On user-space pages, the block button is disabled for followed UIDs to avoid conflicting one-click actions.
-
-### New-user filter
-
-The new-user filter is a heuristic based on UID length. If enabled, a numeric UID with at least the selected number of digits is treated as newer than the selected era label.
-
-This filter applies to video uploaders and comment authors.
-
-### Video keyword filter
-
-Video keyword filtering concatenates detected title text and `title` attributes from title-like elements inside a card, then checks whether that text includes any blocked video keyword.
-
-Title sources include selectors such as `.bili-video-card__info--tit`, `.video-title`, `.title-text`, video links with `title` attributes, and nested title elements inside video links, such as direct-video recommendation cards.
-
-### Comment keyword filter
-
-Comment keyword filtering checks detected comment text, then hides or previews the matching comment item when it includes any blocked comment keyword.
-
-### At-only comment filter
-
-When enabled, Bfilter checks the detected comment body for user mention links. A comment is blocked when it contains one or more user mentions and no remaining non-whitespace text after those mentions are ignored.
-
-Comments with any additional text are not matched by this filter.
-
-### Short-video filter
-
-When enabled, Bfilter parses duration strings such as `03:45` or `01:02:30` from duration-like elements. A video is blocked when the parsed duration is greater than zero and less than the selected threshold.
-
-Available thresholds:
-
-- `< 1 min` (default)
-- `< 3 min`
-- `< 5 min`
-- `< 10 min`
-- `< 20 min`
-
-### Unpopular-video filter
-
-When enabled, Bfilter parses view counts from stat-like elements. It recognizes plain numbers and Chinese units:
-
-- `万` multiplies by 10,000.
-- `亿` multiplies by 100,000,000.
-
-Available thresholds:
-
-- `< 1k views` (default)
-- `< 5k views`
-- `< 10k views`
-- `< 50k views`
-- `< 100k views`
-
-### Badged-video filter
-
-When enabled, Bfilter can hide card-like links to selected Bilibili content families:
-
-| Type    | Link selector           |
-| ------- | ----------------------- |
-| Live    | `live.bilibili.com/`    |
-| Manga   | `manga.bilibili.com/`   |
-| Course  | `bilibili.com/cheese/`  |
-| Bangumi | `bilibili.com/bangumi/` |
-
-The child type selector is disabled until **Hide badged videos** is enabled.
-
-### Danmaku keyword filter
-
-On direct video pages, Bfilter resolves danmaku rows from known player selectors and checks their text content. Matching rows are hidden or previewed.
 
 ## Page actions
 
@@ -330,6 +232,124 @@ On direct video, opus, and T pages, Bfilter adds:
 - A **Block All Commenters** button in the reply navigation bar when comments are loaded.
 
 The bulk action asks for confirmation, then adds all currently loaded comment author UIDs to the blocklist. It only affects comments present in the DOM at the time of the click.
+
+## Filtering behavior
+
+Bfilter evaluates candidates in this order:
+
+1. Comments.
+2. Danmakus.
+3. Video cards.
+
+For video cards, followed UIDs are checked first. If a card belongs to a followed UID, it is highlighted and later block checks are skipped for that card. Otherwise Bfilter looks for the first matching block reason in this order:
+
+1. Blocked UID.
+2. Video keyword.
+3. New-user rule.
+4. Short-video rule.
+5. Unpopular-video rule.
+6. Badged-video rule.
+
+For comments, followed author UIDs are highlighted before block checks. If not followed, comments are hidden/previewed by blocked UID, comment keyword, at-only comment rule, or new-user rule.
+
+### User filters
+
+User filters are UID-based and can affect both video cards and comments when Bfilter can detect a Bilibili UID.
+
+#### Blocked users
+
+Blocked users are identified by numeric UIDs discovered from links and attributes such as:
+
+- `space.bilibili.com/<uid>` links.
+- `data-usercard-mid`.
+- `data-mid`.
+- `mid`.
+
+When a card/comment contains a blocked UID, Bfilter marks the target as blocked unless a safety guard rejects the target.
+
+#### Followed users
+
+Followed users are stored separately from blocked users. Matching cards/comments receive `data-bfilter-followed="true"`, which gives them a green visual treatment.
+
+On user-space pages, the block button is disabled for followed UIDs to avoid conflicting one-click actions.
+
+#### New-user filter
+
+The new-user filter is a heuristic based on UID length. If enabled, a numeric UID with at least the selected number of digits is treated as newer than the selected era label.
+
+This filter applies to video uploaders and comment authors.
+
+### Video filters
+
+Video filters apply to card-like video targets. On direct video pages, metadata filters are limited to recommendation areas so the main video owner/content area is not hidden.
+
+#### Video keyword filter
+
+Video keyword filtering concatenates detected title text and `title` attributes from title-like elements inside a card, then checks whether that text includes any blocked video keyword.
+
+Title sources include selectors such as `.bili-video-card__info--tit`, `.video-title`, `.title-text`, video links with `title` attributes, and nested title elements inside video links, such as direct-video recommendation cards.
+
+#### Short-video filter
+
+When enabled, Bfilter parses duration strings such as `03:45` or `01:02:30` from duration-like elements. A video is blocked when the parsed duration is greater than zero and less than the selected threshold.
+
+Available thresholds:
+
+- `< 1 min` (default)
+- `< 3 min`
+- `< 5 min`
+- `< 10 min`
+- `< 20 min`
+
+#### Unpopular-video filter
+
+When enabled, Bfilter parses view counts from stat-like elements. It recognizes plain numbers and Chinese units:
+
+- `万` multiplies by 10,000.
+- `亿` multiplies by 100,000,000.
+
+Available thresholds:
+
+- `< 1k views` (default)
+- `< 5k views`
+- `< 10k views`
+- `< 50k views`
+- `< 100k views`
+
+#### Badged-video filter
+
+When enabled, Bfilter can hide card-like links to selected Bilibili content families:
+
+| Type    | Link selector           |
+| ------- | ----------------------- |
+| Live    | `live.bilibili.com/`    |
+| Manga   | `manga.bilibili.com/`   |
+| Course  | `bilibili.com/cheese/`  |
+| Bangumi | `bilibili.com/bangumi/` |
+
+The child type selector is disabled until **Hide badged videos** is enabled.
+
+### Comment filters
+
+Comment filters apply to detected comment items on supported comment pages.
+
+#### Comment keyword filter
+
+Comment keyword filtering checks detected comment text, then hides or previews the matching comment item when it includes any blocked comment keyword.
+
+#### At-only comment filter
+
+When enabled, Bfilter checks the detected comment body for user mention links. A comment is blocked when it contains one or more user mentions and no remaining non-whitespace text after those mentions are ignored.
+
+Comments with any additional text are not matched by this filter.
+
+### Danmaku filters
+
+Danmaku filters apply to detected player danmaku rows on direct video pages.
+
+#### Danmaku keyword filter
+
+On direct video pages, Bfilter resolves danmaku rows from known player selectors and checks their text content. Matching rows are hidden or previewed.
 
 ## Data format
 
@@ -384,10 +404,33 @@ Bfilter persists these values:
 | Hide course videos          | `bfilter:hide-course-videos`          |
 | Hide bangumi videos         | `bfilter:hide-bangumi-videos`         |
 | Add usernames to following  | `bfilter:add-usernames-to-following`  |
+| Active Manager tab          | `bfilter:active-manager-tab`          |
 
 When `GM_addValueChangeListener` is available, Bfilter listens for remote value changes and refreshes runtime state across userscript contexts. Otherwise, it listens for the browser `storage` event as a fallback.
 
 After a synchronized change, Bfilter refreshes consequences on the page, updates the manager panel, and rerenders relevant page buttons.
+
+## Limitations
+
+- Bilibili DOM changes can break selectors or reduce detection quality.
+- Keyword matching is simple substring matching, not regex or fuzzy matching.
+- Keyword matching is case-sensitive.
+- New-user detection is heuristic and based only on UID length.
+- View and duration extraction depend on visible card metadata.
+- Some pages do not expose specific types of metadata, so relevant filters are unavailable on those pages.
+- Bulk comment blocking only includes currently loaded comments.
+- Userscript manager storage behavior can vary by browser and manager.
+
+## Troubleshooting
+
+| Symptom                                                          | Checks                                                                                                               |
+| ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| **Open Bfilter** does not appear                                 | Confirm the page is in the supported list, refresh the page, and check that the userscript is enabled.               |
+| A blocked card is still visible                                  | Turn on Preview mode to see whether it is detected; check whether the UID/title is actually present in the card DOM. |
+| Too much content is hidden                                       | Disable broad metadata filters first, then review video keywords and new-user thresholds.                            |
+| A direct video page hides recommendations but not the main video | This is intentional; the main video owner area is protected.                                                         |
+| Comment buttons do not appear                                    | Load comments first and confirm the page is a direct video, opus, or T page.                                         |
+| Changes in another tab do not appear                             | Refresh the page if the userscript manager does not support `GM_addValueChangeListener` reliably.                    |
 
 ## Implementation notes
 
@@ -448,28 +491,6 @@ Important data attributes:
 The CSS text is built by section helpers near `addStyle`: variables, visibility/marking rules, floating/profile buttons, manager panel, and comment buttons. `addStyle` itself only creates the style element, assigns `STYLE_ID`, fills it with `getStyleText()`, and appends it safely.
 
 The injected CSS hides blocked targets with `display: none !important`, marks previewed targets with a red background/outline, marks followed targets with a green background/outline, and lays out the manager panel with vertical tabs beside the active editor. Manager tab panels use a consistent minimum height so the panel does not shrink or grow when switching tabs.
-
-## Limitations
-
-- Bilibili DOM changes can break selectors or reduce detection quality.
-- Keyword matching is simple substring matching, not regex or fuzzy matching.
-- Keyword matching is case-sensitive.
-- New-user detection is heuristic and based only on UID length.
-- View and duration extraction depend on visible card metadata.
-- Some pages do not expose specific types of metadata, so relevant filters are unavailable on those pages.
-- Bulk comment blocking only includes currently loaded comments.
-- Userscript manager storage behavior can vary by browser and manager.
-
-## Troubleshooting
-
-| Symptom                                                          | Checks                                                                                                               |
-| ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| **Open Bfilter** does not appear                                 | Confirm the page is in the supported list, refresh the page, and check that the userscript is enabled.               |
-| A blocked card is still visible                                  | Turn on Preview mode to see whether it is detected; check whether the UID/title is actually present in the card DOM. |
-| Too much content is hidden                                       | Disable broad metadata filters first, then review video keywords and new-user thresholds.                            |
-| A direct video page hides recommendations but not the main video | This is intentional; the main video owner area is protected.                                                         |
-| Comment buttons do not appear                                    | Load comments first and confirm the page is a direct video, opus, or T page.                                         |
-| Changes in another tab do not appear                             | Refresh the page if the userscript manager does not support `GM_addValueChangeListener` reliably.                    |
 
 ## Developer reference
 
