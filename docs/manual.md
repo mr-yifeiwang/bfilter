@@ -212,7 +212,7 @@ The **Statistics** section appears on content-scanning pages and shows the curre
 
 The values update as Bilibili lazy-loads content. They reset and recount after navigation, a full refresh, or a filtering/settings change that rescans the page.
 
-Use the **Hide** / **Show** toggle beside the Statistics heading to control a compact bottom-right **Bfilter Statistics** overlay outside the Manager. The left, off position hides it; the right, on position shows it. It is hidden by default, remains visible after the Manager closes, and updates with the same lazy-loaded values. This display preference is saved and included in Manager imports and exports.
+Use the **Hide** / **Show** toggle beside the Statistics heading to control a compact Statistics overlay beneath **Open Bfilter** outside the Manager. The left, off position hides it; the right, on position shows it. It is hidden by default, remains visible after the Manager closes, and updates with the same lazy-loaded values. This display preference is saved and included in Manager imports and exports.
 
 Use the **Migration** section in this tab to import or export Bfilter data and settings.
 

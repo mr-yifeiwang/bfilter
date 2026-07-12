@@ -2450,11 +2450,10 @@
       overlay.id = STATISTICS_OVERLAY_ID;
       overlay.setAttribute("aria-label", "Bfilter Statistics");
       overlay.innerHTML = `
-        <div class="bfilter-statistics-overlay-heading">Bfilter Statistics</div>
         <div class="bfilter-statistics-overlay-list">
-          <div data-statistic="videos"><span>Videos</span><output aria-label="Videos statistics" aria-live="off" data-statistic-value>0 (0%)</output></div>
-          <div data-statistic="comments"><span>Comments</span><output aria-label="Comments statistics" aria-live="off" data-statistic-value>0 (0%)</output></div>
-          <div data-statistic="danmakus"><span>Danmakus</span><output aria-label="Danmakus statistics" aria-live="off" data-statistic-value>0 (0%)</output></div>
+          <div data-statistic="videos"><span aria-hidden="true">V</span><output aria-label="Videos statistics" aria-live="off" data-statistic-value>0 (0%)</output></div>
+          <div data-statistic="comments"><span aria-hidden="true">C</span><output aria-label="Comments statistics" aria-live="off" data-statistic-value>0 (0%)</output></div>
+          <div data-statistic="danmakus"><span aria-hidden="true">D</span><output aria-label="Danmakus statistics" aria-live="off" data-statistic-value>0 (0%)</output></div>
         </div>
       `;
     }
@@ -3214,7 +3213,7 @@
       #${MANAGER_PANEL_ID} .bfilter-manager-statistics { margin-bottom: 18px; padding: 12px; border: 1px solid #e3e5e7; border-radius: 10px; background: linear-gradient(135deg, #f6f7f8, #fff); }
       #${MANAGER_PANEL_ID} .bfilter-manager-statistics-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
       #${MANAGER_PANEL_ID} .bfilter-manager-statistic { display: grid; gap: 3px; min-width: 0; padding: 8px; border-radius: 7px; background: rgba(255,255,255,.8); color: #61666d; font-size: 12px; line-height: 1.35; }
-      #${MANAGER_PANEL_ID} .bfilter-manager-statistic output { overflow: hidden; margin: 0; color: #4b4f55; font-size: 13px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-statistic output { overflow: hidden; margin: 0; color: #4b4f55; font-size: 13px; font-weight: 400; text-overflow: ellipsis; white-space: nowrap; }
       #${MANAGER_PANEL_ID} .bfilter-manager-statistics-help { color: #61666d; font-size: 12px; line-height: 1.45; }
       #${MANAGER_PANEL_ID} .bfilter-manager-textarea { box-sizing: border-box; display: block; width: 100%; min-height: 160px; border: 1px solid #c9ccd0; border-radius: 10px; padding: 10px; color: #18191c; background: #f6f7f8; font-size: 14px; line-height: 1.5; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace !important; white-space: pre-wrap; overflow-wrap: anywhere; caret-color: #18191c; resize: vertical; }
       #${MANAGER_PANEL_ID} .bfilter-manager-help { margin: 8px 0 12px; color: #9499a0; font-size: 12px; white-space: pre-line; }
@@ -3231,18 +3230,14 @@
       #${MANAGER_PANEL_ID} .bfilter-manager-action:not(:disabled):active { transform: translateY(1px); }
       #${MANAGER_PANEL_ID} .bfilter-manager-action:disabled { color: #9499a0; background: var(--bfilter-button-muted-color); cursor: not-allowed; }
       #${MANAGER_PANEL_ID} .bfilter-manager-close { border: 0; border-radius: 50%; width: 28px; height: 28px; color: #61666d; background: #f1f2f3; font-size: 18px; line-height: 28px; cursor: pointer; }
-      #${STATISTICS_OVERLAY_ID} { position: fixed; right: 24px; bottom: 24px; z-index: 999998; width: 320px; max-width: calc(100vw - 48px); padding: 12px; border: 1px solid rgba(0,0,0,.08); border-radius: 12px; color: #18191c; background: rgba(255,255,255,.96); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; box-shadow: 0 10px 28px rgba(0,0,0,.18); }
-      #${STATISTICS_OVERLAY_ID} .bfilter-statistics-overlay-heading { margin-bottom: 8px; color: #18191c; font-size: 13px; font-weight: 700; }
-      #${STATISTICS_OVERLAY_ID} .bfilter-statistics-overlay-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; }
-      #${STATISTICS_OVERLAY_ID} .bfilter-statistics-overlay-list > div { display: grid; gap: 3px; min-width: 0; padding: 7px; border-radius: 7px; background: #f6f7f8; color: #61666d; font-size: 11px; line-height: 1.3; }
-      #${STATISTICS_OVERLAY_ID} output { overflow: hidden; margin: 0; color: #4b4f55; font-size: 13px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+      #${STATISTICS_OVERLAY_ID} { position: fixed; top: 54px; right: 24px; z-index: 999998; width: max-content; max-width: calc(100vw - 48px); padding: 10px; border: 1px solid rgba(0,0,0,.08); border-radius: 12px; color: #18191c; background: rgba(255,255,255,.96); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; box-shadow: 0 10px 28px rgba(0,0,0,.18); }
+      #${STATISTICS_OVERLAY_ID} .bfilter-statistics-overlay-list { display: flex; flex-wrap: nowrap; gap: 1px; }
+      #${STATISTICS_OVERLAY_ID} .bfilter-statistics-overlay-list > div { display: inline-flex; align-items: baseline; gap: 1px; min-width: 0; padding: 1px 1px; border-radius: 7px; background: #f6f7f8; color: #61666d; font-size: 11px; font-weight: 400; line-height: 1; }
+      #${STATISTICS_OVERLAY_ID} output { overflow: hidden; margin: 0; color: #4b4f55; font-size: 11px; font-weight: 400; text-overflow: ellipsis; white-space: nowrap; }
       @media (max-width: 460px) {
         #${MANAGER_PANEL_ID} .bfilter-manager-statistics-list { grid-template-columns: 1fr; }
         #${MANAGER_PANEL_ID} .bfilter-manager-statistic { grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; }
         #${MANAGER_PANEL_ID} .bfilter-manager-statistic output { grid-column: 1 / -1; }
-        #${STATISTICS_OVERLAY_ID} { right: 12px; bottom: 12px; max-width: calc(100vw - 24px); }
-        #${STATISTICS_OVERLAY_ID} .bfilter-statistics-overlay-list { grid-template-columns: 1fr; }
-        #${STATISTICS_OVERLAY_ID} .bfilter-statistics-overlay-list > div { grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; }
       }
   `;
   }
