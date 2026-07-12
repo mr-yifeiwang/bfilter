@@ -55,7 +55,7 @@
     hideVideosByTypeBangumi: "bfilter:hide-videos-by-type-bangumi",
     addUsernamesToFollowedUserUids:
       "bfilter:add-usernames-to-followed-user-uids",
-    showStatisticsOutsideManager: "bfilter:show-statistics-outside-manager",
+    showStatisticsOverlay: "bfilter:show-statistics-overlay",
   };
 
   const BLOCK_BUTTON_ID = "bfilter-block-button";
@@ -364,7 +364,7 @@
     hideVideosByTypeCourse: false,
     hideVideosByTypeBangumi: false,
     addUsernamesToFollowedUserUids: true,
-    showStatisticsOutsideManager: false,
+    showStatisticsOverlay: false,
     hideUsersByRegistrationTimeThreshold: DEFAULT_REGISTRATION_TIME_THRESHOLD,
     hideVideosByDurationThreshold: DEFAULT_VIDEO_DURATION_THRESHOLD,
     hideVideosByViewsThreshold: DEFAULT_VIDEO_VIEWS_THRESHOLD,
@@ -414,8 +414,8 @@
         control.threshold.options,
       );
     }
-    settings.showStatisticsOutsideManager = readBooleanSetting(
-      SETTING_KEYS.showStatisticsOutsideManager,
+    settings.showStatisticsOverlay = readBooleanSetting(
+      SETTING_KEYS.showStatisticsOverlay,
       false,
     );
 
@@ -590,9 +590,9 @@
         );
       }
       GM_addValueChangeListener(
-        SETTING_KEYS.showStatisticsOutsideManager,
+        SETTING_KEYS.showStatisticsOverlay,
         (_key, _oldValue, value, remote) => {
-          if (remote) syncShowStatisticsOutsideManager(value);
+          if (remote) syncShowStatisticsOverlay(value);
         },
       );
       for (const control of getThresholdControls()) {
@@ -621,8 +621,8 @@
         if (event.key === SETTING_KEYS[name])
           syncBooleanSetting(name, event.newValue);
       }
-      if (event.key === SETTING_KEYS.showStatisticsOutsideManager)
-        syncShowStatisticsOutsideManager(event.newValue);
+      if (event.key === SETTING_KEYS.showStatisticsOverlay)
+        syncShowStatisticsOverlay(event.newValue);
       for (const control of getThresholdControls()) {
         if (event.key === control.threshold.key)
           syncThresholdSetting(control, event.newValue);
@@ -679,12 +679,9 @@
     renderUserPageActionButtons();
   }
 
-  function syncShowStatisticsOutsideManager(savedValue) {
-    settings.showStatisticsOutsideManager = parseBooleanSetting(
-      savedValue,
-      false,
-    );
-    refreshStatisticsVisibilityControls();
+  function syncShowStatisticsOverlay(savedValue) {
+    settings.showStatisticsOverlay = parseBooleanSetting(savedValue, false);
+    refreshStatisticsOverlayToggle();
     renderStatisticsOverlay();
   }
 
@@ -926,13 +923,13 @@
     renderUserPageActionButtons();
   }
 
-  function setShowStatisticsOutsideManager(value) {
-    settings.showStatisticsOutsideManager = Boolean(value);
+  function setShowStatisticsOverlay(value) {
+    settings.showStatisticsOverlay = Boolean(value);
     saveBooleanSetting(
-      SETTING_KEYS.showStatisticsOutsideManager,
-      settings.showStatisticsOutsideManager,
+      SETTING_KEYS.showStatisticsOverlay,
+      settings.showStatisticsOverlay,
     );
-    refreshStatisticsVisibilityControls();
+    refreshStatisticsOverlayToggle();
     renderStatisticsOverlay();
   }
 
@@ -1199,7 +1196,7 @@
     }
     renderCommentBlockButtons();
     renderBlockAllCommentersButton();
-    refreshManagerStatistics();
+    refreshStatisticsDisplays();
   }
 
   function createStatistics() {
@@ -1222,7 +1219,7 @@
 
   function resetStatistics() {
     statistics = createStatistics();
-    refreshManagerStatistics();
+    refreshStatisticsDisplays();
   }
 
   function observeStatistic(category, source) {
@@ -2159,10 +2156,10 @@
           <section class="bfilter-manager-settings-section bfilter-manager-statistics" data-statistics aria-labelledby="bfilter-manager-statistics-heading">
             <div class="bfilter-manager-statistics-header">
               <div id="bfilter-manager-statistics-heading" class="bfilter-manager-settings-heading">Statistics</div>
-              <label class="bfilter-manager-statistics-toggle" for="bfilter-manager-show-statistics-outside">
+              <label class="bfilter-manager-statistics-toggle" for="bfilter-manager-show-statistics-overlay">
                 <span>Hide</span>
-                <input id="bfilter-manager-show-statistics-outside" type="checkbox" data-show-statistics-outside-manager aria-label="Show statistics outside Manager">
-                <span class="bfilter-manager-preview-slider" aria-hidden="true"></span>
+                <input id="bfilter-manager-show-statistics-overlay" type="checkbox" data-show-statistics-overlay aria-label="Show Statistics overlay">
+                <span class="bfilter-manager-toggle-track" aria-hidden="true"></span>
                 <span>Show</span>
               </label>
             </div>
@@ -2185,7 +2182,7 @@
         <div class="bfilter-manager-actions">
           <label class="bfilter-manager-preview-toggle" for="${getControl("previewMode").id}">
             <input id="${getControl("previewMode").id}" type="checkbox" data-setting="previewMode">
-            <span class="bfilter-manager-preview-slider" aria-hidden="true"></span>
+            <span class="bfilter-manager-toggle-track" aria-hidden="true"></span>
             <span>Preview</span>
           </label>
           <div class="bfilter-manager-action-buttons">
@@ -2258,8 +2255,8 @@
         refreshBooleanControls(panel);
         return;
       }
-      if (target && target.matches("[data-show-statistics-outside-manager]")) {
-        setShowStatisticsOutsideManager(target.checked);
+      if (target && target.matches("[data-show-statistics-overlay]")) {
+        setShowStatisticsOverlay(target.checked);
         return;
       }
       const name = target && target.getAttribute("data-setting");
@@ -2405,13 +2402,13 @@
     if (hideDanmakusByKeywordHelp)
       hideDanmakusByKeywordHelp.innerHTML = `<strong>${hideDanmakusByKeyword.length}</strong> keyword(s) have been blocked.\nEnter one keyword per line to hide danmakus containing it.`;
     refreshBooleanControls(panel);
-    refreshStatisticsVisibilityControls(panel);
+    refreshStatisticsOverlayToggle(panel);
     refreshManagerGoButton(panel);
     updateManagerSaveButtonState(panel);
-    refreshManagerStatistics(panel);
+    refreshStatisticsDisplays(panel);
   }
 
-  function refreshManagerStatistics(
+  function refreshStatisticsDisplays(
     panel = document.getElementById(MANAGER_PANEL_ID),
   ) {
     if (panel && !panel.hidden) refreshStatisticsValues(panel);
@@ -2435,17 +2432,17 @@
     }
   }
 
-  function refreshStatisticsVisibilityControls(
+  function refreshStatisticsOverlayToggle(
     panel = document.getElementById(MANAGER_PANEL_ID),
   ) {
     if (!panel) return;
-    const input = panel.querySelector("[data-show-statistics-outside-manager]");
-    if (input) input.checked = settings.showStatisticsOutsideManager;
+    const input = panel.querySelector("[data-show-statistics-overlay]");
+    if (input) input.checked = settings.showStatisticsOverlay;
   }
 
   function renderStatisticsOverlay() {
     let overlay = document.getElementById(STATISTICS_OVERLAY_ID);
-    if (!settings.showStatisticsOutsideManager || !isBfilterManagerPage()) {
+    if (!settings.showStatisticsOverlay || !isBfilterManagerPage()) {
       if (overlay) overlay.remove();
       return;
     }
@@ -2467,7 +2464,7 @@
           isElement(target) &&
           target.matches('[data-action="close-statistics-overlay"]')
         )
-          setShowStatisticsOutsideManager(false);
+          setShowStatisticsOverlay(false);
       });
     }
     appendToPage(overlay);
@@ -2562,8 +2559,7 @@
       exportedSettings[control.threshold.setting] =
         settings[control.threshold.setting];
     }
-    exportedSettings.showStatisticsOutsideManager =
-      settings.showStatisticsOutsideManager;
+    exportedSettings.showStatisticsOverlay = settings.showStatisticsOverlay;
     return {
       app: "Bfilter",
       version: SCRIPT_VERSION || "",
@@ -2660,17 +2656,17 @@
       );
       saveLabelSetting(key, settings[setting]);
     }
-    settings.showStatisticsOutsideManager = parseBooleanSetting(
-      importedSettings.showStatisticsOutsideManager,
+    settings.showStatisticsOverlay = parseBooleanSetting(
+      importedSettings.showStatisticsOverlay,
       false,
     );
     saveBooleanSetting(
-      SETTING_KEYS.showStatisticsOutsideManager,
-      settings.showStatisticsOutsideManager,
+      SETTING_KEYS.showStatisticsOverlay,
+      settings.showStatisticsOverlay,
     );
 
     refreshConsequences();
-    refreshStatisticsVisibilityControls();
+    refreshStatisticsOverlayToggle();
     renderStatisticsOverlay();
     renderUserPageActionButtons();
   }
@@ -3237,11 +3233,11 @@
       #${MANAGER_PANEL_ID} .bfilter-manager-action-buttons { display: inline-flex; align-items: center; gap: 8px; }
       #${MANAGER_PANEL_ID} .bfilter-manager-preview-toggle, #${MANAGER_PANEL_ID} .bfilter-manager-statistics-toggle { display: inline-flex; align-items: center; gap: 8px; color: #61666d; font-size: 13px; font-weight: 700; cursor: pointer; user-select: none; }
       #${MANAGER_PANEL_ID} .bfilter-manager-preview-toggle input, #${MANAGER_PANEL_ID} .bfilter-manager-statistics-toggle input { position: absolute; opacity: 0; pointer-events: none; }
-      #${MANAGER_PANEL_ID} .bfilter-manager-preview-slider { position: relative; width: 36px; height: 20px; border-radius: 999px; background: #c9ccd0; transition: background .2s ease; }
-      #${MANAGER_PANEL_ID} .bfilter-manager-preview-slider::before { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.25); transition: transform .2s ease; }
-      #${MANAGER_PANEL_ID} .bfilter-manager-preview-toggle input:checked + .bfilter-manager-preview-slider, #${MANAGER_PANEL_ID} .bfilter-manager-statistics-toggle input:checked + .bfilter-manager-preview-slider { background: var(--bfilter-button-color); }
-      #${MANAGER_PANEL_ID} .bfilter-manager-preview-toggle input:checked + .bfilter-manager-preview-slider::before, #${MANAGER_PANEL_ID} .bfilter-manager-statistics-toggle input:checked + .bfilter-manager-preview-slider::before { transform: translateX(16px); }
-      #${MANAGER_PANEL_ID} .bfilter-manager-statistics-toggle input:focus-visible + .bfilter-manager-preview-slider { outline: 2px solid #18191c; outline-offset: 2px; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-toggle-track { position: relative; width: 36px; height: 20px; border-radius: 999px; background: #c9ccd0; transition: background .2s ease; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-toggle-track::before { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.25); transition: transform .2s ease; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-preview-toggle input:checked + .bfilter-manager-toggle-track, #${MANAGER_PANEL_ID} .bfilter-manager-statistics-toggle input:checked + .bfilter-manager-toggle-track { background: var(--bfilter-button-color); }
+      #${MANAGER_PANEL_ID} .bfilter-manager-preview-toggle input:checked + .bfilter-manager-toggle-track::before, #${MANAGER_PANEL_ID} .bfilter-manager-statistics-toggle input:checked + .bfilter-manager-toggle-track::before { transform: translateX(16px); }
+      #${MANAGER_PANEL_ID} .bfilter-manager-statistics-toggle input:focus-visible + .bfilter-manager-toggle-track { outline: 2px solid #18191c; outline-offset: 2px; }
       #${MANAGER_PANEL_ID} .bfilter-manager-action { border: 0; border-radius: 8px; padding: 7px 12px; color: #18191c; background: var(--bfilter-button-muted-color); font-size: 13px; cursor: pointer; }
       #${MANAGER_PANEL_ID} .bfilter-manager-action:not(:disabled):active { transform: translateY(1px); }
       #${MANAGER_PANEL_ID} .bfilter-manager-action:disabled { color: #9499a0; background: var(--bfilter-button-muted-color); cursor: not-allowed; }

@@ -214,7 +214,7 @@ Each statistic uses a background color based on its filtered percentage: green f
 
 The values update as Bilibili lazy-loads content. They reset and recount after navigation, a full refresh, or a filtering/settings change that rescans the page.
 
-Use the **Hide** / **Show** toggle beside the Statistics heading to control a compact Statistics overlay beneath **Open Bfilter** outside the Manager. The left, off position hides it; the right, on position shows it. It is hidden by default, remains visible after the Manager closes, and updates with the same lazy-loaded values. Its close button also switches the preference to Hide. This display preference is saved and included in Manager imports and exports.
+Use the **Hide** / **Show** toggle beside the Statistics heading to control the **Show Statistics overlay** preference for a compact Statistics overlay beneath **Open Bfilter** outside the Manager. The left, off position hides it; the right, on position shows it. It is hidden by default, remains visible after the Manager closes, and updates with the same lazy-loaded values. Its close button also switches the preference to Hide. This display preference is saved and included in Manager imports and exports.
 
 Use the **Migration** section in this tab to import or export Bfilter data and settings.
 
@@ -443,7 +443,7 @@ Storage uses the canonical filter identifiers below.
 | Hide course videos                  | `bfilter:hide-videos-by-type-course`                 |
 | Hide bangumi videos                 | `bfilter:hide-videos-by-type-bangumi`                |
 | Add usernames to followed user UIDs | `bfilter:add-usernames-to-followed-user-uids`        |
-| Show statistics outside Manager     | `bfilter:show-statistics-outside-manager`            |
+| Show statistics overlay             | `bfilter:show-statistics-overlay`                    |
 | Active manager tab                  | `bfilter:active-manager-tab`                         |
 
 When `GM_addValueChangeListener` is available, Bfilter listens for remote changes to filter lists and settings and refreshes runtime state across userscript contexts. Otherwise, it listens for the browser `storage` event as a fallback. The active manager tab is not synchronized.
@@ -539,7 +539,7 @@ Important data attributes:
 
 The CSS text is built by section helpers near `addStyle`: variables, visibility/marking rules, floating/profile buttons, manager panel, and comment buttons. `addStyle` itself only creates the style element, assigns `STYLE_ID`, fills it with `getStyleText()`, and appends it safely.
 
-The injected CSS hides matching targets with `display: none !important`, marks previewed targets with a red background/outline, marks followed targets with a green background/outline, and lays out the manager panel with vertical tabs beside the active editor. Manager tab panels use a consistent minimum height so the panel does not shrink or grow when switching tabs.
+The injected CSS hides matching targets with `display: none !important`, marks previewed targets with a red background/outline, marks followed targets with a green background/outline, styles the Statistics overlay and shared toggle track, and lays out the manager panel with vertical tabs beside the active editor. Manager tab panels use a consistent minimum height so the panel does not shrink or grow when switching tabs.
 
 ## Developer reference
 
@@ -554,6 +554,7 @@ Key code areas in `main.user.js`:
 | UID extraction         | `getUploaderUidsInside`, `getCommentAuthorUidsInside`, `addUidFromHref`, `normalizeUid`                                                    |
 | Metadata parsing       | `parseDurationSeconds`, `parseViewCount`, `getVideoDurationSeconds`, `getVideoViewCount`                                                   |
 | Consequences           | `applyConsequence`, `applyFollowedUserUids`, `clearConsequence`, `clearConsequencesForUid`, `refreshConsequences`                          |
+| Statistics             | `renderStatisticsOverlay`, `refreshStatisticsDisplays`, `refreshStatisticsOverlayToggle`                                                   |
 | Storage                | `readSaved...`, `save...`, `setupStorageSync`, `sync...`                                                                                   |
 | Styling                | `getStyleText`, `getStyleVariables`, `getStyleVisibility`, `getStyleButtons`, `getStyleManagerPanel`, `getStyleCommentButtons`, `addStyle` |
 | Manager UI             | `renderBfilterManager`, `ensureBfilterManagerPanel`, `refreshBfilterManagerPanel`, `saveManagerTextareas`                                  |
