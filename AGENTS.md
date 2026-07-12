@@ -6,7 +6,7 @@ This repository is a plain JavaScript userscript for Bilibili. The main file is 
 
 ## Rules
 
-Match the existing JavaScript style. Use named helper functions when they reduce duplication, isolate nontrivial logic, or make DOM/filtering behavior easier to reason about. Do not split simple linear code into extra functions solely for abstraction. Use conservative DOM selectors.
+Match the existing JavaScript style. Understand existing behavior before changing it, and distinguish confirmed inconsistencies from subjective preferences. Ask when intent is ambiguous; otherwise make the smallest coherent change that keeps code, behavior, terminology, and documentation aligned. For broad or risky work, plan and review in phases, preserve clear semantic boundaries, and avoid compatibility layers or abstractions unless they are required. Validate each phase with the strongest checks available and state any remaining verification limits plainly.
 
 ## Testing
 
