@@ -211,13 +211,13 @@
   const DEFAULT_VIDEO_DURATION_THRESHOLD = "< 1 min";
 
   const VIDEO_VIEWS_THRESHOLD_OPTIONS = [
-    { label: "< 1k views", views: 1000 },
-    { label: "< 5k views", views: 5000 },
-    { label: "< 10k views", views: 10000 },
-    { label: "< 50k views", views: 50000 },
-    { label: "< 100k views", views: 100000 },
+    { label: "< 1k", displayLabel: "< 1k", views: 1000 },
+    { label: "< 5k", displayLabel: "< 5k", views: 5000 },
+    { label: "< 10k", displayLabel: "< 10k", views: 10000 },
+    { label: "< 50k", displayLabel: "< 50k", views: 50000 },
+    { label: "< 100k", displayLabel: "< 100k", views: 100000 },
   ];
-  const DEFAULT_VIDEO_VIEWS_THRESHOLD = "< 1k views";
+  const DEFAULT_VIDEO_VIEWS_THRESHOLD = "< 1k";
 
   const COMMENTER_LEVEL_THRESHOLD_OPTIONS = [
     { label: "≤ 1", maxLevel: 1 },
@@ -2104,7 +2104,7 @@
     return `<select id="${control.threshold.id}" class="bfilter-manager-threshold">${control.threshold.options
       .map(
         (option, index) =>
-          `<option value="${index}">${escapeHtml(option.label)}</option>`,
+          `<option value="${index}">${escapeHtml(option.displayLabel || option.label)}</option>`,
       )
       .join("")}</select>`;
   }

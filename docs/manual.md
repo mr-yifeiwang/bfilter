@@ -30,6 +30,7 @@
       - [Comment keyword filter](#comment-keyword-filter)
       - [Mentions-only comment filter](#mentions-only-comment-filter)
       - [Image comment filter](#image-comment-filter)
+      - [Commenter-level filter](#commenter-level-filter)
     - [Danmaku filters](#danmaku-filters)
       - [Danmaku keyword filter](#danmaku-keyword-filter)
   - [Data format](#data-format)
@@ -173,7 +174,7 @@ Use this tab to maintain title keywords for hiding videos.
 This tab also includes video metadata filters:
 
 - **Hide by duration** with thresholds from `< 1 min` through `< 20 min`.
-- **Hide by views** with thresholds from `< 1k views` through `< 100k views`.
+- **Hide by views** with thresholds from `< 1k` through `< 100k`.
 - **Hide by types**, with selectable child types: **Live**, **Manga**, **Course**, and **Bangumi**.
 
 Metadata filters are applied to card-like results and to recommendation areas on direct video pages. They are intentionally not applied to the primary video page owner/content area.
@@ -317,11 +318,11 @@ When enabled, Bfilter parses view counts from stat-like elements. It recognizes 
 
 Available thresholds:
 
-- `< 1k views` (default)
-- `< 5k views`
-- `< 10k views`
-- `< 50k views`
-- `< 100k views`
+- `< 1k` (default)
+- `< 5k`
+- `< 10k`
+- `< 50k`
+- `< 100k`
 
 #### Types filter
 
@@ -406,31 +407,31 @@ Bfilter persists these values:
 
 Storage uses the canonical filter identifiers below. Older storage keys are not migrated.
 
-| Value                       | Storage key                                          |
-| --------------------------- | ---------------------------------------------------- |
-| Blocked user list           | `bfilter:hide-users-by-uid`                          |
-| Follow users by UID list    | `bfilter:follow-users-by-uid`                                  |
-| Video keyword list          | `bfilter:hide-videos-by-keyword`                     |
-| Comment keyword list        | `bfilter:hide-comments-by-keyword`                   |
-| Danmaku keyword list        | `bfilter:hide-danmakus-by-keyword`                   |
-| Hide by registration time   | `bfilter:hide-users-by-registration-time`            |
-| Registration-time threshold | `bfilter:hide-users-by-registration-time-threshold`  |
-| Hide by mentions only       | `bfilter:hide-comments-by-mentions-only`             |
-| Hide by image               | `bfilter:hide-comments-by-image`                     |
-| Hide by commenter level     | `bfilter:hide-comments-by-commenter-level`           |
-| Commenter-level threshold   | `bfilter:hide-comments-by-commenter-level-threshold` |
-| Preview mode                | `bfilter:preview-mode`                               |
-| Hide by duration            | `bfilter:hide-videos-by-duration`                    |
-| Duration threshold          | `bfilter:hide-videos-by-duration-threshold`          |
-| Hide by views               | `bfilter:hide-videos-by-views`                       |
-| Views threshold             | `bfilter:hide-videos-by-views-threshold`             |
-| Hide by types               | `bfilter:hide-videos-by-types`                       |
-| Hide live videos            | `bfilter:hide-videos-by-type-live`                   |
-| Hide manga videos           | `bfilter:hide-videos-by-type-manga`                  |
-| Hide course videos          | `bfilter:hide-videos-by-type-course`                 |
-| Hide bangumi videos         | `bfilter:hide-videos-by-type-bangumi`                |
-| Add usernames to follow users by UID | `bfilter:add-usernames-to-follow-users-by-uid`                 |
-| Active manager tab          | `bfilter:active-manager-tab`                         |
+| Value                                | Storage key                                          |
+| ------------------------------------ | ---------------------------------------------------- |
+| Blocked user list                    | `bfilter:hide-users-by-uid`                          |
+| Follow users by UID list             | `bfilter:follow-users-by-uid`                        |
+| Video keyword list                   | `bfilter:hide-videos-by-keyword`                     |
+| Comment keyword list                 | `bfilter:hide-comments-by-keyword`                   |
+| Danmaku keyword list                 | `bfilter:hide-danmakus-by-keyword`                   |
+| Hide by registration time            | `bfilter:hide-users-by-registration-time`            |
+| Registration-time threshold          | `bfilter:hide-users-by-registration-time-threshold`  |
+| Hide by mentions only                | `bfilter:hide-comments-by-mentions-only`             |
+| Hide by image                        | `bfilter:hide-comments-by-image`                     |
+| Hide by commenter level              | `bfilter:hide-comments-by-commenter-level`           |
+| Commenter-level threshold            | `bfilter:hide-comments-by-commenter-level-threshold` |
+| Preview mode                         | `bfilter:preview-mode`                               |
+| Hide by duration                     | `bfilter:hide-videos-by-duration`                    |
+| Duration threshold                   | `bfilter:hide-videos-by-duration-threshold`          |
+| Hide by views                        | `bfilter:hide-videos-by-views`                       |
+| Views threshold                      | `bfilter:hide-videos-by-views-threshold`             |
+| Hide by types                        | `bfilter:hide-videos-by-types`                       |
+| Hide live videos                     | `bfilter:hide-videos-by-type-live`                   |
+| Hide manga videos                    | `bfilter:hide-videos-by-type-manga`                  |
+| Hide course videos                   | `bfilter:hide-videos-by-type-course`                 |
+| Hide bangumi videos                  | `bfilter:hide-videos-by-type-bangumi`                |
+| Add usernames to follow users by UID | `bfilter:add-usernames-to-follow-users-by-uid`       |
+| Active manager tab                   | `bfilter:active-manager-tab`                         |
 
 When `GM_addValueChangeListener` is available, Bfilter listens for remote value changes and refreshes runtime state across userscript contexts. Otherwise, it listens for the browser `storage` event as a fallback.
 
@@ -507,12 +508,12 @@ Bfilter injects one `<style>` element with ID `bfilter-style`. The style element
 
 Important data attributes:
 
-| Attribute                       | Meaning                                                              |
-| ------------------------------- | -------------------------------------------------------------------- |
-| `data-bfilter-hidden="true"`    | Internal attribute indicating the target is hidden.                  |
-| `data-bfilter-previewed="true"` | Target is preview-highlighted.                                       |
-| `data-bfilter-follow-users-by-uid="true"`  | Target is follow-highlighted.                                        |
-| `data-bfilter-hidden-uid`       | Internal attribute storing the associated hidden UID when available. |
+| Attribute                                 | Meaning                                                              |
+| ----------------------------------------- | -------------------------------------------------------------------- |
+| `data-bfilter-hidden="true"`              | Internal attribute indicating the target is hidden.                  |
+| `data-bfilter-previewed="true"`           | Target is preview-highlighted.                                       |
+| `data-bfilter-follow-users-by-uid="true"` | Target is follow-highlighted.                                        |
+| `data-bfilter-hidden-uid`                 | Internal attribute storing the associated hidden UID when available. |
 
 The CSS text is built by section helpers near `addStyle`: variables, visibility/marking rules, floating/profile buttons, manager panel, and comment buttons. `addStyle` itself only creates the style element, assigns `STYLE_ID`, fills it with `getStyleText()`, and appends it safely.
 
@@ -534,7 +535,7 @@ Key code areas in `main.user.js`:
 | Storage                | `readSaved...`, `save...`, `setupStorageSync`, `sync...`                                                                                   |
 | Styling                | `getStyleText`, `getStyleVariables`, `getStyleVisibility`, `getStyleButtons`, `getStyleManagerPanel`, `getStyleCommentButtons`, `addStyle` |
 | Manager UI             | `renderBfilterManager`, `ensureBfilterManagerPanel`, `refreshBfilterManagerPanel`, `saveManagerTextareas`                                  |
-| User-space UI          | `renderUserPageBlockButton`, `setUidBlocked`, `setUidFollowUsersByUid`                                                                            |
+| User-space UI          | `renderUserPageBlockButton`, `setUidBlocked`, `setUidFollowUsersByUid`                                                                     |
 | Comment UI             | `renderCommentBlockButtons`, `renderBlockAllCommentersButton`, `blockAllCommenters`                                                        |
 
 When modifying filters, keep the safety guards and direct-video protections in mind. Most regressions on Bilibili pages come from selecting too large a target or matching a container that includes multiple unrelated video links.
