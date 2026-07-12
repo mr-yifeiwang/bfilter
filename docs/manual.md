@@ -59,7 +59,7 @@ The script can:
 - Optionally hide accounts that look newly registered, based on UID length.
 - Optionally hide short videos, low-view videos, and selected non-standard content links such as live, manga, or course cards.
 - Add quick block/follow controls to Bilibili user-space pages.
-- Add per-comment block buttons and a bulk “Block All Commenters” button on supported comment pages.
+- Add per-comment author-block buttons and a bulk “Block All Commenters” button on supported comment pages.
 
 The current script metadata in `main.user.js` identifies the script as version `0.23.0` and runs it at `document-start` on these URL families:
 
@@ -154,7 +154,7 @@ The default threshold label is `> 2022`.
 Use this tab to maintain UIDs that should be highlighted instead of hidden.
 
 - Each line should contain one numeric UID.
-- A followed UID takes priority over blocking for matching cards/comments.
+- A followed UID takes priority over blocked-user and content-hide rules for matching cards/comments.
 - Select a UID and click **Go** to open `https://space.bilibili.com/<uid>/upload/`. The **Go** button is only shown on this tab.
 - The user-space follow button can automatically append usernames as comments, for example `12345678 # username`.
 
@@ -162,7 +162,7 @@ The **Add usernames by default** option controls whether the user-space follow a
 
 ### Videos tab
 
-Use this tab to maintain title keywords for video blocking.
+Use this tab to maintain title keywords for hiding videos.
 
 - Each line is one keyword.
 - Matching is case-sensitive and uses simple substring matching.
@@ -179,16 +179,17 @@ Metadata filters are applied to card-like results and to recommendation areas on
 
 ### Comments tab
 
-Use this tab to maintain text keywords for comment blocking.
+Use this tab to maintain text keywords for hiding comments.
 
 - Each line is one keyword.
 - Matching is case-sensitive and uses simple substring matching.
 - Text after `#` is treated as a comment.
 - Duplicate keyword lines are removed at runtime.
 
-The tab also includes **Block @-only comments**. When enabled, Bfilter hides comments whose visible comment text consists only of one or more user mentions.
+The tab also includes:
 
-**Block comments with images** hides comments with attached images. It does not match emoji images in comment text.
+- **Hide @-only comments**: hides comments whose visible comment text consists only of one or more user mentions.
+- **Hide comments with images**: hides comments with attached images. It does not match emoji images in comment text.
 
 ### Danmakus tab
 
@@ -210,9 +211,9 @@ Use the **Migration** section in this tab to import or export Bfilter data and s
 
 ### Preview mode
 
-Preview mode changes blocking consequences from “hide” to “mark visibly.”
+Preview mode changes the consequence of a content match from hiding it to marking it visibly.
 
-- Off: matching targets receive `data-bfilter-blocked="true"` and are hidden with CSS.
+- Off: matching targets receive the internal `data-bfilter-blocked="true"` attribute and are hidden with CSS.
 - On: matching targets receive `data-bfilter-previewed="true"` and are highlighted with a red preview background/outline.
 
 Preview mode is useful for checking whether rules are too broad before hiding content.
@@ -232,7 +233,7 @@ If the UID is followed, the block button is disabled. If **Block new users** is 
 
 On direct video, opus, and T pages, Bfilter adds:
 
-- A small **Block** / **Unblock** button next to each detected comment author.
+- A small **Block** / **Unblock** button next to each detected comment author; these buttons block or unblock the author UID, not the comment itself.
 - A **Block All Commenters** button in the reply navigation bar when comments are loaded.
 
 The bulk action asks for confirmation, then adds all currently loaded comment author UIDs to the blocklist. It only affects comments present in the DOM at the time of the click.
@@ -245,7 +246,7 @@ Bfilter evaluates candidates in this order:
 2. Danmakus.
 3. Video cards.
 
-For video cards, followed UIDs are checked first. If a card belongs to a followed UID, it is highlighted and later block checks are skipped for that card. Otherwise Bfilter looks for the first matching block reason in this order:
+For video cards, followed UIDs are checked first. If a card belongs to a followed UID, it is highlighted and later hide checks are skipped for that card. Otherwise Bfilter looks for the first matching hide reason in this order:
 
 1. Blocked UID.
 2. Video keyword.
@@ -254,7 +255,7 @@ For video cards, followed UIDs are checked first. If a card belongs to a followe
 5. Unpopular-video rule.
 6. Badged-video rule.
 
-For comments, followed author UIDs are highlighted before block checks. If not followed, comments are hidden/previewed by blocked UID, comment keyword, at-only comment rule, image-attachment rule, or new-user rule.
+For comments, followed author UIDs are highlighted before hide checks. If not followed, comments are hidden/previewed because their author UID is blocked or because of a matching comment keyword, at-only rule, image-attachment rule, or new-user rule.
 
 ### User filters
 
@@ -269,7 +270,7 @@ Blocked users are identified by numeric UIDs discovered from links and attribute
 - `data-mid`.
 - `mid`.
 
-When a card/comment contains a blocked UID, Bfilter marks the target as blocked unless a safety guard rejects the target.
+When a card/comment contains a blocked UID, Bfilter hides or preview-marks the target unless a safety guard rejects it. The internal `data-bfilter-blocked` attribute is retained for compatibility.
 
 #### Followed users
 
@@ -289,13 +290,13 @@ Video filters apply to card-like video targets. On direct video pages, metadata 
 
 #### Video keyword filter
 
-Video keyword filtering concatenates detected title text and `title` attributes from title-like elements inside a card, then checks whether that text includes any blocked video keyword.
+Video keyword filtering concatenates detected title text and `title` attributes from title-like elements inside a card, then hides or previews the card when that text includes any configured video keyword.
 
 Title sources include selectors such as `.bili-video-card__info--tit`, `.video-title`, `.title-text`, video links with `title` attributes, and nested title elements inside video links, such as direct-video recommendation cards.
 
 #### Short-video filter
 
-When enabled, Bfilter parses duration strings such as `03:45` or `01:02:30` from duration-like elements. A video is blocked when the parsed duration is greater than zero and less than the selected threshold.
+When enabled, Bfilter parses duration strings such as `03:45` or `01:02:30` from duration-like elements. A video is hidden or previewed when the parsed duration is greater than zero and less than the selected threshold.
 
 Available thresholds:
 
@@ -339,17 +340,17 @@ Comment filters apply to detected comment items on supported comment pages.
 
 #### Comment keyword filter
 
-Comment keyword filtering checks detected comment text, then hides or previews the matching comment item when it includes any blocked comment keyword.
+Comment keyword filtering checks detected comment text, then hides or previews the matching comment item when it includes any configured comment keyword.
 
 #### At-only comment filter
 
-When enabled, Bfilter checks the detected comment body for user mention links. A comment is blocked when it contains one or more user mentions and no remaining non-whitespace text after those mentions are ignored.
+When enabled, Bfilter checks the detected comment body for user mention links. A comment is hidden or previewed when it contains one or more user mentions and no remaining non-whitespace text after those mentions are ignored.
 
 Comments with any additional text are not matched by this filter.
 
 #### Image comment filter
 
-When enabled, Bfilter blocks comments that contain an attached image in the comment item's image exhibition area. Emoji images embedded in comment text do not match this filter.
+When enabled, Bfilter hides or previews comments that contain an attached image in the comment item's image exhibition area. Emoji images embedded in comment text do not match this filter.
 
 ### Danmaku filters
 
@@ -391,6 +392,8 @@ Parsing rules:
 
 Bfilter persists these values:
 
+The storage keys are internal compatibility identifiers and remain unchanged even where a key includes legacy `blocklist` wording for a keyword list.
+
 | Value                       | Storage key                           |
 | --------------------------- | ------------------------------------- |
 | Blocked user list           | `bfilter:blocklist`                   |
@@ -400,8 +403,8 @@ Bfilter persists these values:
 | Danmaku keyword list        | `bfilter:danmaku-keyword-blocklist`   |
 | Block new users             | `bfilter:block-new-users`             |
 | Registration-time threshold | `bfilter:registration-time-threshold` |
-| Block @-only comments       | `bfilter:hide-at-only-comments`       |
-| Block comments with images  | `bfilter:hide-image-comments`         |
+| Hide @-only comments        | `bfilter:hide-at-only-comments`       |
+| Hide comments with images   | `bfilter:hide-image-comments`         |
 | Preview mode                | `bfilter:preview-mode`                |
 | Hide short videos           | `bfilter:hide-short-videos`           |
 | Short-video threshold       | `bfilter:short-video-threshold`       |
@@ -427,7 +430,7 @@ After a synchronized change, Bfilter refreshes consequences on the page, updates
 - New-user detection is heuristic and based only on UID length.
 - View and duration extraction depend on visible card metadata.
 - Some pages do not expose specific types of metadata, so relevant filters are unavailable on those pages.
-- Bulk comment blocking only includes currently loaded comments.
+- Bulk author blocking only includes currently loaded comments.
 - Userscript manager storage behavior can vary by browser and manager.
 
 ## Troubleshooting
@@ -435,7 +438,7 @@ After a synchronized change, Bfilter refreshes consequences on the page, updates
 | Symptom                                                          | Checks                                                                                                               |
 | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
 | **Open Bfilter** does not appear                                 | Confirm the page is in the supported list, refresh the page, and check that the userscript is enabled.               |
-| A blocked card is still visible                                  | Turn on Preview mode to see whether it is detected; check whether the UID/title is actually present in the card DOM. |
+| A card that should be hidden is still visible                    | Turn on Preview mode to see whether it is detected; check whether the UID/title is actually present in the card DOM. |
 | Too much content is hidden                                       | Disable broad metadata filters first, then review video keywords and new-user thresholds.                            |
 | A direct video page hides recommendations but not the main video | This is intentional; the main video owner area is protected.                                                         |
 | Comment buttons do not appear                                    | Load comments first and confirm the page is a direct video, opus, or T page.                                         |
@@ -474,7 +477,7 @@ It then resolves each candidate to a comment, danmaku, or video card and applies
 
 ### Safety guards
 
-Bfilter avoids hiding overly broad or unsafe targets. A target is rejected when it is:
+Bfilter avoids hiding overly broad or unsafe targets. A target is not hidden when it is:
 
 - `html`, `body`, `head`, `document.documentElement`, or `document.body`.
 - Larger than 75% of the viewport area.
@@ -490,16 +493,16 @@ Bfilter injects one `<style>` element with ID `bfilter-style`. The style element
 
 Important data attributes:
 
-| Attribute                       | Meaning                                                            |
-| ------------------------------- | ------------------------------------------------------------------ |
-| `data-bfilter-blocked="true"`   | Target is hidden.                                                  |
-| `data-bfilter-previewed="true"` | Target is preview-highlighted.                                     |
-| `data-bfilter-followed="true"`  | Target is follow-highlighted.                                      |
-| `data-bfilter-blocked-uid`      | Stores the UID associated with a block consequence when available. |
+| Attribute                       | Meaning                                                                             |
+| ------------------------------- | ----------------------------------------------------------------------------------- |
+| `data-bfilter-blocked="true"`   | Internal compatibility attribute indicating the target is hidden.                   |
+| `data-bfilter-previewed="true"` | Target is preview-highlighted.                                                      |
+| `data-bfilter-followed="true"`  | Target is follow-highlighted.                                                       |
+| `data-bfilter-blocked-uid`      | Internal compatibility attribute storing the associated blocked UID when available. |
 
 The CSS text is built by section helpers near `addStyle`: variables, visibility/marking rules, floating/profile buttons, manager panel, and comment buttons. `addStyle` itself only creates the style element, assigns `STYLE_ID`, fills it with `getStyleText()`, and appends it safely.
 
-The injected CSS hides blocked targets with `display: none !important`, marks previewed targets with a red background/outline, marks followed targets with a green background/outline, and lays out the manager panel with vertical tabs beside the active editor. Manager tab panels use a consistent minimum height so the panel does not shrink or grow when switching tabs.
+The injected CSS hides matching targets with `display: none !important`, marks previewed targets with a red background/outline, marks followed targets with a green background/outline, and lays out the manager panel with vertical tabs beside the active editor. Manager tab panels use a consistent minimum height so the panel does not shrink or grow when switching tabs.
 
 ## Developer reference
 

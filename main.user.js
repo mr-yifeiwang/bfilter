@@ -288,13 +288,13 @@
     {
       name: "hideAtOnlyComments",
       id: "bfilter-manager-hide-at-only-comments",
-      label: "Block @-only comments",
+      label: "Hide @-only comments",
       commentOption: true,
     },
     {
       name: "hideImageComments",
       id: "bfilter-manager-hide-image-comments",
-      label: "Block comments with images",
+      label: "Hide comments with images",
       commentOption: true,
     },
     {
