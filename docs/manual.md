@@ -35,6 +35,7 @@
       - [Danmaku keyword filter](#danmaku-keyword-filter)
   - [Data format](#data-format)
   - [Persistence and synchronization](#persistence-and-synchronization)
+    - [Breaking 0.25.0 user-list schema](#breaking-0250-user-list-schema)
   - [Limitations](#limitations)
   - [Troubleshooting](#troubleshooting)
   - [Implementation notes](#implementation-notes)
@@ -63,7 +64,7 @@ The script can:
 - Add quick block/follow controls to Bilibili user-space pages.
 - Add per-comment author-block buttons and a bulk “Block All Commenters” button on supported comment pages.
 
-The current script metadata in `main.user.js` identifies the script as version `0.23.0` and runs it at `document-start` on these URL families:
+The current script metadata in `main.user.js` identifies the script as version `0.25.0` and runs it at `document-start` on these URL families:
 
 - `https://www.bilibili.com/*`
 - `https://search.bilibili.com/*`
@@ -160,7 +161,7 @@ Use this tab to maintain UIDs that should be highlighted instead of hidden.
 - Select a UID and click **Go** to open `https://space.bilibili.com/<uid>/upload/`. The **Go** button is only shown on this tab.
 - The user-space follow button can automatically append usernames as comments, for example `12345678 # username`.
 
-The **Add usernames by default** option controls whether the user-space follow action stores the current profile username after `#`. It defaults to enabled.
+The **Add usernames by default** option (`addUsernamesToFollowedUserUids`) controls whether the user-space follow action stores the current profile username after `#`. It defaults to enabled.
 
 ### Videos tab
 
@@ -227,27 +228,23 @@ Preview mode is useful for checking whether rules are too broad before hiding co
 
 On `space.bilibili.com/<uid>` pages, Bfilter inserts two profile buttons:
 
-- **FOLLOW** / **FOLLOWING** toggles the UID in the local following list.
-- **BLOCK** / **BLOCKED** toggles the UID in the local blocklist.
+- **FOLLOW** / **FOLLOWING** toggles the UID in the local followed user list.
+- **BLOCK** / **BLOCKED** toggles the UID in the local blocked user list.
 
-If the UID is followed, the block button is disabled. If **Hide by registration time** is enabled and the UID matches the registration-time heuristic, the block button may show an “Already hidden by registration time” hint even if the UID is not explicitly in the blocklist.
+If the UID is followed, the block button is disabled. If **Hide by registration time** is enabled and the UID matches the registration-time heuristic, the block button may show an “Already hidden by registration time” hint even if the UID is not explicitly in the blocked user list.
 
 ### Comment actions
 
 On direct video, opus, and T pages, Bfilter adds:
 
-- A small **Block** / **Unblock** button next to each detected comment author; these buttons block or unblock the author UID, not the comment itself.
+- A small **Block** / **Unblock** button next to each eligible loaded comment: the comment must have a detectable author UID and must not currently be hidden by Bfilter. These buttons block or unblock the author UID, not the comment itself.
 - A **Block All Commenters** button in the reply navigation bar when comments are loaded.
 
-The bulk action asks for confirmation, then adds all currently loaded comment author UIDs to the blocklist. It only affects comments present in the DOM at the time of the click.
+The bulk action asks for confirmation, then adds all currently loaded comment author UIDs to the blocked user list. It only affects comments present in the DOM at the time of the click.
 
 ## Filtering behavior
 
-Bfilter evaluates candidates in this order:
-
-1. Comments.
-2. Danmakus.
-3. Video cards.
+Bfilter collects a mixed candidate set. Each candidate is classified in this priority order: comment, then danmaku, then video card. This is per-candidate classification, not three global filtering passes.
 
 For video cards, followed UIDs are checked first. If a card belongs to a followed UID, it is highlighted and later hide checks are skipped for that card. Otherwise Bfilter looks for the first matching hide reason in this order:
 
@@ -258,7 +255,14 @@ For video cards, followed UIDs are checked first. If a card belongs to a followe
 5. Views rule.
 6. Types rule.
 
-For comments, followed author UIDs are highlighted before hide checks. If not followed, comments are hidden/previewed because their author UID is blocked or because of a matching comment keyword, at-only rule, image-attachment rule, commenter-level rule, or registration-time rule.
+For comments, followed author UIDs are highlighted before hide checks. If not followed, Bfilter checks the first matching hide reason in this order:
+
+1. Blocked author UID.
+2. Comment keyword.
+3. Mentions-only rule.
+4. Image-attachment rule.
+5. Commenter-level rule.
+6. Registration-time rule.
 
 ### User filters
 
@@ -277,7 +281,7 @@ When a card/comment contains a blocked UID, Bfilter hides or preview-marks the t
 
 #### Followed users
 
-Followed users are stored separately from blocked users. Matching cards/comments receive `data-bfilter-follow-users-by-uid="true"`, which gives them a green visual treatment.
+Followed users are stored separately from blocked users. Matching cards/comments receive `data-bfilter-followed-user-uid="true"`, which gives them a green visual treatment.
 
 On user-space pages, the block button is disabled for followed UIDs to avoid conflicting one-click actions.
 
@@ -399,43 +403,52 @@ Parsing rules:
 - Keyword entries are not trimmed after comment stripping beyond the parser's normal comment-strip trim, and matching is substring matching.
 - Keyword matching supports emoji text. Search text and keywords are NFC-normalized, and emoji/text variation selectors are ignored so common forms such as `❤` and `❤️` match each other.
 
-Import/export stores the Follow users by UID list in the `lists.followUsersByUid` field.
+Import/export stores the blocked and followed user lists in `lists.blockedUserUids` and `lists.followedUserUids`.
 
 ## Persistence and synchronization
 
 Bfilter persists these values:
 
-Storage uses the canonical filter identifiers below. Older storage keys are not migrated.
+Storage uses the canonical filter identifiers below.
 
-| Value                                | Storage key                                          |
-| ------------------------------------ | ---------------------------------------------------- |
-| Blocked user list                    | `bfilter:hide-users-by-uid`                          |
-| Follow users by UID list             | `bfilter:follow-users-by-uid`                        |
-| Video keyword list                   | `bfilter:hide-videos-by-keyword`                     |
-| Comment keyword list                 | `bfilter:hide-comments-by-keyword`                   |
-| Danmaku keyword list                 | `bfilter:hide-danmakus-by-keyword`                   |
-| Hide by registration time            | `bfilter:hide-users-by-registration-time`            |
-| Registration-time threshold          | `bfilter:hide-users-by-registration-time-threshold`  |
-| Hide by mentions only                | `bfilter:hide-comments-by-mentions-only`             |
-| Hide by image                        | `bfilter:hide-comments-by-image`                     |
-| Hide by commenter level              | `bfilter:hide-comments-by-commenter-level`           |
-| Commenter-level threshold            | `bfilter:hide-comments-by-commenter-level-threshold` |
-| Preview mode                         | `bfilter:preview-mode`                               |
-| Hide by duration                     | `bfilter:hide-videos-by-duration`                    |
-| Duration threshold                   | `bfilter:hide-videos-by-duration-threshold`          |
-| Hide by views                        | `bfilter:hide-videos-by-views`                       |
-| Views threshold                      | `bfilter:hide-videos-by-views-threshold`             |
-| Hide by types                        | `bfilter:hide-videos-by-types`                       |
-| Hide live videos                     | `bfilter:hide-videos-by-type-live`                   |
-| Hide manga videos                    | `bfilter:hide-videos-by-type-manga`                  |
-| Hide course videos                   | `bfilter:hide-videos-by-type-course`                 |
-| Hide bangumi videos                  | `bfilter:hide-videos-by-type-bangumi`                |
-| Add usernames to follow users by UID | `bfilter:add-usernames-to-follow-users-by-uid`       |
-| Active manager tab                   | `bfilter:active-manager-tab`                         |
+| Value                               | Storage key                                          |
+| ----------------------------------- | ---------------------------------------------------- |
+| Blocked user list                   | `bfilter:blocked-user-uids`                          |
+| Followed user list                  | `bfilter:followed-user-uids`                         |
+| Video keyword list                  | `bfilter:hide-videos-by-keyword`                     |
+| Comment keyword list                | `bfilter:hide-comments-by-keyword`                   |
+| Danmaku keyword list                | `bfilter:hide-danmakus-by-keyword`                   |
+| Hide by registration time           | `bfilter:hide-users-by-registration-time`            |
+| Registration-time threshold         | `bfilter:hide-users-by-registration-time-threshold`  |
+| Hide by mentions only               | `bfilter:hide-comments-by-mentions-only`             |
+| Hide by image                       | `bfilter:hide-comments-by-image`                     |
+| Hide by commenter level             | `bfilter:hide-comments-by-commenter-level`           |
+| Commenter-level threshold           | `bfilter:hide-comments-by-commenter-level-threshold` |
+| Preview mode                        | `bfilter:preview-mode`                               |
+| Hide by duration                    | `bfilter:hide-videos-by-duration`                    |
+| Duration threshold                  | `bfilter:hide-videos-by-duration-threshold`          |
+| Hide by views                       | `bfilter:hide-videos-by-views`                       |
+| Views threshold                     | `bfilter:hide-videos-by-views-threshold`             |
+| Hide by types                       | `bfilter:hide-videos-by-types`                       |
+| Hide live videos                    | `bfilter:hide-videos-by-type-live`                   |
+| Hide manga videos                   | `bfilter:hide-videos-by-type-manga`                  |
+| Hide course videos                  | `bfilter:hide-videos-by-type-course`                 |
+| Hide bangumi videos                 | `bfilter:hide-videos-by-type-bangumi`                |
+| Add usernames to followed user UIDs | `bfilter:add-usernames-to-followed-user-uids`        |
+| Active manager tab                  | `bfilter:active-manager-tab`                         |
 
-When `GM_addValueChangeListener` is available, Bfilter listens for remote value changes and refreshes runtime state across userscript contexts. Otherwise, it listens for the browser `storage` event as a fallback.
+When `GM_addValueChangeListener` is available, Bfilter listens for remote changes to filter lists and settings and refreshes runtime state across userscript contexts. Otherwise, it listens for the browser `storage` event as a fallback. The active manager tab is not synchronized.
 
-After a synchronized change, Bfilter refreshes consequences on the page, updates the manager panel, and rerenders relevant page buttons.
+After a synchronized list or setting change, Bfilter refreshes consequences on the page, updates the manager panel, and rerenders relevant page buttons. The saved active tab is read only when a manager panel is created; saving it does not force an already-created panel in another context to switch tabs.
+
+### Breaking 0.25.0 user-list schema
+
+Version `0.25.0` renames the blocked/followed user-list schema. Export or otherwise back up your data before updating.
+
+- Old `bfilter:hide-users-by-uid` and `bfilter:follow-users-by-uid` storage is ignored; it is not read or migrated.
+- Old exports use `lists.hideUsersByUid` and `lists.followUsersByUid`. When imported by `0.25.0`, the renamed blocked/followed lists are empty, while compatible keyword lists and settings may still import.
+- Old and new versions use different list storage keys, so blocked/followed list changes do not synchronize across versions.
+- Old saved manager-tab values `hide-users-by-uid` and `follow-users-by-uid` are invalid under the new schema and fall back to the default **Users** tab when a panel is created.
 
 ## Limitations
 
@@ -508,12 +521,12 @@ Bfilter injects one `<style>` element with ID `bfilter-style`. The style element
 
 Important data attributes:
 
-| Attribute                                 | Meaning                                                              |
-| ----------------------------------------- | -------------------------------------------------------------------- |
-| `data-bfilter-hidden="true"`              | Internal attribute indicating the target is hidden.                  |
-| `data-bfilter-previewed="true"`           | Target is preview-highlighted.                                       |
-| `data-bfilter-follow-users-by-uid="true"` | Target is follow-highlighted.                                        |
-| `data-bfilter-hidden-uid`                 | Internal attribute storing the associated hidden UID when available. |
+| Attribute                               | Meaning                                                              |
+| --------------------------------------- | -------------------------------------------------------------------- |
+| `data-bfilter-hidden="true"`            | Internal attribute indicating the target is hidden.                  |
+| `data-bfilter-previewed="true"`         | Target is preview-highlighted.                                       |
+| `data-bfilter-followed-user-uid="true"` | Target is followed-user highlighted.                                 |
+| `data-bfilter-hidden-uid`               | Internal attribute storing the associated hidden UID when available. |
 
 The CSS text is built by section helpers near `addStyle`: variables, visibility/marking rules, floating/profile buttons, manager panel, and comment buttons. `addStyle` itself only creates the style element, assigns `STYLE_ID`, fills it with `getStyleText()`, and appends it safely.
 
@@ -531,11 +544,11 @@ Key code areas in `main.user.js`:
 | Rule evaluation        | `evaluateCard`, `evaluateComment`, `evaluateDanmaku`                                                                                       |
 | UID extraction         | `getUploaderUidsInside`, `getCommentAuthorUidsInside`, `addUidFromHref`, `normalizeUid`                                                    |
 | Metadata parsing       | `parseDurationSeconds`, `parseViewCount`, `getVideoDurationSeconds`, `getVideoViewCount`                                                   |
-| Consequences           | `applyConsequence`, `applyFollowUsersByUid`, `clearConsequence`, `refreshConsequences`                                                     |
+| Consequences           | `applyConsequence`, `applyFollowedUserUids`, `clearConsequence`, `clearConsequencesForUid`, `refreshConsequences`                          |
 | Storage                | `readSaved...`, `save...`, `setupStorageSync`, `sync...`                                                                                   |
 | Styling                | `getStyleText`, `getStyleVariables`, `getStyleVisibility`, `getStyleButtons`, `getStyleManagerPanel`, `getStyleCommentButtons`, `addStyle` |
 | Manager UI             | `renderBfilterManager`, `ensureBfilterManagerPanel`, `refreshBfilterManagerPanel`, `saveManagerTextareas`                                  |
-| User-space UI          | `renderUserPageBlockButton`, `setUidBlocked`, `setUidFollowUsersByUid`                                                                     |
+| User-space UI          | `renderUserPageActionButtons`, `setUidBlocked`, `setUidFollowedUserUids`                                                                   |
 | Comment UI             | `renderCommentBlockButtons`, `renderBlockAllCommentersButton`, `blockAllCommenters`                                                        |
 
 When modifying filters, keep the safety guards and direct-video protections in mind. Most regressions on Bilibili pages come from selecting too large a target or matching a container that includes multiple unrelated video links.

@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Bfilter
 // @namespace    https://github.com/mr-yifeiwang/bfilter
-// @version      0.24.0
-// @description  Manage in-browser Bilibili followlist and blocklist
+// @version      0.25.0
+// @description  Manage in-browser Bilibili blocked and followed user lists
 // @author       mr-yifeiwang
 // @icon         https://raw.githubusercontent.com/mr-yifeiwang/bfilter/master/assets/logo-128x128.png
 // @match        https://www.bilibili.com/*
@@ -23,11 +23,11 @@
 
   const HIDDEN_ATTR = "data-bfilter-hidden";
   const PREVIEW_ATTR = "data-bfilter-previewed";
-  const FOLLOW_USERS_BY_UID_ATTR = "data-bfilter-follow-users-by-uid";
+  const FOLLOWED_USER_UID_ATTR = "data-bfilter-followed-user-uid";
   const HIDDEN_UID_ATTR = "data-bfilter-hidden-uid";
 
-  const HIDE_USERS_BY_UID_STORAGE_KEY = "bfilter:hide-users-by-uid";
-  const FOLLOW_USERS_BY_UID_STORAGE_KEY = "bfilter:follow-users-by-uid";
+  const BLOCKED_USER_UIDS_STORAGE_KEY = "bfilter:blocked-user-uids";
+  const FOLLOWED_USER_UIDS_STORAGE_KEY = "bfilter:followed-user-uids";
   const HIDE_VIDEOS_BY_KEYWORD_STORAGE_KEY = "bfilter:hide-videos-by-keyword";
   const HIDE_COMMENTS_BY_KEYWORD_STORAGE_KEY =
     "bfilter:hide-comments-by-keyword";
@@ -53,11 +53,11 @@
     hideVideosByTypeManga: "bfilter:hide-videos-by-type-manga",
     hideVideosByTypeCourse: "bfilter:hide-videos-by-type-course",
     hideVideosByTypeBangumi: "bfilter:hide-videos-by-type-bangumi",
-    addUsernamesToFollowUsersByUid:
-      "bfilter:add-usernames-to-follow-users-by-uid",
+    addUsernamesToFollowedUserUids:
+      "bfilter:add-usernames-to-followed-user-uids",
   };
 
-  const USER_BUTTON_ID = "bfilter-user-button";
+  const BLOCK_BUTTON_ID = "bfilter-block-button";
   const FOLLOW_BUTTON_ID = "bfilter-follow-button";
   const MANAGER_BUTTON_ID = "bfilter-manager-button";
   const STYLE_ID = "bfilter-style";
@@ -66,10 +66,10 @@
   const MANAGER_PANEL_ID = "bfilter-manager-panel";
   const SCRIPT_VERSION =
     typeof GM_info !== "undefined" && GM_info.script && GM_info.script.version;
-  const MANAGER_HIDE_USERS_BY_UID_TEXTAREA_ID =
-    "bfilter-manager-hide-users-by-uid-textarea";
-  const MANAGER_FOLLOW_USERS_BY_UID_TEXTAREA_ID =
-    "bfilter-manager-follow-users-by-uid-textarea";
+  const MANAGER_BLOCKED_USER_UIDS_TEXTAREA_ID =
+    "bfilter-manager-blocked-user-uids-textarea";
+  const MANAGER_FOLLOWED_USER_UIDS_TEXTAREA_ID =
+    "bfilter-manager-followed-user-uids-textarea";
   const MANAGER_HIDE_VIDEOS_BY_KEYWORD_TEXTAREA_ID =
     "bfilter-manager-hide-videos-by-keyword-textarea";
   const MANAGER_HIDE_COMMENTS_BY_KEYWORD_TEXTAREA_ID =
@@ -77,8 +77,9 @@
   const MANAGER_HIDE_DANMAKUS_BY_KEYWORD_TEXTAREA_ID =
     "bfilter-manager-hide-danmakus-by-keyword-textarea";
 
-  const COMMENT_BLOCK_BTN_CLASS = "bfilter-comment-block-button";
-  const BLOCK_ALL_COMMENTERS_BTN_CLASS = "bfilter-block-all-commenters-button";
+  const COMMENT_BLOCK_BUTTON_CLASS = "bfilter-comment-block-button";
+  const BLOCK_ALL_COMMENTERS_BUTTON_CLASS =
+    "bfilter-block-all-commenters-button";
 
   const MAX_ANCESTOR_STEPS = 8;
   const MAX_CARD_AREA_RATIO = 0.75;
@@ -334,16 +335,16 @@
       previewToggle: true,
     },
     {
-      name: "addUsernamesToFollowUsersByUid",
-      id: "bfilter-manager-add-usernames-to-follow-users-by-uid",
+      name: "addUsernamesToFollowedUserUids",
+      id: "bfilter-manager-add-usernames-to-followed-user-uids",
       label: "Add usernames by default",
       defaultValue: true,
-      followUsersByUidOption: true,
+      followedUserUidsOption: true,
     },
   ];
 
-  const HIDDEN_USER_UIDS = new Set();
-  const FOLLOW_USERS_BY_UID = new Set();
+  const BLOCKED_USER_UIDS = new Set();
+  const FOLLOWED_USER_UIDS = new Set();
   const HIDDEN_VIDEOS_BY_KEYWORD = new Set();
   const HIDDEN_COMMENTS_BY_KEYWORD = new Set();
   const HIDDEN_DANMAKUS_BY_KEYWORD = new Set();
@@ -360,7 +361,7 @@
     hideVideosByTypeManga: false,
     hideVideosByTypeCourse: false,
     hideVideosByTypeBangumi: false,
-    addUsernamesToFollowUsersByUid: true,
+    addUsernamesToFollowedUserUids: true,
     hideUsersByRegistrationTimeThreshold: DEFAULT_REGISTRATION_TIME_THRESHOLD,
     hideVideosByDurationThreshold: DEFAULT_VIDEO_DURATION_THRESHOLD,
     hideVideosByViewsThreshold: DEFAULT_VIDEO_VIEWS_THRESHOLD,
@@ -375,11 +376,11 @@
   boot();
 
   function boot() {
-    replaceRuntimeHiddenUserUids(
-      parseHideUsersByUidListText(readSavedHideUsersByUidListText()),
+    replaceRuntimeBlockedUserUids(
+      parseBlockedUserUidsListText(readSavedBlockedUserUidsListText()),
     );
-    replaceRuntimeFollowUsersByUid(
-      parseFollowUsersByUidListText(readSavedFollowUsersByUidListText()),
+    replaceRuntimeFollowedUserUids(
+      parseFollowedUserUidsListText(readSavedFollowedUserUidsListText()),
     );
     replaceRuntimeHiddenVideosByKeyword(
       parseHideVideosByKeywordListText(readSavedHideVideosByKeywordListText()),
@@ -410,7 +411,7 @@
     }
 
     setupStorageSync();
-    renderUserPageBlockButton();
+    renderUserPageActionButtons();
     renderBfilterManager();
 
     if (document.readyState === "loading") {
@@ -452,7 +453,7 @@
   }
 
   function refreshChromeAndScan() {
-    renderUserPageBlockButton();
+    renderUserPageActionButtons();
     renderBfilterManager();
     renderBlockAllCommentersButton();
     scheduleScan(document.documentElement, { force: true });
@@ -467,7 +468,7 @@
     };
   }
 
-  function isCardBlockingPage() {
+  function isContentScanningPage() {
     // Deliberately exclude space.bilibili.com from card/comment scanning.
     return !isUserPage() && isBfilterManagerPage();
   }
@@ -539,15 +540,15 @@
   function setupStorageSync() {
     if (typeof GM_addValueChangeListener === "function") {
       GM_addValueChangeListener(
-        HIDE_USERS_BY_UID_STORAGE_KEY,
+        BLOCKED_USER_UIDS_STORAGE_KEY,
         (_key, _oldValue, value, remote) => {
-          if (remote) syncHiddenUserUids(value);
+          if (remote) syncBlockedUserUids(value);
         },
       );
       GM_addValueChangeListener(
-        FOLLOW_USERS_BY_UID_STORAGE_KEY,
+        FOLLOWED_USER_UIDS_STORAGE_KEY,
         (_key, _oldValue, value, remote) => {
-          if (remote) syncFollowUsersByUid(value);
+          if (remote) syncFollowedUserUids(value);
         },
       );
       GM_addValueChangeListener(
@@ -588,10 +589,10 @@
     }
 
     window.addEventListener("storage", (event) => {
-      if (event.key === HIDE_USERS_BY_UID_STORAGE_KEY)
-        syncHiddenUserUids(event.newValue);
-      if (event.key === FOLLOW_USERS_BY_UID_STORAGE_KEY)
-        syncFollowUsersByUid(event.newValue);
+      if (event.key === BLOCKED_USER_UIDS_STORAGE_KEY)
+        syncBlockedUserUids(event.newValue);
+      if (event.key === FOLLOWED_USER_UIDS_STORAGE_KEY)
+        syncFollowedUserUids(event.newValue);
       if (event.key === HIDE_VIDEOS_BY_KEYWORD_STORAGE_KEY)
         syncHiddenVideosByKeyword(event.newValue);
       if (event.key === HIDE_COMMENTS_BY_KEYWORD_STORAGE_KEY)
@@ -609,20 +610,22 @@
     });
   }
 
-  function syncHiddenUserUids(savedValue) {
-    replaceRuntimeHiddenUserUids(parseHideUsersByUidListText(savedValue || ""));
-    refreshConsequences();
-    refreshBfilterManagerPanel();
-    renderUserPageBlockButton();
-  }
-
-  function syncFollowUsersByUid(savedValue) {
-    replaceRuntimeFollowUsersByUid(
-      parseFollowUsersByUidListText(savedValue || ""),
+  function syncBlockedUserUids(savedValue) {
+    replaceRuntimeBlockedUserUids(
+      parseBlockedUserUidsListText(savedValue || ""),
     );
     refreshConsequences();
     refreshBfilterManagerPanel();
-    renderUserPageBlockButton();
+    renderUserPageActionButtons();
+  }
+
+  function syncFollowedUserUids(savedValue) {
+    replaceRuntimeFollowedUserUids(
+      parseFollowedUserUidsListText(savedValue || ""),
+    );
+    refreshConsequences();
+    refreshBfilterManagerPanel();
+    renderUserPageActionButtons();
   }
 
   function syncHiddenVideosByKeyword(savedValue) {
@@ -653,7 +656,7 @@
     settings[name] = parseBooleanSetting(savedValue, false);
     refreshConsequences();
     refreshBooleanControls();
-    renderUserPageBlockButton();
+    renderUserPageActionButtons();
   }
 
   function syncThresholdSetting(control, savedValue) {
@@ -661,27 +664,27 @@
     settings[setting] = parseLabelSetting(savedValue, defaultValue, options);
     refreshConsequences();
     refreshThresholdControls();
-    renderUserPageBlockButton();
+    renderUserPageActionButtons();
   }
 
-  function readSavedHideUsersByUidListText() {
+  function readSavedBlockedUserUidsListText() {
     try {
       const saved =
         typeof GM_getValue === "function"
-          ? GM_getValue(HIDE_USERS_BY_UID_STORAGE_KEY, null)
-          : localStorage.getItem(HIDE_USERS_BY_UID_STORAGE_KEY);
+          ? GM_getValue(BLOCKED_USER_UIDS_STORAGE_KEY, null)
+          : localStorage.getItem(BLOCKED_USER_UIDS_STORAGE_KEY);
       return String(saved || "");
     } catch (_error) {
       return "";
     }
   }
 
-  function readSavedFollowUsersByUidListText() {
+  function readSavedFollowedUserUidsListText() {
     try {
       const saved =
         typeof GM_getValue === "function"
-          ? GM_getValue(FOLLOW_USERS_BY_UID_STORAGE_KEY, null)
-          : localStorage.getItem(FOLLOW_USERS_BY_UID_STORAGE_KEY);
+          ? GM_getValue(FOLLOWED_USER_UIDS_STORAGE_KEY, null)
+          : localStorage.getItem(FOLLOWED_USER_UIDS_STORAGE_KEY);
       return String(saved || "");
     } catch (_error) {
       return "";
@@ -785,21 +788,21 @@
     }
   }
 
-  function replaceRuntimeHiddenUserUids(nextUids) {
+  function replaceRuntimeBlockedUserUids(nextUids) {
     const next = new Set(nextUids.map(normalizeUid).filter(Boolean));
-    for (const uid of [...HIDDEN_USER_UIDS]) {
+    for (const uid of [...BLOCKED_USER_UIDS]) {
       if (!next.has(uid)) {
-        HIDDEN_USER_UIDS.delete(uid);
-        unhideCardsForUid(uid);
+        BLOCKED_USER_UIDS.delete(uid);
+        clearConsequencesForUid(uid);
       }
     }
-    for (const uid of next) HIDDEN_USER_UIDS.add(uid);
+    for (const uid of next) BLOCKED_USER_UIDS.add(uid);
   }
 
-  function replaceRuntimeFollowUsersByUid(nextUids) {
-    FOLLOW_USERS_BY_UID.clear();
+  function replaceRuntimeFollowedUserUids(nextUids) {
+    FOLLOWED_USER_UIDS.clear();
     for (const uid of nextUids.map(normalizeUid).filter(Boolean))
-      FOLLOW_USERS_BY_UID.add(uid);
+      FOLLOWED_USER_UIDS.add(uid);
   }
 
   function replaceRuntimeHiddenVideosByKeyword(nextKeywords) {
@@ -823,27 +826,27 @@
     }
   }
 
-  function saveHideUsersByUidListText(textValue) {
+  function saveBlockedUserUidsListText(textValue) {
     try {
       const value =
-        textValue == null ? getHideUsersByUidList().join("\n") : textValue;
+        textValue == null ? getBlockedUserUidsList().join("\n") : textValue;
       if (typeof GM_setValue === "function")
-        GM_setValue(HIDE_USERS_BY_UID_STORAGE_KEY, value);
-      else localStorage.setItem(HIDE_USERS_BY_UID_STORAGE_KEY, value);
+        GM_setValue(BLOCKED_USER_UIDS_STORAGE_KEY, value);
+      else localStorage.setItem(BLOCKED_USER_UIDS_STORAGE_KEY, value);
     } catch (_error) {
-      // Keep runtime blocklist even if persistence fails.
+      // Keep the runtime blocked user list even if persistence fails.
     }
   }
 
-  function saveFollowUsersByUidListText(textValue) {
+  function saveFollowedUserUidsListText(textValue) {
     try {
       const value =
-        textValue == null ? getFollowUsersByUidList().join("\n") : textValue;
+        textValue == null ? getFollowedUserUidsList().join("\n") : textValue;
       if (typeof GM_setValue === "function")
-        GM_setValue(FOLLOW_USERS_BY_UID_STORAGE_KEY, value);
-      else localStorage.setItem(FOLLOW_USERS_BY_UID_STORAGE_KEY, value);
+        GM_setValue(FOLLOWED_USER_UIDS_STORAGE_KEY, value);
+      else localStorage.setItem(FOLLOWED_USER_UIDS_STORAGE_KEY, value);
     } catch (_error) {
-      // Keep runtime follow users by UID list even if persistence fails.
+      // Keep the runtime followed user list even if persistence fails.
     }
   }
 
@@ -891,7 +894,7 @@
     settings[name] = Boolean(value);
     saveBooleanSetting(SETTING_KEYS[name], settings[name]);
     refreshConsequences();
-    renderUserPageBlockButton();
+    renderUserPageActionButtons();
   }
 
   function setVideoTypes(selectedOptions) {
@@ -914,27 +917,27 @@
     settings[setting] = option.label;
     saveLabelSetting(key, settings[setting]);
     refreshConsequences();
-    renderUserPageBlockButton();
+    renderUserPageActionButtons();
   }
 
-  function getHideUsersByUidList() {
-    return [...HIDDEN_USER_UIDS];
+  function getBlockedUserUidsList() {
+    return [...BLOCKED_USER_UIDS];
   }
 
-  function getFollowUsersByUidList() {
-    return [...FOLLOW_USERS_BY_UID];
+  function getFollowedUserUidsList() {
+    return [...FOLLOWED_USER_UIDS];
   }
 
-  function getHideUsersByUidListTextValue() {
+  function getBlockedUserUidsListTextValue() {
     return (
-      readSavedHideUsersByUidListText() || getHideUsersByUidList().join("\n")
+      readSavedBlockedUserUidsListText() || getBlockedUserUidsList().join("\n")
     );
   }
 
-  function getFollowUsersByUidListTextValue() {
+  function getFollowedUserUidsListTextValue() {
     return (
-      readSavedFollowUsersByUidListText() ||
-      getFollowUsersByUidList().join("\n")
+      readSavedFollowedUserUidsListText() ||
+      getFollowedUserUidsList().join("\n")
     );
   }
 
@@ -971,7 +974,7 @@
     );
   }
 
-  function parseHideUsersByUidListText(text) {
+  function parseBlockedUserUidsListText(text) {
     return [
       ...new Set(
         text
@@ -983,8 +986,8 @@
     ];
   }
 
-  function parseFollowUsersByUidListText(text) {
-    return parseHideUsersByUidListText(text);
+  function parseFollowedUserUidsListText(text) {
+    return parseBlockedUserUidsListText(text);
   }
 
   function parseKeywordListText(text) {
@@ -995,19 +998,14 @@
     );
   }
 
-  function updateFollowUsersByUidText(
-    text,
-    uid,
-    followUsersByUid,
-    username = "",
-  ) {
+  function updateFollowedUserUidsText(text, uid, shouldFollow, username = "") {
     const normalizedUid = normalizeUid(uid);
     if (!normalizedUid) return text || "";
     const lines = String(text || "").split(/\r?\n/);
     const nextLines = lines.filter(
       (line) => normalizeUid(stripLineComment(line)) !== normalizedUid,
     );
-    if (followUsersByUid) {
+    if (shouldFollow) {
       const name = String(username || "").trim();
       nextLines.push(name ? `${normalizedUid} # ${name}` : normalizedUid);
     }
@@ -1053,7 +1051,7 @@
     return BOOLEAN_CONTROLS.filter((control) => control.threshold);
   }
 
-  function getThresholdControlBySlider(element) {
+  function getThresholdControlBySelect(element) {
     return getThresholdControls().find(
       (control) => element && element.id === control.threshold.id,
     );
@@ -1069,7 +1067,7 @@
   }
 
   function scheduleScan(root, options = {}) {
-    if (!isCardBlockingPage() || !isElement(root)) return;
+    if (!isContentScanningPage() || !isElement(root)) return;
     pendingRoots.add(root);
     if (options.force) pendingRoots.add(document.documentElement);
     if (scheduled) return;
@@ -1084,13 +1082,13 @@
   }
 
   function scan(root) {
-    if (!isCardBlockingPage() || !isElement(root)) return;
+    if (!isContentScanningPage() || !isElement(root)) return;
 
     for (const candidate of collectCandidates(root)) {
       const comment = resolveCommentItem(candidate);
       if (comment) {
-        if (followUsersByUidCommentAuthorReason(comment)) {
-          applyFollowUsersByUid(comment);
+        if (followedCommentAuthorUidReason(comment)) {
+          applyFollowedUserUids(comment);
           continue;
         }
         const reason = evaluateComment(comment);
@@ -1109,14 +1107,14 @@
       const card = resolveVideoCard(candidate);
       if (!card) continue;
 
-      const followUsersByUid = followUsersByUidReason(card);
-      if (followUsersByUid) {
+      const followedUserUid = followedUserUidReason(card);
+      if (followedUserUid) {
         const target = resolveConsequenceTarget(card, {
-          type: "hide-users-by-uid",
-          uid: followUsersByUid,
+          type: "followed-user-uids",
+          uid: followedUserUid,
         });
-        if (isValidConsequenceTarget(target, card, { uid: followUsersByUid }))
-          applyFollowUsersByUid(target);
+        if (isValidConsequenceTarget(target, card, { uid: followedUserUid }))
+          applyFollowedUserUids(target);
         continue;
       }
 
@@ -1324,7 +1322,7 @@
 
   function evaluateCard(card) {
     return (
-      hiddenUserUidReason(card) ||
+      blockedUserUidReason(card) ||
       hiddenVideosByKeywordReason(card) ||
       registrationTimeReason(card) ||
       videoDurationReason(card) ||
@@ -1335,7 +1333,7 @@
 
   function evaluateComment(comment) {
     return (
-      hiddenCommentAuthorUidReason(comment) ||
+      blockedCommentAuthorUidReason(comment) ||
       hiddenCommentsByKeywordReason(comment) ||
       mentionsOnlyCommentReason(comment) ||
       imageCommentReason(comment) ||
@@ -1351,30 +1349,30 @@
       : null;
   }
 
-  function followUsersByUidReason(card) {
+  function followedUserUidReason(card) {
     return getUploaderUidsInside(card).find((uid) =>
-      FOLLOW_USERS_BY_UID.has(uid),
+      FOLLOWED_USER_UIDS.has(uid),
     );
   }
 
-  function followUsersByUidCommentAuthorReason(comment) {
+  function followedCommentAuthorUidReason(comment) {
     return getCommentAuthorUidsInside(comment).find((uid) =>
-      FOLLOW_USERS_BY_UID.has(uid),
+      FOLLOWED_USER_UIDS.has(uid),
     );
   }
 
-  function hiddenUserUidReason(card) {
+  function blockedUserUidReason(card) {
     const uid = getUploaderUidsInside(card).find((value) =>
-      HIDDEN_USER_UIDS.has(value),
+      BLOCKED_USER_UIDS.has(value),
     );
-    return uid ? { type: "hide-users-by-uid", uid } : null;
+    return uid ? { type: "blocked-user-uids", uid } : null;
   }
 
-  function hiddenCommentAuthorUidReason(comment) {
+  function blockedCommentAuthorUidReason(comment) {
     const uid = getCommentAuthorUidsInside(comment).find((value) =>
-      HIDDEN_USER_UIDS.has(value),
+      BLOCKED_USER_UIDS.has(value),
     );
-    return uid ? { type: "hide-users-by-uid", uid } : null;
+    return uid ? { type: "blocked-user-uids", uid } : null;
   }
 
   function registrationTimeReason(card) {
@@ -1772,7 +1770,7 @@
   }
 
   function applyConsequence(target, reason) {
-    target.removeAttribute(FOLLOW_USERS_BY_UID_ATTR);
+    target.removeAttribute(FOLLOWED_USER_UID_ATTR);
     clearNestedConsequences(target);
     target.removeAttribute(settings.previewMode ? HIDDEN_ATTR : PREVIEW_ATTR);
 
@@ -1789,15 +1787,15 @@
     target.setAttribute(HIDDEN_UID_ATTR, reason.uid || "");
   }
 
-  function applyFollowUsersByUid(target) {
+  function applyFollowedUserUids(target) {
     clearNestedConsequences(target);
     clearConsequence(target);
-    target.setAttribute(FOLLOW_USERS_BY_UID_ATTR, "true");
+    target.setAttribute(FOLLOWED_USER_UID_ATTR, "true");
   }
 
   function refreshConsequences() {
     for (const element of document.querySelectorAll(
-      `[${HIDDEN_ATTR}], [${PREVIEW_ATTR}], [${FOLLOW_USERS_BY_UID_ATTR}]`,
+      `[${HIDDEN_ATTR}], [${PREVIEW_ATTR}], [${FOLLOWED_USER_UID_ATTR}]`,
     )) {
       clearConsequence(element);
     }
@@ -1806,7 +1804,7 @@
 
   function clearNestedConsequences(target) {
     for (const nested of target.querySelectorAll(
-      `[${HIDDEN_ATTR}], [${PREVIEW_ATTR}], [${FOLLOW_USERS_BY_UID_ATTR}]`,
+      `[${HIDDEN_ATTR}], [${PREVIEW_ATTR}], [${FOLLOWED_USER_UID_ATTR}]`,
     )) {
       clearConsequence(nested);
     }
@@ -1815,11 +1813,11 @@
   function clearConsequence(element) {
     element.removeAttribute(HIDDEN_ATTR);
     element.removeAttribute(PREVIEW_ATTR);
-    element.removeAttribute(FOLLOW_USERS_BY_UID_ATTR);
+    element.removeAttribute(FOLLOWED_USER_UID_ATTR);
     element.removeAttribute(HIDDEN_UID_ATTR);
   }
 
-  function unhideCardsForUid(uid) {
+  function clearConsequencesForUid(uid) {
     for (const element of document.querySelectorAll(
       `[${HIDDEN_UID_ATTR}="${uid}"]`,
     )) {
@@ -1940,28 +1938,28 @@
       </div>
       <section class="bfilter-manager-section">
         <div class="bfilter-manager-tabs" role="tablist">
-          <button class="bfilter-manager-tab" type="button" role="tab" aria-selected="${String(activeTab === "hide-users-by-uid")}" data-tab="hide-users-by-uid">Users</button>
-          <button class="bfilter-manager-tab" type="button" role="tab" aria-selected="${String(activeTab === "follow-users-by-uid")}" data-tab="follow-users-by-uid">Following</button>
+          <button class="bfilter-manager-tab" type="button" role="tab" aria-selected="${String(activeTab === "blocked-user-uids")}" data-tab="blocked-user-uids">Users</button>
+          <button class="bfilter-manager-tab" type="button" role="tab" aria-selected="${String(activeTab === "followed-user-uids")}" data-tab="followed-user-uids">Following</button>
           <button class="bfilter-manager-tab" type="button" role="tab" aria-selected="${String(activeTab === "hide-videos-by-keyword")}" data-tab="hide-videos-by-keyword">Videos</button>
           <button class="bfilter-manager-tab" type="button" role="tab" aria-selected="${String(activeTab === "hide-comments-by-keyword")}" data-tab="hide-comments-by-keyword">Comments</button>
           <button class="bfilter-manager-tab" type="button" role="tab" aria-selected="${String(activeTab === "hide-danmakus-by-keyword")}" data-tab="hide-danmakus-by-keyword">Danmakus</button>
           <button class="bfilter-manager-tab" type="button" role="tab" aria-selected="${String(activeTab === "settings")}" data-tab="settings">Settings</button>
         </div>
-        <div class="bfilter-manager-tab-panel" role="tabpanel" data-tab-panel="hide-users-by-uid" ${activeTab === "hide-users-by-uid" ? "" : "hidden"}>
+        <div class="bfilter-manager-tab-panel" role="tabpanel" data-tab-panel="blocked-user-uids" ${activeTab === "blocked-user-uids" ? "" : "hidden"}>
           ${BOOLEAN_CONTROLS.filter(
             (control) => control.name === "hideUsersByRegistrationTime",
           )
             .map(renderManagerOption)
             .join("")}
-          ${renderManagerTextarea(MANAGER_HIDE_USERS_BY_UID_TEXTAREA_ID)}
-          <div class="bfilter-manager-help" data-help="hide-users-by-uid"></div>
+          ${renderManagerTextarea(MANAGER_BLOCKED_USER_UIDS_TEXTAREA_ID)}
+          <div class="bfilter-manager-help" data-help="blocked-user-uids"></div>
         </div>
-        <div class="bfilter-manager-tab-panel" role="tabpanel" data-tab-panel="follow-users-by-uid" ${activeTab === "follow-users-by-uid" ? "" : "hidden"}>
-          ${BOOLEAN_CONTROLS.filter((control) => control.followUsersByUidOption)
+        <div class="bfilter-manager-tab-panel" role="tabpanel" data-tab-panel="followed-user-uids" ${activeTab === "followed-user-uids" ? "" : "hidden"}>
+          ${BOOLEAN_CONTROLS.filter((control) => control.followedUserUidsOption)
             .map(renderManagerOption)
             .join("")}
-          ${renderManagerTextarea(MANAGER_FOLLOW_USERS_BY_UID_TEXTAREA_ID)}
-          <div class="bfilter-manager-help" data-help="follow-users-by-uid"></div>
+          ${renderManagerTextarea(MANAGER_FOLLOWED_USER_UIDS_TEXTAREA_ID)}
+          <div class="bfilter-manager-help" data-help="followed-user-uids"></div>
         </div>
         <div class="bfilter-manager-tab-panel" role="tabpanel" data-tab-panel="hide-videos-by-keyword" ${activeTab === "hide-videos-by-keyword" ? "" : "hidden"}>
           ${BOOLEAN_CONTROLS.filter((control) =>
@@ -2004,7 +2002,7 @@
             <span>Preview</span>
           </label>
           <div class="bfilter-manager-action-buttons">
-            <button class="bfilter-manager-action bfilter-manager-action-primary" type="button" data-action="go-follow-users-by-uid" title="Open selected user space" hidden>Go</button>
+            <button class="bfilter-manager-action bfilter-manager-action-primary" type="button" data-action="go-followed-user-uids" title="Open selected user space" hidden>Go</button>
             <button class="bfilter-manager-action bfilter-manager-action-primary" type="button" data-action="sort" title="Sort all Manager lists">Sort</button>
             <button class="bfilter-manager-action bfilter-manager-action-primary" type="button" data-action="save" disabled>Save</button>
           </div>
@@ -2020,8 +2018,8 @@
       if (target.matches(".bfilter-manager-tab[data-tab]")) {
         setActiveManagerTab(panel, target.getAttribute("data-tab"));
       }
-      if (target.getAttribute("data-action") === "go-follow-users-by-uid") {
-        openSelectedFollowUsersByUidDynamic(panel);
+      if (target.getAttribute("data-action") === "go-followed-user-uids") {
+        openSelectedFollowedUserUidsDynamic(panel);
       }
       if (target.getAttribute("data-action") === "sort") {
         if (
@@ -2047,8 +2045,8 @@
       const target = event.target;
       if (
         target &&
-        (target.id === MANAGER_HIDE_USERS_BY_UID_TEXTAREA_ID ||
-          target.id === MANAGER_FOLLOW_USERS_BY_UID_TEXTAREA_ID ||
+        (target.id === MANAGER_BLOCKED_USER_UIDS_TEXTAREA_ID ||
+          target.id === MANAGER_FOLLOWED_USER_UIDS_TEXTAREA_ID ||
           target.id === MANAGER_HIDE_VIDEOS_BY_KEYWORD_TEXTAREA_ID ||
           target.id === MANAGER_HIDE_COMMENTS_BY_KEYWORD_TEXTAREA_ID ||
           target.id === MANAGER_HIDE_DANMAKUS_BY_KEYWORD_TEXTAREA_ID)
@@ -2062,7 +2060,7 @@
         importManagerDataFromInput(target, panel);
         return;
       }
-      const thresholdControl = getThresholdControlBySlider(target);
+      const thresholdControl = getThresholdControlBySelect(target);
       if (thresholdControl) {
         setThresholdIndex(thresholdControl, target.value);
         refreshThresholdControls(panel);
@@ -2123,10 +2121,10 @@
     textValues = {},
   ) {
     if (!panel) return;
-    const uids = getHideUsersByUidList();
-    const hideUsersByUidText = getHideUsersByUidListTextValue();
-    const followUsersByUidUids = getFollowUsersByUidList();
-    const followUsersByUidText = getFollowUsersByUidListTextValue();
+    const uids = getBlockedUserUidsList();
+    const blockedUserUidsText = getBlockedUserUidsListTextValue();
+    const followedUserUids = getFollowedUserUidsList();
+    const followedUserUidsText = getFollowedUserUidsListTextValue();
     const hideVideosByKeyword = getHideVideosByKeywordList();
     const videoKeywordText = getHideVideosByKeywordListTextValue();
     const hideCommentsByKeyword = getHideCommentsByKeywordList();
@@ -2134,10 +2132,10 @@
     const hideDanmakusByKeyword = getHideDanmakusByKeywordList();
     const danmakuKeywordText = getHideDanmakusByKeywordListTextValue();
     const textarea = panel.querySelector(
-      `#${MANAGER_HIDE_USERS_BY_UID_TEXTAREA_ID}`,
+      `#${MANAGER_BLOCKED_USER_UIDS_TEXTAREA_ID}`,
     );
-    const followUsersByUidTextarea = panel.querySelector(
-      `#${MANAGER_FOLLOW_USERS_BY_UID_TEXTAREA_ID}`,
+    const followedUserUidsTextarea = panel.querySelector(
+      `#${MANAGER_FOLLOWED_USER_UIDS_TEXTAREA_ID}`,
     );
     const hideVideosByKeywordTextarea = panel.querySelector(
       `#${MANAGER_HIDE_VIDEOS_BY_KEYWORD_TEXTAREA_ID}`,
@@ -2145,9 +2143,9 @@
     const hideCommentsByKeywordTextarea = panel.querySelector(
       `#${MANAGER_HIDE_COMMENTS_BY_KEYWORD_TEXTAREA_ID}`,
     );
-    const help = panel.querySelector('[data-help="hide-users-by-uid"]');
-    const followUsersByUidHelp = panel.querySelector(
-      '[data-help="follow-users-by-uid"]',
+    const help = panel.querySelector('[data-help="blocked-user-uids"]');
+    const followedUserUidsHelp = panel.querySelector(
+      '[data-help="followed-user-uids"]',
     );
     const hideVideosByKeywordHelp = panel.querySelector(
       '[data-help="hide-videos-by-keyword"]',
@@ -2164,19 +2162,19 @@
     if (textarea) {
       textarea.value = getManagerTextValue(
         textValues,
-        "hideUsersByUid",
-        hideUsersByUidText,
+        "blockedUserUids",
+        blockedUserUidsText,
       );
       textarea.dataset.cleanValue = textarea.value;
     }
-    if (followUsersByUidTextarea) {
-      followUsersByUidTextarea.value = getManagerTextValue(
+    if (followedUserUidsTextarea) {
+      followedUserUidsTextarea.value = getManagerTextValue(
         textValues,
-        "followUsersByUid",
-        followUsersByUidText,
+        "followedUserUids",
+        followedUserUidsText,
       );
-      followUsersByUidTextarea.dataset.cleanValue =
-        followUsersByUidTextarea.value;
+      followedUserUidsTextarea.dataset.cleanValue =
+        followedUserUidsTextarea.value;
     }
     if (hideVideosByKeywordTextarea) {
       hideVideosByKeywordTextarea.value = getManagerTextValue(
@@ -2207,14 +2205,14 @@
     }
     if (help)
       help.innerHTML = `<strong>${uids.length}</strong> user(s) have been blocked.\nEnter one UID per line to block users.`;
-    if (followUsersByUidHelp)
-      followUsersByUidHelp.innerHTML = `<strong>${followUsersByUidUids.length}</strong> user(s) are followed.\nEnter one UID per line to highlight users.`;
+    if (followedUserUidsHelp)
+      followedUserUidsHelp.innerHTML = `<strong>${followedUserUids.length}</strong> user(s) are followed.\nEnter one UID per line to highlight users.`;
     if (hideVideosByKeywordHelp)
-      hideVideosByKeywordHelp.innerHTML = `<strong>${hideVideosByKeyword.length}</strong> keyword(s) have been blocked.\nEnter one keyword per line to block videos containing it in their titles.`;
+      hideVideosByKeywordHelp.innerHTML = `<strong>${hideVideosByKeyword.length}</strong> keyword(s) have been blocked.\nEnter one keyword per line to hide videos containing it in their titles.`;
     if (hideCommentsByKeywordHelp)
-      hideCommentsByKeywordHelp.innerHTML = `<strong>${hideCommentsByKeyword.length}</strong> keyword(s) have been blocked.\nEnter one keyword per line to block comments containing it.`;
+      hideCommentsByKeywordHelp.innerHTML = `<strong>${hideCommentsByKeyword.length}</strong> keyword(s) have been blocked.\nEnter one keyword per line to hide comments containing it.`;
     if (hideDanmakusByKeywordHelp)
-      hideDanmakusByKeywordHelp.innerHTML = `<strong>${hideDanmakusByKeyword.length}</strong> keyword(s) have been blocked.\nEnter one keyword per line to block danmakus containing it.`;
+      hideDanmakusByKeywordHelp.innerHTML = `<strong>${hideDanmakusByKeyword.length}</strong> keyword(s) have been blocked.\nEnter one keyword per line to hide danmakus containing it.`;
     refreshBooleanControls(panel);
     refreshManagerGoButton(panel);
     updateManagerSaveButtonState(panel);
@@ -2246,26 +2244,26 @@
 
   function getValidManagerTabName(tabName) {
     return [
-      "hide-users-by-uid",
+      "blocked-user-uids",
       "hide-videos-by-keyword",
       "hide-comments-by-keyword",
       "hide-danmakus-by-keyword",
-      "follow-users-by-uid",
+      "followed-user-uids",
       "settings",
     ].includes(tabName)
       ? tabName
-      : "hide-users-by-uid";
+      : "blocked-user-uids";
   }
 
   function readActiveManagerTabName() {
     try {
       const saved =
         typeof GM_getValue === "function"
-          ? GM_getValue(ACTIVE_MANAGER_TAB_STORAGE_KEY, "hide-users-by-uid")
+          ? GM_getValue(ACTIVE_MANAGER_TAB_STORAGE_KEY, "blocked-user-uids")
           : localStorage.getItem(ACTIVE_MANAGER_TAB_STORAGE_KEY);
       return getValidManagerTabName(saved);
     } catch (_error) {
-      return "hide-users-by-uid";
+      return "blocked-user-uids";
     }
   }
 
@@ -2313,8 +2311,8 @@
       version: SCRIPT_VERSION || "",
       exportedAt: new Date().toISOString(),
       lists: {
-        hideUsersByUid: readSavedHideUsersByUidListText(),
-        followUsersByUid: readSavedFollowUsersByUidListText(),
+        blockedUserUids: readSavedBlockedUserUidsListText(),
+        followedUserUids: readSavedFollowedUserUidsListText(),
         hideVideosByKeyword: readSavedHideVideosByKeywordListText(),
         hideCommentsByKeyword: readSavedHideCommentsByKeywordListText(),
         hideDanmakusByKeyword: readSavedHideDanmakusByKeywordListText(),
@@ -2360,15 +2358,17 @@
     if (!importedSettings || typeof importedSettings !== "object")
       throw new Error("Invalid settings");
 
-    const hideUsersByUid = String(lists.hideUsersByUid || "");
-    const followUsersByUid = String(lists.followUsersByUid || "");
+    const blockedUserUids = String(lists.blockedUserUids || "");
+    const followedUserUidsText = String(lists.followedUserUids || "");
     const hideVideosByKeyword = String(lists.hideVideosByKeyword || "");
     const hideCommentsByKeyword = String(lists.hideCommentsByKeyword || "");
     const hideDanmakusByKeyword = String(lists.hideDanmakusByKeyword || "");
 
-    replaceRuntimeHiddenUserUids(parseHideUsersByUidListText(hideUsersByUid));
-    replaceRuntimeFollowUsersByUid(
-      parseFollowUsersByUidListText(followUsersByUid),
+    replaceRuntimeBlockedUserUids(
+      parseBlockedUserUidsListText(blockedUserUids),
+    );
+    replaceRuntimeFollowedUserUids(
+      parseFollowedUserUidsListText(followedUserUidsText),
     );
     replaceRuntimeHiddenVideosByKeyword(
       parseHideVideosByKeywordListText(hideVideosByKeyword),
@@ -2379,8 +2379,8 @@
     replaceRuntimeHiddenDanmakusByKeyword(
       parseHideDanmakusByKeywordListText(hideDanmakusByKeyword),
     );
-    saveHideUsersByUidListText(hideUsersByUid);
-    saveFollowUsersByUidListText(followUsersByUid);
+    saveBlockedUserUidsListText(blockedUserUids);
+    saveFollowedUserUidsListText(followedUserUidsText);
     saveHideVideosByKeywordListText(hideVideosByKeyword);
     saveHideCommentsByKeywordListText(hideCommentsByKeyword);
     saveHideDanmakusByKeywordListText(hideDanmakusByKeyword);
@@ -2404,22 +2404,22 @@
     }
 
     refreshConsequences();
-    renderUserPageBlockButton();
+    renderUserPageActionButtons();
   }
 
   function refreshManagerGoButton(panel) {
     const goButton = panel.querySelector(
-      '[data-action="go-follow-users-by-uid"]',
+      '[data-action="go-followed-user-uids"]',
     );
     if (!goButton) return;
-    goButton.hidden = getActiveManagerTabName(panel) !== "follow-users-by-uid";
+    goButton.hidden = getActiveManagerTabName(panel) !== "followed-user-uids";
   }
 
   function getActiveManagerTabName(panel) {
     const activeTab = panel.querySelector(
       '.bfilter-manager-tab[data-tab][aria-selected="true"]',
     );
-    return activeTab ? activeTab.getAttribute("data-tab") : "hide-users-by-uid";
+    return activeTab ? activeTab.getAttribute("data-tab") : "blocked-user-uids";
   }
 
   function getActiveManagerTextarea(panel) {
@@ -2427,11 +2427,11 @@
     return activePanel ? activePanel.querySelector("textarea") : null;
   }
 
-  function openSelectedFollowUsersByUidDynamic(panel) {
+  function openSelectedFollowedUserUidsDynamic(panel) {
     const textarea = panel.querySelector(
-      `#${MANAGER_FOLLOW_USERS_BY_UID_TEXTAREA_ID}`,
+      `#${MANAGER_FOLLOWED_USER_UIDS_TEXTAREA_ID}`,
     );
-    const uid = getSelectedFollowUsersByUid(textarea);
+    const uid = getSelectedFollowedUserUids(textarea);
     if (!uid) {
       alert(
         "1. Select one numeric UID in the Following list. Do not include spaces, comments, or multiple lines in the selection.\n2. Click Go to visit the user space.",
@@ -2441,7 +2441,7 @@
     window.open(`https://space.bilibili.com/${uid}/upload`, "_blank");
   }
 
-  function getSelectedFollowUsersByUid(textarea) {
+  function getSelectedFollowedUserUids(textarea) {
     if (!textarea) return "";
     const selectedText = textarea.value.slice(
       textarea.selectionStart,
@@ -2462,8 +2462,8 @@
 
   function getManagerTextareas(panel) {
     return [
-      MANAGER_HIDE_USERS_BY_UID_TEXTAREA_ID,
-      MANAGER_FOLLOW_USERS_BY_UID_TEXTAREA_ID,
+      MANAGER_BLOCKED_USER_UIDS_TEXTAREA_ID,
+      MANAGER_FOLLOWED_USER_UIDS_TEXTAREA_ID,
       MANAGER_HIDE_VIDEOS_BY_KEYWORD_TEXTAREA_ID,
       MANAGER_HIDE_COMMENTS_BY_KEYWORD_TEXTAREA_ID,
       MANAGER_HIDE_DANMAKUS_BY_KEYWORD_TEXTAREA_ID,
@@ -2498,10 +2498,10 @@
 
   function saveManagerTextareas(panel) {
     const textarea = panel.querySelector(
-      `#${MANAGER_HIDE_USERS_BY_UID_TEXTAREA_ID}`,
+      `#${MANAGER_BLOCKED_USER_UIDS_TEXTAREA_ID}`,
     );
-    const followUsersByUidTextarea = panel.querySelector(
-      `#${MANAGER_FOLLOW_USERS_BY_UID_TEXTAREA_ID}`,
+    const followedUserUidsTextarea = panel.querySelector(
+      `#${MANAGER_FOLLOWED_USER_UIDS_TEXTAREA_ID}`,
     );
     const hideVideosByKeywordTextarea = panel.querySelector(
       `#${MANAGER_HIDE_VIDEOS_BY_KEYWORD_TEXTAREA_ID}`,
@@ -2513,9 +2513,9 @@
       `#${MANAGER_HIDE_DANMAKUS_BY_KEYWORD_TEXTAREA_ID}`,
     );
     const textValues = {
-      hideUsersByUid: textarea ? textarea.value : "",
-      followUsersByUid: followUsersByUidTextarea
-        ? followUsersByUidTextarea.value
+      blockedUserUids: textarea ? textarea.value : "",
+      followedUserUids: followedUserUidsTextarea
+        ? followedUserUidsTextarea.value
         : "",
       hideVideosByKeyword: hideVideosByKeywordTextarea
         ? hideVideosByKeywordTextarea.value
@@ -2528,10 +2528,12 @@
         : "",
     };
     if (textarea)
-      replaceRuntimeHiddenUserUids(parseHideUsersByUidListText(textarea.value));
-    if (followUsersByUidTextarea)
-      replaceRuntimeFollowUsersByUid(
-        parseFollowUsersByUidListText(followUsersByUidTextarea.value),
+      replaceRuntimeBlockedUserUids(
+        parseBlockedUserUidsListText(textarea.value),
+      );
+    if (followedUserUidsTextarea)
+      replaceRuntimeFollowedUserUids(
+        parseFollowedUserUidsListText(followedUserUidsTextarea.value),
       );
     if (hideVideosByKeywordTextarea)
       replaceRuntimeHiddenVideosByKeyword(
@@ -2545,9 +2547,9 @@
       replaceRuntimeHiddenDanmakusByKeyword(
         parseHideDanmakusByKeywordListText(hideDanmakusByKeywordTextarea.value),
       );
-    saveHideUsersByUidListText(textarea ? textarea.value : undefined);
-    saveFollowUsersByUidListText(
-      followUsersByUidTextarea ? followUsersByUidTextarea.value : undefined,
+    saveBlockedUserUidsListText(textarea ? textarea.value : undefined);
+    saveFollowedUserUidsListText(
+      followedUserUidsTextarea ? followedUserUidsTextarea.value : undefined,
     );
     saveHideVideosByKeywordListText(
       hideVideosByKeywordTextarea
@@ -2606,10 +2608,10 @@
 
   function updateManagerSaveButtonState(panel) {
     const textarea = panel.querySelector(
-      `#${MANAGER_HIDE_USERS_BY_UID_TEXTAREA_ID}`,
+      `#${MANAGER_BLOCKED_USER_UIDS_TEXTAREA_ID}`,
     );
-    const followUsersByUidTextarea = panel.querySelector(
-      `#${MANAGER_FOLLOW_USERS_BY_UID_TEXTAREA_ID}`,
+    const followedUserUidsTextarea = panel.querySelector(
+      `#${MANAGER_FOLLOWED_USER_UIDS_TEXTAREA_ID}`,
     );
     const hideVideosByKeywordTextarea = panel.querySelector(
       `#${MANAGER_HIDE_VIDEOS_BY_KEYWORD_TEXTAREA_ID}`,
@@ -2624,7 +2626,7 @@
     if (saveButton)
       saveButton.disabled = ![
         textarea,
-        followUsersByUidTextarea,
+        followedUserUidsTextarea,
         hideVideosByKeywordTextarea,
         hideCommentsByKeywordTextarea,
         hideDanmakusByKeywordTextarea,
@@ -2634,39 +2636,39 @@
   }
 
   function setUidBlocked(uid, blocked) {
-    replaceRuntimeHiddenUserUids(
-      parseHideUsersByUidListText(readSavedHideUsersByUidListText()),
+    replaceRuntimeBlockedUserUids(
+      parseBlockedUserUidsListText(readSavedBlockedUserUidsListText()),
     );
-    if (blocked) HIDDEN_USER_UIDS.add(uid);
+    if (blocked) BLOCKED_USER_UIDS.add(uid);
     else {
-      HIDDEN_USER_UIDS.delete(uid);
-      unhideCardsForUid(uid);
+      BLOCKED_USER_UIDS.delete(uid);
+      clearConsequencesForUid(uid);
     }
-    saveHideUsersByUidListText();
+    saveBlockedUserUidsListText();
     refreshConsequences();
     refreshBfilterManagerPanel();
   }
 
-  function setUidFollowUsersByUid(uid, followUsersByUid, username = "") {
-    const followUsersByUidText = updateFollowUsersByUidText(
-      readSavedFollowUsersByUidListText(),
+  function setUidFollowedUserUids(uid, shouldFollow, username = "") {
+    const followedUserUidsText = updateFollowedUserUidsText(
+      readSavedFollowedUserUidsListText(),
       uid,
-      followUsersByUid,
-      settings.addUsernamesToFollowUsersByUid ? username : "",
+      shouldFollow,
+      settings.addUsernamesToFollowedUserUids ? username : "",
     );
-    replaceRuntimeFollowUsersByUid(
-      parseFollowUsersByUidListText(followUsersByUidText),
+    replaceRuntimeFollowedUserUids(
+      parseFollowedUserUidsListText(followedUserUidsText),
     );
-    if (followUsersByUid) FOLLOW_USERS_BY_UID.add(uid);
-    else FOLLOW_USERS_BY_UID.delete(uid);
-    saveFollowUsersByUidListText(followUsersByUidText);
+    if (shouldFollow) FOLLOWED_USER_UIDS.add(uid);
+    else FOLLOWED_USER_UIDS.delete(uid);
+    saveFollowedUserUidsListText(followedUserUidsText);
     refreshConsequences();
     refreshBfilterManagerPanel();
   }
 
-  function renderUserPageBlockButton() {
+  function renderUserPageActionButtons() {
     const uid = getCurrentUserPageUid();
-    let button = document.getElementById(USER_BUTTON_ID);
+    let button = document.getElementById(BLOCK_BUTTON_ID);
     let followButton = document.getElementById(FOLLOW_BUTTON_ID);
     if (!uid) {
       if (button) button.remove();
@@ -2682,34 +2684,34 @@
       followButton.addEventListener("click", () => {
         const currentUid = followButton.getAttribute("data-uid");
         if (!currentUid) return;
-        setUidFollowUsersByUid(
+        setUidFollowedUserUids(
           currentUid,
-          !FOLLOW_USERS_BY_UID.has(currentUid),
+          !FOLLOWED_USER_UIDS.has(currentUid),
           getCurrentUserPageUsername(),
         );
-        updateUserPageFollowUsersByUidButton(followButton, currentUid);
+        updateUserPageFollowedUserUidsButton(followButton, currentUid);
         if (button) updateUserPageBlockButton(button, currentUid);
       });
     }
 
     if (!button) {
       button = document.createElement("button");
-      button.id = USER_BUTTON_ID;
+      button.id = BLOCK_BUTTON_ID;
       button.className = PROFILE_BUTTON_CLASS;
       button.type = "button";
       button.addEventListener("click", () => {
         const currentUid = button.getAttribute("data-uid");
         if (!currentUid) return;
-        setUidBlocked(currentUid, !HIDDEN_USER_UIDS.has(currentUid));
+        setUidBlocked(currentUid, !BLOCKED_USER_UIDS.has(currentUid));
         updateUserPageBlockButton(button, currentUid);
       });
     }
-    updateUserPageFollowUsersByUidButton(followButton, uid);
+    updateUserPageFollowedUserUidsButton(followButton, uid);
     updateUserPageBlockButton(button, uid);
-    appendUserPageBlockButton(followButton, button);
+    appendUserPageActionButtons(followButton, button);
   }
 
-  function appendUserPageBlockButton(followButton, button) {
+  function appendUserPageActionButtons(followButton, button) {
     const statistics = document.querySelector(".nav-statistics");
     if (statistics) {
       statistics.insertAdjacentElement("beforebegin", followButton);
@@ -2720,44 +2722,44 @@
     }
   }
 
-  function updateUserPageFollowUsersByUidButton(button, uid) {
-    const followUsersByUid = FOLLOW_USERS_BY_UID.has(uid);
+  function updateUserPageFollowedUserUidsButton(button, uid) {
+    const isFollowed = FOLLOWED_USER_UIDS.has(uid);
     button.setAttribute("data-uid", uid);
-    button.setAttribute("data-follow-users-by-uid", String(followUsersByUid));
-    button.textContent = followUsersByUid ? "FOLLOWING" : "FOLLOW";
-    button.title = `${followUsersByUid ? "Unfollow" : "Follow"} Bilibili user UID ${uid}`;
+    button.setAttribute("data-followed-user-uid", String(isFollowed));
+    button.textContent = isFollowed ? "FOLLOWING" : "FOLLOW";
+    button.title = `${isFollowed ? "Unfollow" : "Follow"} Bilibili user UID ${uid}`;
   }
 
   function updateUserPageBlockButton(button, uid) {
-    const blocked = HIDDEN_USER_UIDS.has(uid);
-    const followUsersByUid = FOLLOW_USERS_BY_UID.has(uid);
+    const blocked = BLOCKED_USER_UIDS.has(uid);
+    const isFollowed = FOLLOWED_USER_UIDS.has(uid);
     const hiddenByRegistrationTimeFilter =
       !blocked &&
       settings.hideUsersByRegistrationTime &&
       matchesRegistrationTimeHeuristic(uid);
     button.setAttribute("data-uid", uid);
     button.setAttribute("data-blocked", String(blocked));
-    button.disabled = followUsersByUid;
+    button.disabled = isFollowed;
     button.textContent = blocked ? "BLOCKED" : "BLOCK";
     if (hiddenByRegistrationTimeFilter) {
       const hint = document.createElement("span");
       hint.textContent = "Already hidden by registration time";
       button.appendChild(hint);
     }
-    button.title = followUsersByUid
+    button.title = isFollowed
       ? `Followed Bilibili user UID ${uid} cannot be blocked here`
       : `${blocked ? "Unblock" : "Block"} Bilibili user UID ${uid}`;
   }
 
   function blockAllCommenters() {
-    replaceRuntimeHiddenUserUids(
-      parseHideUsersByUidListText(readSavedHideUsersByUidListText()),
+    replaceRuntimeBlockedUserUids(
+      parseBlockedUserUidsListText(readSavedBlockedUserUidsListText()),
     );
     for (const item of document.querySelectorAll(COMMENT_ITEM_SELECTOR)) {
       for (const uid of getCommentAuthorUidsInside(item))
-        HIDDEN_USER_UIDS.add(uid);
+        BLOCKED_USER_UIDS.add(uid);
     }
-    saveHideUsersByUidListText();
+    saveBlockedUserUidsListText();
     refreshConsequences();
     refreshBfilterManagerPanel();
   }
@@ -2772,21 +2774,21 @@
       const match = href && href.match(/space\.bilibili\.com\/(\d+)/i);
       if (!match) continue;
       const uid = match[1];
-      let btn = item.querySelector(`.${COMMENT_BLOCK_BTN_CLASS}`);
+      let btn = item.querySelector(`.${COMMENT_BLOCK_BUTTON_CLASS}`);
       if (!btn) {
         btn = document.createElement("button");
-        btn.className = COMMENT_BLOCK_BTN_CLASS;
+        btn.className = COMMENT_BLOCK_BUTTON_CLASS;
         btn.type = "button";
         btn.addEventListener("click", (e) => {
           e.stopPropagation();
           e.preventDefault();
           const currentUid = btn.dataset.uid;
           if (currentUid)
-            setUidBlocked(currentUid, !HIDDEN_USER_UIDS.has(currentUid));
+            setUidBlocked(currentUid, !BLOCKED_USER_UIDS.has(currentUid));
         });
         userLink.insertAdjacentElement("afterend", btn);
       }
-      const blocked = HIDDEN_USER_UIDS.has(uid);
+      const blocked = BLOCKED_USER_UIDS.has(uid);
       btn.textContent = blocked ? "Unblock" : "Block";
       btn.dataset.blocked = String(blocked);
       btn.dataset.uid = uid;
@@ -2796,7 +2798,7 @@
   function renderBlockAllCommentersButton() {
     if (!isOpusPage() && !isDirectVideoPage() && !isTPage()) {
       for (const btn of document.querySelectorAll(
-        `.${BLOCK_ALL_COMMENTERS_BTN_CLASS}`,
+        `.${BLOCK_ALL_COMMENTERS_BUTTON_CLASS}`,
       ))
         btn.remove();
       return;
@@ -2806,10 +2808,10 @@
     const navBar = document.querySelector(".reply-header .nav-bar");
     if (!navBar) return;
 
-    if (document.querySelector(`.${BLOCK_ALL_COMMENTERS_BTN_CLASS}`)) return;
+    if (document.querySelector(`.${BLOCK_ALL_COMMENTERS_BUTTON_CLASS}`)) return;
 
     const btn = document.createElement("button");
-    btn.className = BLOCK_ALL_COMMENTERS_BTN_CLASS;
+    btn.className = BLOCK_ALL_COMMENTERS_BUTTON_CLASS;
     btn.type = "button";
     btn.textContent = "Block All Commenters";
     btn.addEventListener("click", (event) => {
@@ -2831,9 +2833,9 @@
       :root {
         --bfilter-button-color: #e53935;
         --bfilter-button-hover-color: #f04f4b;
-        --bfilter-follow-color: #18a058;
-        --bfilter-follow-background-color: #d2f0dc;
-        --bfilter-follow-outline-color: rgba(24, 160, 88, 0.65);
+        --bfilter-followed-color: #18a058;
+        --bfilter-followed-background-color: #d2f0dc;
+        --bfilter-followed-outline-color: rgba(24, 160, 88, 0.65);
         --bfilter-button-muted-color: #e3e5e7;
         --bfilter-preview-background-color: #ffe8e8;
         --bfilter-preview-outline-color: rgba(229, 57, 53, 0.55);
@@ -2857,14 +2859,14 @@
       [${PREVIEW_ATTR}="true"] .bili-video-card__wrap[${PREVIEW_ATTR}="true"] {
         outline: none !important;
       }
-      [${FOLLOW_USERS_BY_UID_ATTR}="true"], [${FOLLOW_USERS_BY_UID_ATTR}="true"] .bili-video-card__wrap {
-        background-color: var(--bfilter-follow-background-color) !important;
+      [${FOLLOWED_USER_UID_ATTR}="true"], [${FOLLOWED_USER_UID_ATTR}="true"] .bili-video-card__wrap {
+        background-color: var(--bfilter-followed-background-color) !important;
       }
-      [${FOLLOW_USERS_BY_UID_ATTR}="true"] {
-        outline: 2px solid var(--bfilter-follow-outline-color) !important;
+      [${FOLLOWED_USER_UID_ATTR}="true"] {
+        outline: 2px solid var(--bfilter-followed-outline-color) !important;
         outline-offset: -2px;
       }
-      [${FOLLOW_USERS_BY_UID_ATTR}="true"] .bili-video-card__wrap[${FOLLOW_USERS_BY_UID_ATTR}="true"] {
+      [${FOLLOWED_USER_UID_ATTR}="true"] .bili-video-card__wrap[${FOLLOWED_USER_UID_ATTR}="true"] {
         outline: none !important;
       }
   `;
@@ -2901,8 +2903,8 @@
         color: #fff; background: var(--bfilter-button-color);
       }
       .${PROFILE_BUTTON_CLASS}[data-blocked="true"]:hover { background: var(--bfilter-button-hover-color); }
-      .${PROFILE_BUTTON_CLASS}[data-follow-users-by-uid] { color: var(--bfilter-follow-color); border-color: var(--bfilter-follow-color); }
-      .${PROFILE_BUTTON_CLASS}[data-follow-users-by-uid]:hover, .${PROFILE_BUTTON_CLASS}[data-follow-users-by-uid="true"] { color: #fff; background: var(--bfilter-follow-color); }
+      .${PROFILE_BUTTON_CLASS}[data-followed-user-uid] { color: var(--bfilter-followed-color); border-color: var(--bfilter-followed-color); }
+      .${PROFILE_BUTTON_CLASS}[data-followed-user-uid]:hover, .${PROFILE_BUTTON_CLASS}[data-followed-user-uid="true"] { color: #fff; background: var(--bfilter-followed-color); }
       .${PROFILE_BUTTON_CLASS}:disabled, .${PROFILE_BUTTON_CLASS}:disabled:hover {
         color: #9499a0; background: #f1f2f3; border-color: #c9ccd0; cursor: not-allowed;
         text-decoration: line-through;
@@ -2945,7 +2947,7 @@
       #${MANAGER_PANEL_ID} .bfilter-manager-tabs { display: flex; flex-direction: column; align-items: stretch; gap: 2px; border-right: 1px solid #e3e5e7; }
       #${MANAGER_PANEL_ID} .bfilter-manager-tab { position: relative; border: 1px solid transparent; border-right: 0; border-radius: 8px 0 0 8px; padding: 5px 9px; color: #61666d; background: transparent; font-size: 14px; text-align: left; cursor: pointer; }
       #${MANAGER_PANEL_ID} .bfilter-manager-tab[aria-selected="true"] { border-color: #e3e5e7; color: var(--bfilter-button-color); background: #fff; cursor: default; }
-      #${MANAGER_PANEL_ID} .bfilter-manager-tab[data-tab="follow-users-by-uid"][aria-selected="true"] { color: var(--bfilter-follow-color); }
+      #${MANAGER_PANEL_ID} .bfilter-manager-tab[data-tab="followed-user-uids"][aria-selected="true"] { color: var(--bfilter-followed-color); }
       #${MANAGER_PANEL_ID} .bfilter-manager-tab[aria-selected="true"]::after { content: ""; position: absolute; top: 0; right: -1px; bottom: 0; width: 1px; background: #fff; }
       #${MANAGER_PANEL_ID} .bfilter-manager-tab-panel { grid-column: 2; grid-row: 1; min-height: 290px; }
       #${MANAGER_PANEL_ID} .bfilter-manager-tab-panel[hidden] { display: none !important; }
@@ -2971,7 +2973,7 @@
 
   function getStyleCommentButtons() {
     return `
-      .${COMMENT_BLOCK_BTN_CLASS} {
+      .${COMMENT_BLOCK_BUTTON_CLASS} {
         display: inline-flex; align-items: center; justify-content: center;
         margin-left: 6px; padding: 0 6px; height: 18px;
         border: 1px solid var(--bfilter-button-color); border-radius: 4px;
@@ -2980,19 +2982,19 @@
         vertical-align: middle; font-family: inherit;
         transition: background .15s, color .15s;
       }
-      .${COMMENT_BLOCK_BTN_CLASS}:hover {
+      .${COMMENT_BLOCK_BUTTON_CLASS}:hover {
         color: #fff; background: var(--bfilter-button-color);
       }
-      .${COMMENT_BLOCK_BTN_CLASS}[data-blocked="true"] {
+      .${COMMENT_BLOCK_BUTTON_CLASS}[data-blocked="true"] {
         color: #fff; background: var(--bfilter-button-color);
       }
-      .${COMMENT_BLOCK_BTN_CLASS}[data-blocked="true"]:hover { background: var(--bfilter-button-hover-color); }
-      .${BLOCK_ALL_COMMENTERS_BTN_CLASS} {
+      .${COMMENT_BLOCK_BUTTON_CLASS}[data-blocked="true"]:hover { background: var(--bfilter-button-hover-color); }
+      .${BLOCK_ALL_COMMENTERS_BUTTON_CLASS} {
         margin-left: 12px; padding: 4px 10px; border: 1px solid var(--bfilter-button-color);
         border-radius: 6px; color: var(--bfilter-button-color); background: #fff;
         font-size: 12px; font-weight: 700; cursor: pointer; font-family: inherit;
       }
-      .${BLOCK_ALL_COMMENTERS_BTN_CLASS}:hover { color: #fff; background: var(--bfilter-button-color); }
+      .${BLOCK_ALL_COMMENTERS_BUTTON_CLASS}:hover { color: #fff; background: var(--bfilter-button-color); }
   `;
   }
 
