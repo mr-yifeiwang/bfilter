@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Bfilter
 // @namespace    https://github.com/mr-yifeiwang/bfilter
-// @version      0.26.0
+// @version      0.27.0
 // @description  Manage in-browser Bilibili blocked and followed user lists
 // @author       mr-yifeiwang
 // @icon         https://raw.githubusercontent.com/mr-yifeiwang/bfilter/master/assets/logo-128x128.png
@@ -2459,7 +2459,16 @@
           <div data-statistic="comments"><span aria-hidden="true">C</span><output aria-label="Comments statistics" aria-live="off" data-statistic-value>0 (0%)</output></div>
           <div data-statistic="danmakus"><span aria-hidden="true">D</span><output aria-label="Danmakus statistics" aria-live="off" data-statistic-value>0 (0%)</output></div>
         </div>
+        <button class="bfilter-statistics-overlay-close" type="button" data-action="close-statistics-overlay" aria-label="Close statistics overlay" title="Close statistics overlay">×</button>
       `;
+      overlay.addEventListener("click", (event) => {
+        const target = event.target;
+        if (
+          isElement(target) &&
+          target.matches('[data-action="close-statistics-overlay"]')
+        )
+          setShowStatisticsOutsideManager(false);
+      });
     }
     appendToPage(overlay);
     refreshStatisticsValues(overlay);
@@ -3237,10 +3246,13 @@
       #${MANAGER_PANEL_ID} .bfilter-manager-action:not(:disabled):active { transform: translateY(1px); }
       #${MANAGER_PANEL_ID} .bfilter-manager-action:disabled { color: #9499a0; background: var(--bfilter-button-muted-color); cursor: not-allowed; }
       #${MANAGER_PANEL_ID} .bfilter-manager-close { border: 0; border-radius: 50%; width: 28px; height: 28px; color: #61666d; background: #f1f2f3; font-size: 18px; line-height: 28px; cursor: pointer; }
-      #${STATISTICS_OVERLAY_ID} { position: fixed; top: 54px; right: 24px; z-index: 999998; width: max-content; max-width: calc(100vw - 48px); padding: 3px; border: 1px solid rgba(0,0,0,.08); border-radius: 12px; color: #18191c; background: rgba(255,255,255,.96); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; box-shadow: 0 10px 28px rgba(0,0,0,.18); }
+      #${STATISTICS_OVERLAY_ID} { position: fixed; top: 54px; right: 24px; z-index: 999998; display: inline-flex; align-items: center; gap: 3px; width: max-content; max-width: calc(100vw - 48px); padding: 3px; border: 1px solid rgba(0,0,0,.08); border-radius: 12px; color: #18191c; background: rgba(255,255,255,.96); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; box-shadow: 0 10px 28px rgba(0,0,0,.18); }
       #${STATISTICS_OVERLAY_ID} .bfilter-statistics-overlay-list { display: flex; flex-wrap: nowrap; gap: 1px; }
       #${STATISTICS_OVERLAY_ID} .bfilter-statistics-overlay-list > div { display: inline-flex; align-items: baseline; gap: 1px; min-width: 0; padding: 1px 1px; border-radius: 7px; background: #f6f7f8; color: #8f949a; font-size: 14px; font-weight: 400; line-height: 1; }
       #${STATISTICS_OVERLAY_ID} output { overflow: hidden; margin: 0; color: #4b4f55; font-size: 16px; font-weight: 400; text-overflow: ellipsis; white-space: nowrap; }
+      #${STATISTICS_OVERLAY_ID} .bfilter-statistics-overlay-close { width: 18px; height: 18px; flex: 0 0 18px; border: 0; border-radius: 50%; padding: 0; color: #61666d; background: #e3e5e7; font-size: 15px; font-weight: 400; line-height: 18px; cursor: pointer; transition: background .15s ease; }
+      #${STATISTICS_OVERLAY_ID} .bfilter-statistics-overlay-close:hover { background: #c9ccd0; }
+      #${STATISTICS_OVERLAY_ID} .bfilter-statistics-overlay-close:focus-visible { outline: 2px solid #18191c; outline-offset: 2px; }
       @media (max-width: 460px) {
         #${MANAGER_PANEL_ID} .bfilter-manager-statistics-list { grid-template-columns: 1fr; }
         #${MANAGER_PANEL_ID} .bfilter-manager-statistic { grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; }
