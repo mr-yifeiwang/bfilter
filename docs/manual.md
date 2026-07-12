@@ -212,6 +212,8 @@ The **Statistics** section appears on content-scanning pages and shows the curre
 
 The values update as Bilibili lazy-loads content. They reset and recount after navigation, a full refresh, or a filtering/settings change that rescans the page.
 
+Use the **Hide** / **Show** toggle beside the Statistics heading to control a compact bottom-right **Bfilter Statistics** overlay outside the Manager. The left, off position hides it; the right, on position shows it. It is hidden by default, remains visible after the Manager closes, and updates with the same lazy-loaded values. This display preference is saved and included in Manager imports and exports.
+
 Use the **Migration** section in this tab to import or export Bfilter data and settings.
 
 - **Import** opens a JSON file picker. After a file is selected, Bfilter shows a warning that the imported data will overwrite the existing data and settings. Confirming replaces all Manager lists and saved settings with the imported values.
@@ -439,6 +441,7 @@ Storage uses the canonical filter identifiers below.
 | Hide course videos                  | `bfilter:hide-videos-by-type-course`                 |
 | Hide bangumi videos                 | `bfilter:hide-videos-by-type-bangumi`                |
 | Add usernames to followed user UIDs | `bfilter:add-usernames-to-followed-user-uids`        |
+| Show statistics outside Manager     | `bfilter:show-statistics-outside-manager`            |
 | Active manager tab                  | `bfilter:active-manager-tab`                         |
 
 When `GM_addValueChangeListener` is available, Bfilter listens for remote changes to filter lists and settings and refreshes runtime state across userscript contexts. Otherwise, it listens for the browser `storage` event as a fallback. The active manager tab is not synchronized.

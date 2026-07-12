@@ -55,6 +55,7 @@
     hideVideosByTypeBangumi: "bfilter:hide-videos-by-type-bangumi",
     addUsernamesToFollowedUserUids:
       "bfilter:add-usernames-to-followed-user-uids",
+    showStatisticsOutsideManager: "bfilter:show-statistics-outside-manager",
   };
 
   const BLOCK_BUTTON_ID = "bfilter-block-button";
@@ -64,6 +65,7 @@
   const FLOATING_BUTTON_CLASS = "bfilter-floating-button";
   const PROFILE_BUTTON_CLASS = "bfilter-profile-button";
   const MANAGER_PANEL_ID = "bfilter-manager-panel";
+  const STATISTICS_OVERLAY_ID = "bfilter-statistics-overlay";
   const SCRIPT_VERSION =
     typeof GM_info !== "undefined" && GM_info.script && GM_info.script.version;
   const MANAGER_BLOCKED_USER_UIDS_TEXTAREA_ID =
@@ -362,6 +364,7 @@
     hideVideosByTypeCourse: false,
     hideVideosByTypeBangumi: false,
     addUsernamesToFollowedUserUids: true,
+    showStatisticsOutsideManager: false,
     hideUsersByRegistrationTimeThreshold: DEFAULT_REGISTRATION_TIME_THRESHOLD,
     hideVideosByDurationThreshold: DEFAULT_VIDEO_DURATION_THRESHOLD,
     hideVideosByViewsThreshold: DEFAULT_VIDEO_VIEWS_THRESHOLD,
@@ -411,6 +414,10 @@
         control.threshold.options,
       );
     }
+    settings.showStatisticsOutsideManager = readBooleanSetting(
+      SETTING_KEYS.showStatisticsOutsideManager,
+      false,
+    );
 
     setupStorageSync();
     renderUserPageActionButtons();
@@ -459,6 +466,7 @@
     resetScanQueue();
     renderUserPageActionButtons();
     renderBfilterManager();
+    renderStatisticsOverlay();
     renderBlockAllCommentersButton();
     scheduleScan(document.documentElement, { force: true });
   }
@@ -581,6 +589,12 @@
           },
         );
       }
+      GM_addValueChangeListener(
+        SETTING_KEYS.showStatisticsOutsideManager,
+        (_key, _oldValue, value, remote) => {
+          if (remote) syncShowStatisticsOutsideManager(value);
+        },
+      );
       for (const control of getThresholdControls()) {
         GM_addValueChangeListener(
           control.threshold.key,
@@ -607,6 +621,8 @@
         if (event.key === SETTING_KEYS[name])
           syncBooleanSetting(name, event.newValue);
       }
+      if (event.key === SETTING_KEYS.showStatisticsOutsideManager)
+        syncShowStatisticsOutsideManager(event.newValue);
       for (const control of getThresholdControls()) {
         if (event.key === control.threshold.key)
           syncThresholdSetting(control, event.newValue);
@@ -661,6 +677,15 @@
     refreshConsequences();
     refreshBooleanControls();
     renderUserPageActionButtons();
+  }
+
+  function syncShowStatisticsOutsideManager(savedValue) {
+    settings.showStatisticsOutsideManager = parseBooleanSetting(
+      savedValue,
+      false,
+    );
+    refreshStatisticsVisibilityControls();
+    renderStatisticsOverlay();
   }
 
   function syncThresholdSetting(control, savedValue) {
@@ -901,6 +926,16 @@
     renderUserPageActionButtons();
   }
 
+  function setShowStatisticsOutsideManager(value) {
+    settings.showStatisticsOutsideManager = Boolean(value);
+    saveBooleanSetting(
+      SETTING_KEYS.showStatisticsOutsideManager,
+      settings.showStatisticsOutsideManager,
+    );
+    refreshStatisticsVisibilityControls();
+    renderStatisticsOverlay();
+  }
+
   function setVideoType(selectedOptions) {
     const selected = new Set(
       [...selectedOptions].map((option) => option.value).filter(Boolean),
@@ -1072,7 +1107,7 @@
 
   function scheduleScan(root, options = {}) {
     if (!isContentScanningPage() || !isElement(root)) return;
-    if (isInsideManagerPanel(root)) return;
+    if (isInsideBfilterUi(root)) return;
     pendingRoots.add(root);
     if (options.force) pendingRoots.add(document.documentElement);
     if (scheduled) return;
@@ -1097,10 +1132,13 @@
     scheduled = false;
   }
 
-  function isInsideManagerPanel(element) {
+  function isInsideBfilterUi(element) {
     return (
       element.id === MANAGER_PANEL_ID ||
-      Boolean(element.closest(`#${MANAGER_PANEL_ID}`))
+      element.id === STATISTICS_OVERLAY_ID ||
+      Boolean(
+        element.closest(`#${MANAGER_PANEL_ID}, #${STATISTICS_OVERLAY_ID}`),
+      )
     );
   }
 
@@ -2119,7 +2157,15 @@
         </div>
         <div class="bfilter-manager-tab-panel" role="tabpanel" data-tab-panel="settings" ${activeTab === "settings" ? "" : "hidden"}>
           <section class="bfilter-manager-settings-section bfilter-manager-statistics" data-statistics aria-labelledby="bfilter-manager-statistics-heading">
-            <div id="bfilter-manager-statistics-heading" class="bfilter-manager-settings-heading">Statistics</div>
+            <div class="bfilter-manager-statistics-header">
+              <div id="bfilter-manager-statistics-heading" class="bfilter-manager-settings-heading">Statistics</div>
+              <label class="bfilter-manager-statistics-toggle" for="bfilter-manager-show-statistics-outside">
+                <span>Hide</span>
+                <input id="bfilter-manager-show-statistics-outside" type="checkbox" data-show-statistics-outside-manager aria-label="Show statistics outside Manager">
+                <span class="bfilter-manager-preview-slider" aria-hidden="true"></span>
+                <span>Show</span>
+              </label>
+            </div>
             <div class="bfilter-manager-statistics-list">
               <div class="bfilter-manager-statistic" data-statistic="videos"><span id="bfilter-manager-statistic-videos">Videos</span><output aria-labelledby="bfilter-manager-statistic-videos" aria-live="off" data-statistic-value>0 (0%)</output></div>
               <div class="bfilter-manager-statistic" data-statistic="comments"><span id="bfilter-manager-statistic-comments">Comments</span><output aria-labelledby="bfilter-manager-statistic-comments" aria-live="off" data-statistic-value>0 (0%)</output></div>
@@ -2210,6 +2256,10 @@
       if (target && target.matches("[data-hide-videos-by-type]")) {
         setVideoType(target.selectedOptions);
         refreshBooleanControls(panel);
+        return;
+      }
+      if (target && target.matches("[data-show-statistics-outside-manager]")) {
+        setShowStatisticsOutsideManager(target.checked);
         return;
       }
       const name = target && target.getAttribute("data-setting");
@@ -2355,6 +2405,7 @@
     if (hideDanmakusByKeywordHelp)
       hideDanmakusByKeywordHelp.innerHTML = `<strong>${hideDanmakusByKeyword.length}</strong> keyword(s) have been blocked.\nEnter one keyword per line to hide danmakus containing it.`;
     refreshBooleanControls(panel);
+    refreshStatisticsVisibilityControls(panel);
     refreshManagerGoButton(panel);
     updateManagerSaveButtonState(panel);
     refreshManagerStatistics(panel);
@@ -2363,8 +2414,12 @@
   function refreshManagerStatistics(
     panel = document.getElementById(MANAGER_PANEL_ID),
   ) {
-    if (!panel || panel.hidden) return;
-    for (const row of panel.querySelectorAll("[data-statistic]")) {
+    if (panel && !panel.hidden) refreshStatisticsValues(panel);
+    renderStatisticsOverlay();
+  }
+
+  function refreshStatisticsValues(container) {
+    for (const row of container.querySelectorAll("[data-statistic]")) {
       const statistic = statistics[row.getAttribute("data-statistic")];
       if (!statistic) continue;
       const percentage = statistic.observed
@@ -2374,6 +2429,37 @@
       const text = `${statistic.count} (${percentage}%)`;
       if (value && value.textContent !== text) value.textContent = text;
     }
+  }
+
+  function refreshStatisticsVisibilityControls(
+    panel = document.getElementById(MANAGER_PANEL_ID),
+  ) {
+    if (!panel) return;
+    const input = panel.querySelector("[data-show-statistics-outside-manager]");
+    if (input) input.checked = settings.showStatisticsOutsideManager;
+  }
+
+  function renderStatisticsOverlay() {
+    let overlay = document.getElementById(STATISTICS_OVERLAY_ID);
+    if (!settings.showStatisticsOutsideManager || !isBfilterManagerPage()) {
+      if (overlay) overlay.remove();
+      return;
+    }
+    if (!overlay) {
+      overlay = document.createElement("aside");
+      overlay.id = STATISTICS_OVERLAY_ID;
+      overlay.setAttribute("aria-label", "Bfilter Statistics");
+      overlay.innerHTML = `
+        <div class="bfilter-statistics-overlay-heading">Bfilter Statistics</div>
+        <div class="bfilter-statistics-overlay-list">
+          <div data-statistic="videos"><span>Videos</span><output aria-label="Videos statistics" aria-live="off" data-statistic-value>0 (0%)</output></div>
+          <div data-statistic="comments"><span>Comments</span><output aria-label="Comments statistics" aria-live="off" data-statistic-value>0 (0%)</output></div>
+          <div data-statistic="danmakus"><span>Danmakus</span><output aria-label="Danmakus statistics" aria-live="off" data-statistic-value>0 (0%)</output></div>
+        </div>
+      `;
+    }
+    appendToPage(overlay);
+    refreshStatisticsValues(overlay);
   }
 
   function getManagerTextValue(textValues, name, fallback) {
@@ -2464,6 +2550,8 @@
       exportedSettings[control.threshold.setting] =
         settings[control.threshold.setting];
     }
+    exportedSettings.showStatisticsOutsideManager =
+      settings.showStatisticsOutsideManager;
     return {
       app: "Bfilter",
       version: SCRIPT_VERSION || "",
@@ -2560,8 +2648,18 @@
       );
       saveLabelSetting(key, settings[setting]);
     }
+    settings.showStatisticsOutsideManager = parseBooleanSetting(
+      importedSettings.showStatisticsOutsideManager,
+      false,
+    );
+    saveBooleanSetting(
+      SETTING_KEYS.showStatisticsOutsideManager,
+      settings.showStatisticsOutsideManager,
+    );
 
     refreshConsequences();
+    refreshStatisticsVisibilityControls();
+    renderStatisticsOverlay();
     renderUserPageActionButtons();
   }
 
@@ -3112,6 +3210,7 @@
       #${MANAGER_PANEL_ID} .bfilter-manager-settings-section { display: grid; gap: 8px; }
       #${MANAGER_PANEL_ID} .bfilter-manager-settings-heading { color: #18191c; font-size: 13px; font-weight: 700; }
       #${MANAGER_PANEL_ID} .bfilter-manager-settings-actions { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-statistics-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
       #${MANAGER_PANEL_ID} .bfilter-manager-statistics { margin-bottom: 18px; padding: 12px; border: 1px solid #e3e5e7; border-radius: 10px; background: linear-gradient(135deg, #f6f7f8, #fff); }
       #${MANAGER_PANEL_ID} .bfilter-manager-statistics-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
       #${MANAGER_PANEL_ID} .bfilter-manager-statistic { display: grid; gap: 3px; min-width: 0; padding: 8px; border-radius: 7px; background: rgba(255,255,255,.8); color: #61666d; font-size: 12px; line-height: 1.35; }
@@ -3121,20 +3220,29 @@
       #${MANAGER_PANEL_ID} .bfilter-manager-help { margin: 8px 0 12px; color: #9499a0; font-size: 12px; white-space: pre-line; }
       #${MANAGER_PANEL_ID} .bfilter-manager-actions { display: flex; grid-column: 1 / -1; align-items: center; justify-content: space-between; gap: 8px; }
       #${MANAGER_PANEL_ID} .bfilter-manager-action-buttons { display: inline-flex; align-items: center; gap: 8px; }
-      #${MANAGER_PANEL_ID} .bfilter-manager-preview-toggle { display: inline-flex; align-items: center; gap: 8px; color: #61666d; font-size: 13px; font-weight: 700; cursor: pointer; user-select: none; }
-      #${MANAGER_PANEL_ID} .bfilter-manager-preview-toggle input { position: absolute; opacity: 0; pointer-events: none; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-preview-toggle, #${MANAGER_PANEL_ID} .bfilter-manager-statistics-toggle { display: inline-flex; align-items: center; gap: 8px; color: #61666d; font-size: 13px; font-weight: 700; cursor: pointer; user-select: none; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-preview-toggle input, #${MANAGER_PANEL_ID} .bfilter-manager-statistics-toggle input { position: absolute; opacity: 0; pointer-events: none; }
       #${MANAGER_PANEL_ID} .bfilter-manager-preview-slider { position: relative; width: 36px; height: 20px; border-radius: 999px; background: #c9ccd0; transition: background .2s ease; }
       #${MANAGER_PANEL_ID} .bfilter-manager-preview-slider::before { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.25); transition: transform .2s ease; }
-      #${MANAGER_PANEL_ID} .bfilter-manager-preview-toggle input:checked + .bfilter-manager-preview-slider { background: var(--bfilter-button-color); }
-      #${MANAGER_PANEL_ID} .bfilter-manager-preview-toggle input:checked + .bfilter-manager-preview-slider::before { transform: translateX(16px); }
+      #${MANAGER_PANEL_ID} .bfilter-manager-preview-toggle input:checked + .bfilter-manager-preview-slider, #${MANAGER_PANEL_ID} .bfilter-manager-statistics-toggle input:checked + .bfilter-manager-preview-slider { background: var(--bfilter-button-color); }
+      #${MANAGER_PANEL_ID} .bfilter-manager-preview-toggle input:checked + .bfilter-manager-preview-slider::before, #${MANAGER_PANEL_ID} .bfilter-manager-statistics-toggle input:checked + .bfilter-manager-preview-slider::before { transform: translateX(16px); }
+      #${MANAGER_PANEL_ID} .bfilter-manager-statistics-toggle input:focus-visible + .bfilter-manager-preview-slider { outline: 2px solid #18191c; outline-offset: 2px; }
       #${MANAGER_PANEL_ID} .bfilter-manager-action { border: 0; border-radius: 8px; padding: 7px 12px; color: #18191c; background: var(--bfilter-button-muted-color); font-size: 13px; cursor: pointer; }
       #${MANAGER_PANEL_ID} .bfilter-manager-action:not(:disabled):active { transform: translateY(1px); }
       #${MANAGER_PANEL_ID} .bfilter-manager-action:disabled { color: #9499a0; background: var(--bfilter-button-muted-color); cursor: not-allowed; }
       #${MANAGER_PANEL_ID} .bfilter-manager-close { border: 0; border-radius: 50%; width: 28px; height: 28px; color: #61666d; background: #f1f2f3; font-size: 18px; line-height: 28px; cursor: pointer; }
+      #${STATISTICS_OVERLAY_ID} { position: fixed; right: 24px; bottom: 24px; z-index: 999998; width: 320px; max-width: calc(100vw - 48px); padding: 12px; border: 1px solid rgba(0,0,0,.08); border-radius: 12px; color: #18191c; background: rgba(255,255,255,.96); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; box-shadow: 0 10px 28px rgba(0,0,0,.18); }
+      #${STATISTICS_OVERLAY_ID} .bfilter-statistics-overlay-heading { margin-bottom: 8px; color: #18191c; font-size: 13px; font-weight: 700; }
+      #${STATISTICS_OVERLAY_ID} .bfilter-statistics-overlay-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; }
+      #${STATISTICS_OVERLAY_ID} .bfilter-statistics-overlay-list > div { display: grid; gap: 3px; min-width: 0; padding: 7px; border-radius: 7px; background: #f6f7f8; color: #61666d; font-size: 11px; line-height: 1.3; }
+      #${STATISTICS_OVERLAY_ID} output { overflow: hidden; margin: 0; color: #4b4f55; font-size: 13px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
       @media (max-width: 460px) {
         #${MANAGER_PANEL_ID} .bfilter-manager-statistics-list { grid-template-columns: 1fr; }
         #${MANAGER_PANEL_ID} .bfilter-manager-statistic { grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; }
         #${MANAGER_PANEL_ID} .bfilter-manager-statistic output { grid-column: 1 / -1; }
+        #${STATISTICS_OVERLAY_ID} { right: 12px; bottom: 12px; max-width: calc(100vw - 24px); }
+        #${STATISTICS_OVERLAY_ID} .bfilter-statistics-overlay-list { grid-template-columns: 1fr; }
+        #${STATISTICS_OVERLAY_ID} .bfilter-statistics-overlay-list > div { grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; }
       }
   `;
   }
