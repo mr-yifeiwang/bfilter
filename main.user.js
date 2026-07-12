@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Bfilter
 // @namespace    https://github.com/mr-yifeiwang/bfilter
-// @version      0.25.0
+// @version      0.26.0
 // @description  Manage in-browser Bilibili blocked and followed user lists
 // @author       mr-yifeiwang
 // @icon         https://raw.githubusercontent.com/mr-yifeiwang/bfilter/master/assets/logo-128x128.png
@@ -369,8 +369,10 @@
   };
 
   let scheduled = false;
+  let scanEpoch = 0;
   let observerStarted = false;
   const pendingRoots = new Set();
+  let statistics = createStatistics();
 
   addStyle();
   boot();
@@ -453,6 +455,8 @@
   }
 
   function refreshChromeAndScan() {
+    resetStatistics();
+    resetScanQueue();
     renderUserPageActionButtons();
     renderBfilterManager();
     renderBlockAllCommentersButton();
@@ -1068,66 +1072,176 @@
 
   function scheduleScan(root, options = {}) {
     if (!isContentScanningPage() || !isElement(root)) return;
+    if (isInsideManagerPanel(root)) return;
     pendingRoots.add(root);
     if (options.force) pendingRoots.add(document.documentElement);
     if (scheduled) return;
 
     scheduled = true;
+    const epoch = scanEpoch;
     requestAnimationFrame(() => {
+      if (epoch !== scanEpoch) return;
       scheduled = false;
       const roots = [...pendingRoots];
       pendingRoots.clear();
-      for (const pendingRoot of roots) scan(pendingRoot, options);
+      for (const pendingRoot of roots) {
+        if (!pendingRoot.isConnected) continue;
+        scan(pendingRoot, options);
+      }
     });
   }
 
+  function resetScanQueue() {
+    scanEpoch += 1;
+    pendingRoots.clear();
+    scheduled = false;
+  }
+
+  function isInsideManagerPanel(element) {
+    return (
+      element.id === MANAGER_PANEL_ID ||
+      Boolean(element.closest(`#${MANAGER_PANEL_ID}`))
+    );
+  }
+
   function scan(root) {
-    if (!isContentScanningPage() || !isElement(root)) return;
+    if (!isContentScanningPage() || !isElement(root) || !root.isConnected)
+      return;
 
     for (const candidate of collectCandidates(root)) {
       const comment = resolveCommentItem(candidate);
       if (comment) {
+        observeStatistic("comments", comment);
         if (followedCommentAuthorUidReason(comment)) {
           applyFollowedUserUids(comment);
           continue;
         }
         const reason = evaluateComment(comment);
-        if (reason) applyConsequence(comment, reason);
+        if (reason) applyConsequence(comment, reason, "comments", comment);
+        else clearConsequence(comment);
         continue;
       }
 
       const danmaku = resolveDanmaku(candidate);
       if (danmaku) {
+        observeStatistic("danmakus", danmaku);
         const reason = evaluateDanmaku(danmaku);
-        if (reason) applyConsequence(danmaku, reason);
+        if (reason) applyConsequence(danmaku, reason, "danmakus", danmaku);
         else clearConsequence(danmaku);
         continue;
       }
 
       const card = resolveVideoCard(candidate);
       if (!card) continue;
+      observeStatistic("videos", card);
 
       const followedUserUid = followedUserUidReason(card);
       if (followedUserUid) {
+        clearStatisticConsequence("videos", card);
         const target = resolveConsequenceTarget(card, {
           type: "followed-user-uids",
           uid: followedUserUid,
         });
         if (isValidConsequenceTarget(target, card, { uid: followedUserUid }))
           applyFollowedUserUids(target);
+        else clearVideoConsequence(card);
         continue;
       }
 
       const reason = evaluateCard(card);
-      if (!reason) continue;
+      if (!reason) {
+        clearVideoConsequence(card);
+        continue;
+      }
 
       const target = resolveConsequenceTarget(card, reason);
       if (isValidConsequenceTarget(target, card, reason)) {
-        applyConsequence(target, reason);
-      }
+        applyConsequence(target, reason, "videos", card);
+      } else clearVideoConsequence(card);
     }
     renderCommentBlockButtons();
     renderBlockAllCommentersButton();
+    refreshManagerStatistics();
+  }
+
+  function createStatistics() {
+    return {
+      videos: createCategoryStatistics(),
+      comments: createCategoryStatistics(),
+      danmakus: createCategoryStatistics(),
+    };
+  }
+
+  function createCategoryStatistics() {
+    return {
+      seen: new WeakSet(),
+      sourceTargets: new WeakMap(),
+      targetSources: new WeakMap(),
+      observed: 0,
+      count: 0,
+    };
+  }
+
+  function resetStatistics() {
+    statistics = createStatistics();
+    refreshManagerStatistics();
+  }
+
+  function observeStatistic(category, source) {
+    const statistic = statistics[category];
+    if (statistic.seen.has(source)) return;
+    statistic.seen.add(source);
+    statistic.observed += 1;
+  }
+
+  function recordFilteredStatistic(category, source, target) {
+    const statistic = statistics[category];
+    const previousTarget = statistic.sourceTargets.get(source);
+    if (previousTarget === target) return;
+    if (previousTarget) clearFilteredStatistic(category, source);
+    statistic.sourceTargets.set(source, target);
+    let sources = statistic.targetSources.get(target);
+    if (!sources) {
+      sources = new Set();
+      statistic.targetSources.set(target, sources);
+    }
+    sources.add(source);
+    statistic.count += 1;
+  }
+
+  function clearFilteredStatistic(category, source) {
+    const statistic = statistics[category];
+    const target = statistic.sourceTargets.get(source);
+    if (!target) return;
+    statistic.sourceTargets.delete(source);
+    const sources = statistic.targetSources.get(target);
+    if (sources) {
+      sources.delete(source);
+      if (!sources.size) statistic.targetSources.delete(target);
+    }
+    statistic.count = Math.max(0, statistic.count - 1);
+  }
+
+  function clearFilteredStatisticsForTarget(target) {
+    for (const category of Object.keys(statistics)) {
+      const statistic = statistics[category];
+      const sources = statistic.targetSources.get(target);
+      if (!sources) continue;
+      for (const source of [...sources])
+        clearFilteredStatistic(category, source);
+    }
+  }
+
+  function clearStatisticConsequence(category, source) {
+    const target = statistics[category].sourceTargets.get(source);
+    if (target) clearConsequence(target);
+  }
+
+  function clearVideoConsequence(card) {
+    clearStatisticConsequence("videos", card);
+    clearConsequence(
+      resolveConsequenceTarget(card, { type: "followed-user-uids", uid: "" }),
+    );
   }
 
   function collectCandidates(root) {
@@ -1769,7 +1883,19 @@
     );
   }
 
-  function applyConsequence(target, reason) {
+  function applyConsequence(
+    target,
+    reason,
+    statisticsCategory,
+    source = target,
+  ) {
+    if (statisticsCategory) {
+      const previousTarget =
+        statistics[statisticsCategory].sourceTargets.get(source);
+      if (previousTarget && previousTarget !== target)
+        clearStatisticConsequence(statisticsCategory, source);
+    }
+    clearFilteredStatisticsForTarget(target);
     target.removeAttribute(FOLLOWED_USER_UID_ATTR);
     clearNestedConsequences(target);
     target.removeAttribute(settings.previewMode ? HIDDEN_ATTR : PREVIEW_ATTR);
@@ -1780,11 +1906,14 @@
       target.parentElement.closest(`[${activeAttr}]`)
     ) {
       clearConsequence(target);
-      return;
+      return false;
     }
 
     target.setAttribute(activeAttr, "true");
     target.setAttribute(HIDDEN_UID_ATTR, reason.uid || "");
+    if (statisticsCategory)
+      recordFilteredStatistic(statisticsCategory, source, target);
+    return true;
   }
 
   function applyFollowedUserUids(target) {
@@ -1794,6 +1923,8 @@
   }
 
   function refreshConsequences() {
+    resetStatistics();
+    resetScanQueue();
     for (const element of document.querySelectorAll(
       `[${HIDDEN_ATTR}], [${PREVIEW_ATTR}], [${FOLLOWED_USER_UID_ATTR}]`,
     )) {
@@ -1811,6 +1942,7 @@
   }
 
   function clearConsequence(element) {
+    clearFilteredStatisticsForTarget(element);
     element.removeAttribute(HIDDEN_ATTR);
     element.removeAttribute(PREVIEW_ATTR);
     element.removeAttribute(FOLLOWED_USER_UID_ATTR);
@@ -1986,6 +2118,15 @@
           <div class="bfilter-manager-help" data-help="hide-danmakus-by-keyword"></div>
         </div>
         <div class="bfilter-manager-tab-panel" role="tabpanel" data-tab-panel="settings" ${activeTab === "settings" ? "" : "hidden"}>
+          <section class="bfilter-manager-settings-section bfilter-manager-statistics" data-statistics aria-labelledby="bfilter-manager-statistics-heading">
+            <div id="bfilter-manager-statistics-heading" class="bfilter-manager-settings-heading">Statistics</div>
+            <div class="bfilter-manager-statistics-list">
+              <div class="bfilter-manager-statistic" data-statistic="videos"><span id="bfilter-manager-statistic-videos">Videos</span><output aria-labelledby="bfilter-manager-statistic-videos" aria-live="off" data-statistic-value>0 (0%)</output></div>
+              <div class="bfilter-manager-statistic" data-statistic="comments"><span id="bfilter-manager-statistic-comments">Comments</span><output aria-labelledby="bfilter-manager-statistic-comments" aria-live="off" data-statistic-value>0 (0%)</output></div>
+              <div class="bfilter-manager-statistic" data-statistic="danmakus"><span id="bfilter-manager-statistic-danmakus">Danmakus</span><output aria-labelledby="bfilter-manager-statistic-danmakus" aria-live="off" data-statistic-value>0 (0%)</output></div>
+            </div>
+            <div class="bfilter-manager-statistics-help">... have been blocked on the current page. The statistics may be inaccurate due to lazy loading.</div>
+          </section>
           <div class="bfilter-manager-settings-section">
             <div class="bfilter-manager-settings-heading">Migration</div>
             <div class="bfilter-manager-settings-actions">
@@ -2216,6 +2357,23 @@
     refreshBooleanControls(panel);
     refreshManagerGoButton(panel);
     updateManagerSaveButtonState(panel);
+    refreshManagerStatistics(panel);
+  }
+
+  function refreshManagerStatistics(
+    panel = document.getElementById(MANAGER_PANEL_ID),
+  ) {
+    if (!panel || panel.hidden) return;
+    for (const row of panel.querySelectorAll("[data-statistic]")) {
+      const statistic = statistics[row.getAttribute("data-statistic")];
+      if (!statistic) continue;
+      const percentage = statistic.observed
+        ? Math.round((statistic.count / statistic.observed) * 100)
+        : 0;
+      const value = row.querySelector("[data-statistic-value]");
+      const text = `${statistic.count} (${percentage}%)`;
+      if (value && value.textContent !== text) value.textContent = text;
+    }
   }
 
   function getManagerTextValue(textValues, name, fallback) {
@@ -2954,6 +3112,11 @@
       #${MANAGER_PANEL_ID} .bfilter-manager-settings-section { display: grid; gap: 8px; }
       #${MANAGER_PANEL_ID} .bfilter-manager-settings-heading { color: #18191c; font-size: 13px; font-weight: 700; }
       #${MANAGER_PANEL_ID} .bfilter-manager-settings-actions { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-statistics { margin-bottom: 18px; padding: 12px; border: 1px solid #e3e5e7; border-radius: 10px; background: linear-gradient(135deg, #f6f7f8, #fff); }
+      #${MANAGER_PANEL_ID} .bfilter-manager-statistics-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-statistic { display: grid; gap: 3px; min-width: 0; padding: 8px; border-radius: 7px; background: rgba(255,255,255,.8); color: #61666d; font-size: 12px; line-height: 1.35; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-statistic output { overflow: hidden; margin: 0; color: #4b4f55; font-size: 13px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-statistics-help { color: #61666d; font-size: 12px; line-height: 1.45; }
       #${MANAGER_PANEL_ID} .bfilter-manager-textarea { box-sizing: border-box; display: block; width: 100%; min-height: 160px; border: 1px solid #c9ccd0; border-radius: 10px; padding: 10px; color: #18191c; background: #f6f7f8; font-size: 14px; line-height: 1.5; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace !important; white-space: pre-wrap; overflow-wrap: anywhere; caret-color: #18191c; resize: vertical; }
       #${MANAGER_PANEL_ID} .bfilter-manager-help { margin: 8px 0 12px; color: #9499a0; font-size: 12px; white-space: pre-line; }
       #${MANAGER_PANEL_ID} .bfilter-manager-actions { display: flex; grid-column: 1 / -1; align-items: center; justify-content: space-between; gap: 8px; }
@@ -2968,6 +3131,11 @@
       #${MANAGER_PANEL_ID} .bfilter-manager-action:not(:disabled):active { transform: translateY(1px); }
       #${MANAGER_PANEL_ID} .bfilter-manager-action:disabled { color: #9499a0; background: var(--bfilter-button-muted-color); cursor: not-allowed; }
       #${MANAGER_PANEL_ID} .bfilter-manager-close { border: 0; border-radius: 50%; width: 28px; height: 28px; color: #61666d; background: #f1f2f3; font-size: 18px; line-height: 28px; cursor: pointer; }
+      @media (max-width: 460px) {
+        #${MANAGER_PANEL_ID} .bfilter-manager-statistics-list { grid-template-columns: 1fr; }
+        #${MANAGER_PANEL_ID} .bfilter-manager-statistic { grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; }
+        #${MANAGER_PANEL_ID} .bfilter-manager-statistic output { grid-column: 1 / -1; }
+      }
   `;
   }
 

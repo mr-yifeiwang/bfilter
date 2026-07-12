@@ -208,6 +208,10 @@ Danmaku scanning is only resolved on direct video pages. Matching danmaku rows a
 
 ### Settings tab
 
+The **Statistics** section appears on content-scanning pages and shows the current page's loaded videos, comments, and danmakus. It remains empty on user-space pages, where normal card/comment scanning is deliberately excluded. Each value shows the filtered count and percentage of uniquely observed items in that category (`hidden or previewed ÷ uniquely observed`). Followed and unmatched items are included in the observed total. Statistics are in memory only: they are not saved or exported.
+
+The values update as Bilibili lazy-loads content. They reset and recount after navigation, a full refresh, or a filtering/settings change that rescans the page.
+
 Use the **Migration** section in this tab to import or export Bfilter data and settings.
 
 - **Import** opens a JSON file picker. After a file is selected, Bfilter shows a warning that the imported data will overwrite the existing data and settings. Confirming replaces all Manager lists and saved settings with the imported values.
@@ -215,7 +219,7 @@ Use the **Migration** section in this tab to import or export Bfilter data and s
 
 ### Preview mode
 
-Preview mode changes the consequence of a content match from hiding it to marking it visibly.
+Preview mode changes the consequence of a content match from hiding it to marking it visibly. Previewed matches count as filtered in Settings statistics.
 
 - Off: matching targets receive the internal `data-bfilter-hidden="true"` attribute and are hidden with CSS.
 - On: matching targets receive `data-bfilter-previewed="true"` and are highlighted with a red preview background/outline.
@@ -501,7 +505,7 @@ For each scan root, Bfilter collects candidates matching known selectors for:
 - video links,
 - live/manga/course links.
 
-It then resolves each candidate to a comment, danmaku, or video card and applies the first relevant consequence.
+It then resolves each candidate to a comment, danmaku, or video card and applies the first relevant consequence. Resolved items are counted once per category for the current-page Settings statistics; an item first seen before its lazy-loaded metadata matches can later be counted as filtered once the consequence is applied.
 
 ### Safety guards
 
