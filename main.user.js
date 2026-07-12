@@ -2915,7 +2915,7 @@
       #${MANAGER_PANEL_ID} {
         position: fixed; top: 62px; right: 24px; z-index: 999999;
         box-sizing: border-box;
-        width: 420px; max-width: calc(100vw - 48px); overflow: auto; border: 1px solid rgba(0,0,0,.08);
+        width: 450px; max-width: calc(100vw - 48px); overflow: auto; border: 1px solid rgba(0,0,0,.08);
         border-radius: 14px; padding: 16px; color: #18191c; background: #fff;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         box-shadow: 0 12px 32px rgba(0,0,0,.22);
