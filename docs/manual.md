@@ -20,15 +20,15 @@
     - [User filters](#user-filters)
       - [Blocked users](#blocked-users)
       - [Followed users](#followed-users)
-      - [New-user filter](#new-user-filter)
+      - [Registration-time filter](#registration-time-filter)
     - [Video filters](#video-filters)
       - [Video keyword filter](#video-keyword-filter)
-      - [Short-video filter](#short-video-filter)
-      - [Unpopular-video filter](#unpopular-video-filter)
-      - [Badged-video filter](#badged-video-filter)
+      - [Duration filter](#duration-filter)
+      - [Views filter](#views-filter)
+      - [Types filter](#types-filter)
     - [Comment filters](#comment-filters)
       - [Comment keyword filter](#comment-keyword-filter)
-      - [At-only comment filter](#at-only-comment-filter)
+      - [Mentions-only comment filter](#mentions-only-comment-filter)
       - [Image comment filter](#image-comment-filter)
     - [Danmaku filters](#danmaku-filters)
       - [Danmaku keyword filter](#danmaku-keyword-filter)
@@ -137,9 +137,9 @@ Use this tab to maintain the blocked UID list.
 - Text after `#` is treated as a comment and ignored by the parser.
 - The help text shows the number of blocked users currently loaded.
 
-The tab also includes **Block new users**. When enabled, Bfilter treats sufficiently long numeric UIDs as new accounts and hides their video cards or comments.
+The tab also includes **Hide by registration time**. When enabled, Bfilter treats sufficiently long numeric UIDs as accounts that match the UID-length heuristic and hides their video cards or comments.
 
-Available new-user thresholds:
+Available registration-time thresholds:
 
 | Label    | Internal test              |
 | -------- | -------------------------- |
@@ -172,9 +172,9 @@ Use this tab to maintain title keywords for hiding videos.
 
 This tab also includes video metadata filters:
 
-- **Hide short videos** with thresholds from `< 1 min` through `< 20 min`.
-- **Hide unpopular videos** with thresholds from `< 1k views` through `< 100k views`.
-- **Hide badged videos**, with selectable child types: **Live**, **Manga**, **Course**, and **Bangumi**.
+- **Hide by duration** with thresholds from `< 1 min` through `< 20 min`.
+- **Hide by views** with thresholds from `< 1k views` through `< 100k views`.
+- **Hide by types**, with selectable child types: **Live**, **Manga**, **Course**, and **Bangumi**.
 
 Metadata filters are applied to card-like results and to recommendation areas on direct video pages. They are intentionally not applied to the primary video page owner/content area.
 
@@ -189,9 +189,9 @@ Use this tab to maintain text keywords for hiding comments.
 
 The tab also includes:
 
-- **Hide @-only comments**: hides comments whose visible comment text consists only of one or more user mentions.
-- **Hide comments with images**: hides comments with attached images. It does not match emoji images in comment text.
-- **Hide comments by level**: hides comments from the selected commenter level range. Its dropdown offers `≤ 1`, `≤ 2`, `≤ 3`, `≤ 4`, and `≤ 5` (default `≤ 2`).
+- **Hide by mentions only**: hides comments whose visible comment text consists only of one or more user mentions.
+- **Hide by image**: hides comments with attached images. It does not match emoji images in comment text.
+- **Hide by commenter level**: hides comments from the selected commenter level range. Its dropdown offers `≤ 1`, `≤ 2`, `≤ 3`, `≤ 4`, and `≤ 5` (default `≤ 2`).
 
 ### Danmakus tab
 
@@ -215,7 +215,7 @@ Use the **Migration** section in this tab to import or export Bfilter data and s
 
 Preview mode changes the consequence of a content match from hiding it to marking it visibly.
 
-- Off: matching targets receive the internal `data-bfilter-blocked="true"` attribute and are hidden with CSS.
+- Off: matching targets receive the internal `data-bfilter-hidden="true"` attribute and are hidden with CSS.
 - On: matching targets receive `data-bfilter-previewed="true"` and are highlighted with a red preview background/outline.
 
 Preview mode is useful for checking whether rules are too broad before hiding content.
@@ -229,7 +229,7 @@ On `space.bilibili.com/<uid>` pages, Bfilter inserts two profile buttons:
 - **FOLLOW** / **FOLLOWING** toggles the UID in the local following list.
 - **BLOCK** / **BLOCKED** toggles the UID in the local blocklist.
 
-If the UID is followed, the block button is disabled. If **Block new users** is enabled and the UID matches the new-user heuristic, the block button may show an “Already blocked as New Users” hint even if the UID is not explicitly in the blocklist.
+If the UID is followed, the block button is disabled. If **Hide by registration time** is enabled and the UID matches the registration-time heuristic, the block button may show an “Already hidden by registration time” hint even if the UID is not explicitly in the blocklist.
 
 ### Comment actions
 
@@ -252,12 +252,12 @@ For video cards, followed UIDs are checked first. If a card belongs to a followe
 
 1. Blocked UID.
 2. Video keyword.
-3. New-user rule.
-4. Short-video rule.
-5. Unpopular-video rule.
-6. Badged-video rule.
+3. Registration-time rule.
+4. Duration rule.
+5. Views rule.
+6. Types rule.
 
-For comments, followed author UIDs are highlighted before hide checks. If not followed, comments are hidden/previewed because their author UID is blocked or because of a matching comment keyword, at-only rule, image-attachment rule, commenter-level rule, or new-user rule.
+For comments, followed author UIDs are highlighted before hide checks. If not followed, comments are hidden/previewed because their author UID is blocked or because of a matching comment keyword, at-only rule, image-attachment rule, commenter-level rule, or registration-time rule.
 
 ### User filters
 
@@ -272,17 +272,17 @@ Blocked users are identified by numeric UIDs discovered from links and attribute
 - `data-mid`.
 - `mid`.
 
-When a card/comment contains a blocked UID, Bfilter hides or preview-marks the target unless a safety guard rejects it. The internal `data-bfilter-blocked` attribute is retained for compatibility.
+When a card/comment contains a blocked UID, Bfilter hides or preview-marks the target unless a safety guard rejects it. The internal `data-bfilter-hidden` attribute marks the hidden target.
 
 #### Followed users
 
-Followed users are stored separately from blocked users. Matching cards/comments receive `data-bfilter-followed="true"`, which gives them a green visual treatment.
+Followed users are stored separately from blocked users. Matching cards/comments receive `data-bfilter-follow-users-by-uid="true"`, which gives them a green visual treatment.
 
 On user-space pages, the block button is disabled for followed UIDs to avoid conflicting one-click actions.
 
-#### New-user filter
+#### Registration-time filter
 
-The new-user filter is a heuristic based on UID length. If enabled, a numeric UID with at least the selected number of digits is treated as newer than the selected era label.
+The registration-time filter is a heuristic based on UID length. If enabled, a numeric UID with at least the selected number of digits is treated as newer than the selected era label.
 
 This filter applies to video uploaders and comment authors.
 
@@ -296,7 +296,7 @@ Video keyword filtering concatenates detected title text and `title` attributes 
 
 Title sources include selectors such as `.bili-video-card__info--tit`, `.video-title`, `.title-text`, video links with `title` attributes, and nested title elements inside video links, such as direct-video recommendation cards.
 
-#### Short-video filter
+#### Duration filter
 
 When enabled, Bfilter parses duration strings such as `03:45` or `01:02:30` from duration-like elements. A video is hidden or previewed when the parsed duration is greater than zero and less than the selected threshold.
 
@@ -308,7 +308,7 @@ Available thresholds:
 - `< 10 min`
 - `< 20 min`
 
-#### Unpopular-video filter
+#### Views filter
 
 When enabled, Bfilter parses view counts from stat-like elements. It recognizes plain numbers and Chinese units:
 
@@ -323,7 +323,7 @@ Available thresholds:
 - `< 50k views`
 - `< 100k views`
 
-#### Badged-video filter
+#### Types filter
 
 When enabled, Bfilter can hide card-like links to selected Bilibili content families:
 
@@ -334,7 +334,7 @@ When enabled, Bfilter can hide card-like links to selected Bilibili content fami
 | Course  | `bilibili.com/cheese/`  |
 | Bangumi | `bilibili.com/bangumi/` |
 
-The child type selector is disabled until **Hide badged videos** is enabled.
+The child type selector is disabled until **Hide by types** is enabled.
 
 ### Comment filters
 
@@ -344,7 +344,7 @@ Comment filters apply to detected comment items on supported comment pages.
 
 Comment keyword filtering checks detected comment text, then hides or previews the matching comment item when it includes any configured comment keyword.
 
-#### At-only comment filter
+#### Mentions-only comment filter
 
 When enabled, Bfilter checks the detected comment body for user mention links. A comment is hidden or previewed when it contains one or more user mentions and no remaining non-whitespace text after those mentions are ignored.
 
@@ -354,7 +354,7 @@ Comments with any additional text are not matched by this filter.
 
 When enabled, Bfilter hides or previews comments that contain an attached image in the comment item's image exhibition area. Emoji images embedded in comment text do not match this filter.
 
-#### Comment-level filter
+#### Commenter-level filter
 
 When enabled, Bfilter checks the commenter's level badge in the comment's own `.user-info` or `.sub-user-info` area. It accepts only direct badge spans whose trimmed text is exactly `LV0` through `LV6`, so levels from nested replies do not affect their parent comment.
 
@@ -398,37 +398,39 @@ Parsing rules:
 - Keyword entries are not trimmed after comment stripping beyond the parser's normal comment-strip trim, and matching is substring matching.
 - Keyword matching supports emoji text. Search text and keywords are NFC-normalized, and emoji/text variation selectors are ignored so common forms such as `❤` and `❤️` match each other.
 
+Import/export stores the Follow users by UID list in the `lists.followUsersByUid` field.
+
 ## Persistence and synchronization
 
 Bfilter persists these values:
 
-The storage keys are internal compatibility identifiers and remain unchanged even where a key includes legacy `blocklist` wording for a keyword list.
+Storage uses the canonical filter identifiers below. Older storage keys are not migrated.
 
-| Value                       | Storage key                           |
-| --------------------------- | ------------------------------------- |
-| Blocked user list           | `bfilter:blocklist`                   |
-| Following user list         | `bfilter:following`                   |
-| Video keyword list          | `bfilter:video-keyword-blocklist`     |
-| Comment keyword list        | `bfilter:comment-keyword-blocklist`   |
-| Danmaku keyword list        | `bfilter:danmaku-keyword-blocklist`   |
-| Block new users             | `bfilter:block-new-users`             |
-| Registration-time threshold | `bfilter:registration-time-threshold` |
-| Hide @-only comments        | `bfilter:hide-at-only-comments`       |
-| Hide comments with images   | `bfilter:hide-image-comments`         |
-| Hide comments by level      | `bfilter:hide-comments-by-level`      |
-| Comment-level threshold     | `bfilter:comment-level-threshold`     |
-| Preview mode                | `bfilter:preview-mode`                |
-| Hide short videos           | `bfilter:hide-short-videos`           |
-| Short-video threshold       | `bfilter:short-video-threshold`       |
-| Hide unpopular videos       | `bfilter:hide-unpopular-videos`       |
-| Unpopular-video threshold   | `bfilter:unpopular-video-threshold`   |
-| Hide badged videos          | `bfilter:hide-badged-videos`          |
-| Hide live videos            | `bfilter:hide-live-videos`            |
-| Hide manga videos           | `bfilter:hide-manga-videos`           |
-| Hide course videos          | `bfilter:hide-course-videos`          |
-| Hide bangumi videos         | `bfilter:hide-bangumi-videos`         |
-| Add usernames to following  | `bfilter:add-usernames-to-following`  |
-| Active Manager tab          | `bfilter:active-manager-tab`          |
+| Value                       | Storage key                                          |
+| --------------------------- | ---------------------------------------------------- |
+| Blocked user list           | `bfilter:hide-users-by-uid`                          |
+| Follow users by UID list    | `bfilter:follow-users-by-uid`                                  |
+| Video keyword list          | `bfilter:hide-videos-by-keyword`                     |
+| Comment keyword list        | `bfilter:hide-comments-by-keyword`                   |
+| Danmaku keyword list        | `bfilter:hide-danmakus-by-keyword`                   |
+| Hide by registration time   | `bfilter:hide-users-by-registration-time`            |
+| Registration-time threshold | `bfilter:hide-users-by-registration-time-threshold`  |
+| Hide by mentions only       | `bfilter:hide-comments-by-mentions-only`             |
+| Hide by image               | `bfilter:hide-comments-by-image`                     |
+| Hide by commenter level     | `bfilter:hide-comments-by-commenter-level`           |
+| Commenter-level threshold   | `bfilter:hide-comments-by-commenter-level-threshold` |
+| Preview mode                | `bfilter:preview-mode`                               |
+| Hide by duration            | `bfilter:hide-videos-by-duration`                    |
+| Duration threshold          | `bfilter:hide-videos-by-duration-threshold`          |
+| Hide by views               | `bfilter:hide-videos-by-views`                       |
+| Views threshold             | `bfilter:hide-videos-by-views-threshold`             |
+| Hide by types               | `bfilter:hide-videos-by-types`                       |
+| Hide live videos            | `bfilter:hide-videos-by-type-live`                   |
+| Hide manga videos           | `bfilter:hide-videos-by-type-manga`                  |
+| Hide course videos          | `bfilter:hide-videos-by-type-course`                 |
+| Hide bangumi videos         | `bfilter:hide-videos-by-type-bangumi`                |
+| Add usernames to follow users by UID | `bfilter:add-usernames-to-follow-users-by-uid`                 |
+| Active manager tab          | `bfilter:active-manager-tab`                         |
 
 When `GM_addValueChangeListener` is available, Bfilter listens for remote value changes and refreshes runtime state across userscript contexts. Otherwise, it listens for the browser `storage` event as a fallback.
 
@@ -439,7 +441,7 @@ After a synchronized change, Bfilter refreshes consequences on the page, updates
 - Bilibili DOM changes can break selectors or reduce detection quality.
 - Keyword matching is simple substring matching, not regex or fuzzy matching.
 - Keyword matching is case-sensitive.
-- New-user detection is heuristic and based only on UID length.
+- Registration-time detection is heuristic and based only on UID length.
 - View and duration extraction depend on visible card metadata.
 - Some pages do not expose specific types of metadata, so relevant filters are unavailable on those pages.
 - Bulk author blocking only includes currently loaded comments.
@@ -451,7 +453,7 @@ After a synchronized change, Bfilter refreshes consequences on the page, updates
 | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
 | **Open Bfilter** does not appear                                 | Confirm the page is in the supported list, refresh the page, and check that the userscript is enabled.               |
 | A card that should be hidden is still visible                    | Turn on Preview mode to see whether it is detected; check whether the UID/title is actually present in the card DOM. |
-| Too much content is hidden                                       | Disable broad metadata filters first, then review video keywords and new-user thresholds.                            |
+| Too much content is hidden                                       | Disable broad metadata filters first, then review video keywords and registration-time thresholds.                   |
 | A direct video page hides recommendations but not the main video | This is intentional; the main video owner area is protected.                                                         |
 | Comment buttons do not appear                                    | Load comments first and confirm the page is a direct video, opus, or T page.                                         |
 | Changes in another tab do not appear                             | Refresh the page if the userscript manager does not support `GM_addValueChangeListener` reliably.                    |
@@ -505,12 +507,12 @@ Bfilter injects one `<style>` element with ID `bfilter-style`. The style element
 
 Important data attributes:
 
-| Attribute                       | Meaning                                                                             |
-| ------------------------------- | ----------------------------------------------------------------------------------- |
-| `data-bfilter-blocked="true"`   | Internal compatibility attribute indicating the target is hidden.                   |
-| `data-bfilter-previewed="true"` | Target is preview-highlighted.                                                      |
-| `data-bfilter-followed="true"`  | Target is follow-highlighted.                                                       |
-| `data-bfilter-blocked-uid`      | Internal compatibility attribute storing the associated blocked UID when available. |
+| Attribute                       | Meaning                                                              |
+| ------------------------------- | -------------------------------------------------------------------- |
+| `data-bfilter-hidden="true"`    | Internal attribute indicating the target is hidden.                  |
+| `data-bfilter-previewed="true"` | Target is preview-highlighted.                                       |
+| `data-bfilter-follow-users-by-uid="true"`  | Target is follow-highlighted.                                        |
+| `data-bfilter-hidden-uid`       | Internal attribute storing the associated hidden UID when available. |
 
 The CSS text is built by section helpers near `addStyle`: variables, visibility/marking rules, floating/profile buttons, manager panel, and comment buttons. `addStyle` itself only creates the style element, assigns `STYLE_ID`, fills it with `getStyleText()`, and appends it safely.
 
@@ -528,11 +530,11 @@ Key code areas in `main.user.js`:
 | Rule evaluation        | `evaluateCard`, `evaluateComment`, `evaluateDanmaku`                                                                                       |
 | UID extraction         | `getUploaderUidsInside`, `getCommentAuthorUidsInside`, `addUidFromHref`, `normalizeUid`                                                    |
 | Metadata parsing       | `parseDurationSeconds`, `parseViewCount`, `getVideoDurationSeconds`, `getVideoViewCount`                                                   |
-| Consequences           | `applyConsequence`, `applyFollow`, `clearConsequence`, `refreshConsequences`                                                               |
+| Consequences           | `applyConsequence`, `applyFollowUsersByUid`, `clearConsequence`, `refreshConsequences`                                                     |
 | Storage                | `readSaved...`, `save...`, `setupStorageSync`, `sync...`                                                                                   |
 | Styling                | `getStyleText`, `getStyleVariables`, `getStyleVisibility`, `getStyleButtons`, `getStyleManagerPanel`, `getStyleCommentButtons`, `addStyle` |
 | Manager UI             | `renderBfilterManager`, `ensureBfilterManagerPanel`, `refreshBfilterManagerPanel`, `saveManagerTextareas`                                  |
-| User-space UI          | `renderUserPageBlockButton`, `setUidBlocked`, `setUidFollowing`                                                                            |
+| User-space UI          | `renderUserPageBlockButton`, `setUidBlocked`, `setUidFollowUsersByUid`                                                                            |
 | Comment UI             | `renderCommentBlockButtons`, `renderBlockAllCommentersButton`, `blockAllCommenters`                                                        |
 
 When modifying filters, keep the safety guards and direct-video protections in mind. Most regressions on Bilibili pages come from selecting too large a target or matching a container that includes multiple unrelated video links.

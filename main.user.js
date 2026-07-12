@@ -21,37 +21,40 @@
 (function () {
   "use strict";
 
-  const BLOCK_ATTR = "data-bfilter-blocked";
+  const HIDDEN_ATTR = "data-bfilter-hidden";
   const PREVIEW_ATTR = "data-bfilter-previewed";
-  const FOLLOW_ATTR = "data-bfilter-followed";
-  const BLOCKED_UID_ATTR = "data-bfilter-blocked-uid";
+  const FOLLOW_USERS_BY_UID_ATTR = "data-bfilter-follow-users-by-uid";
+  const HIDDEN_UID_ATTR = "data-bfilter-hidden-uid";
 
-  const BLOCKLIST_STORAGE_KEY = "bfilter:blocklist";
-  const FOLLOWING_STORAGE_KEY = "bfilter:following";
-  const VIDEO_KEYWORD_BLOCKLIST_STORAGE_KEY = "bfilter:video-keyword-blocklist";
-  const COMMENT_KEYWORD_BLOCKLIST_STORAGE_KEY =
-    "bfilter:comment-keyword-blocklist";
-  const DANMAKU_KEYWORD_BLOCKLIST_STORAGE_KEY =
-    "bfilter:danmaku-keyword-blocklist";
+  const HIDE_USERS_BY_UID_STORAGE_KEY = "bfilter:hide-users-by-uid";
+  const FOLLOW_USERS_BY_UID_STORAGE_KEY = "bfilter:follow-users-by-uid";
+  const HIDE_VIDEOS_BY_KEYWORD_STORAGE_KEY = "bfilter:hide-videos-by-keyword";
+  const HIDE_COMMENTS_BY_KEYWORD_STORAGE_KEY =
+    "bfilter:hide-comments-by-keyword";
+  const HIDE_DANMAKUS_BY_KEYWORD_STORAGE_KEY =
+    "bfilter:hide-danmakus-by-keyword";
   const ACTIVE_MANAGER_TAB_STORAGE_KEY = "bfilter:active-manager-tab";
   const SETTING_KEYS = {
-    blockNewUsers: "bfilter:block-new-users",
-    registrationTimeThreshold: "bfilter:registration-time-threshold",
-    hideAtOnlyComments: "bfilter:hide-at-only-comments",
-    hideImageComments: "bfilter:hide-image-comments",
-    hideCommentsByLevel: "bfilter:hide-comments-by-level",
-    commentLevelThreshold: "bfilter:comment-level-threshold",
+    hideUsersByRegistrationTime: "bfilter:hide-users-by-registration-time",
+    hideUsersByRegistrationTimeThreshold:
+      "bfilter:hide-users-by-registration-time-threshold",
+    hideCommentsByMentionsOnly: "bfilter:hide-comments-by-mentions-only",
+    hideCommentsByImage: "bfilter:hide-comments-by-image",
+    hideCommentsByCommenterLevel: "bfilter:hide-comments-by-commenter-level",
+    hideCommentsByCommenterLevelThreshold:
+      "bfilter:hide-comments-by-commenter-level-threshold",
     previewMode: "bfilter:preview-mode",
-    hideShortVideos: "bfilter:hide-short-videos",
-    shortVideoThreshold: "bfilter:short-video-threshold",
-    hideUnpopularVideos: "bfilter:hide-unpopular-videos",
-    unpopularVideoThreshold: "bfilter:unpopular-video-threshold",
-    hideBadgedVideos: "bfilter:hide-badged-videos",
-    hideLiveVideos: "bfilter:hide-live-videos",
-    hideMangaVideos: "bfilter:hide-manga-videos",
-    hideCourseVideos: "bfilter:hide-course-videos",
-    hideBangumiVideos: "bfilter:hide-bangumi-videos",
-    addUsernamesToFollowing: "bfilter:add-usernames-to-following",
+    hideVideosByDuration: "bfilter:hide-videos-by-duration",
+    hideVideosByDurationThreshold: "bfilter:hide-videos-by-duration-threshold",
+    hideVideosByViews: "bfilter:hide-videos-by-views",
+    hideVideosByViewsThreshold: "bfilter:hide-videos-by-views-threshold",
+    hideVideosByTypes: "bfilter:hide-videos-by-types",
+    hideVideosByTypeLive: "bfilter:hide-videos-by-type-live",
+    hideVideosByTypeManga: "bfilter:hide-videos-by-type-manga",
+    hideVideosByTypeCourse: "bfilter:hide-videos-by-type-course",
+    hideVideosByTypeBangumi: "bfilter:hide-videos-by-type-bangumi",
+    addUsernamesToFollowUsersByUid:
+      "bfilter:add-usernames-to-follow-users-by-uid",
   };
 
   const USER_BUTTON_ID = "bfilter-user-button";
@@ -63,14 +66,16 @@
   const MANAGER_PANEL_ID = "bfilter-manager-panel";
   const SCRIPT_VERSION =
     typeof GM_info !== "undefined" && GM_info.script && GM_info.script.version;
-  const MANAGER_TEXTAREA_ID = "bfilter-manager-textarea";
-  const MANAGER_FOLLOWING_TEXTAREA_ID = "bfilter-manager-following-textarea";
-  const MANAGER_VIDEO_KEYWORDS_TEXTAREA_ID =
-    "bfilter-manager-video-keywords-textarea";
-  const MANAGER_COMMENT_KEYWORDS_TEXTAREA_ID =
-    "bfilter-manager-comment-keywords-textarea";
-  const MANAGER_DANMAKU_KEYWORDS_TEXTAREA_ID =
-    "bfilter-manager-danmaku-keywords-textarea";
+  const MANAGER_HIDE_USERS_BY_UID_TEXTAREA_ID =
+    "bfilter-manager-hide-users-by-uid-textarea";
+  const MANAGER_FOLLOW_USERS_BY_UID_TEXTAREA_ID =
+    "bfilter-manager-follow-users-by-uid-textarea";
+  const MANAGER_HIDE_VIDEOS_BY_KEYWORD_TEXTAREA_ID =
+    "bfilter-manager-hide-videos-by-keyword-textarea";
+  const MANAGER_HIDE_COMMENTS_BY_KEYWORD_TEXTAREA_ID =
+    "bfilter-manager-hide-comments-by-keyword-textarea";
+  const MANAGER_HIDE_DANMAKUS_BY_KEYWORD_TEXTAREA_ID =
+    "bfilter-manager-hide-danmakus-by-keyword-textarea";
 
   const COMMENT_BLOCK_BTN_CLASS = "bfilter-comment-block-button";
   const BLOCK_ALL_COMMENTERS_BTN_CLASS = "bfilter-block-all-commenters-button";
@@ -118,14 +123,14 @@
     'a[href*="/bangumi/play/"]',
   ].join(",");
 
-  const BADGED_VIDEO_LINK_SELECTORS = {
+  const TYPE_VIDEO_LINK_SELECTORS = {
     live: 'a[href*="live.bilibili.com/"]',
     manga: 'a[href*="manga.bilibili.com/"]',
     course: 'a[href*="bilibili.com/cheese/"]',
     bangumi: 'a[href*="bilibili.com/bangumi/"]',
   };
-  const BADGED_VIDEO_LINK_SELECTOR = Object.values(
-    BADGED_VIDEO_LINK_SELECTORS,
+  const TYPE_VIDEO_LINK_SELECTOR = Object.values(
+    TYPE_VIDEO_LINK_SELECTORS,
   ).join(",");
 
   const UPLOADER_SELECTOR = [
@@ -196,129 +201,129 @@
   ];
   const DEFAULT_REGISTRATION_TIME_THRESHOLD = "> 2022";
 
-  const SHORT_VIDEO_THRESHOLD_OPTIONS = [
+  const VIDEO_DURATION_THRESHOLD_OPTIONS = [
     { label: "< 1 min", seconds: 60 },
     { label: "< 3 min", seconds: 3 * 60 },
     { label: "< 5 min", seconds: 5 * 60 },
     { label: "< 10 min", seconds: 10 * 60 },
     { label: "< 20 min", seconds: 20 * 60 },
   ];
-  const DEFAULT_SHORT_VIDEO_THRESHOLD = "< 1 min";
+  const DEFAULT_VIDEO_DURATION_THRESHOLD = "< 1 min";
 
-  const UNPOPULAR_VIDEO_THRESHOLD_OPTIONS = [
+  const VIDEO_VIEWS_THRESHOLD_OPTIONS = [
     { label: "< 1k views", views: 1000 },
     { label: "< 5k views", views: 5000 },
     { label: "< 10k views", views: 10000 },
     { label: "< 50k views", views: 50000 },
     { label: "< 100k views", views: 100000 },
   ];
-  const DEFAULT_UNPOPULAR_VIDEO_THRESHOLD = "< 1k views";
+  const DEFAULT_VIDEO_VIEWS_THRESHOLD = "< 1k views";
 
-  const COMMENT_LEVEL_THRESHOLD_OPTIONS = [
+  const COMMENTER_LEVEL_THRESHOLD_OPTIONS = [
     { label: "≤ 1", maxLevel: 1 },
     { label: "≤ 2", maxLevel: 2 },
     { label: "≤ 3", maxLevel: 3 },
     { label: "≤ 4", maxLevel: 4 },
     { label: "≤ 5", maxLevel: 5 },
   ];
-  const DEFAULT_COMMENT_LEVEL_THRESHOLD = "≤ 2";
+  const DEFAULT_COMMENTER_LEVEL_THRESHOLD = "≤ 2";
 
   const BOOLEAN_CONTROLS = [
     {
-      name: "blockNewUsers",
-      id: "bfilter-manager-block-new-users",
-      label: "Block new users",
+      name: "hideUsersByRegistrationTime",
+      id: "bfilter-manager-hide-users-by-registration-time",
+      label: "Hide by registration time",
       threshold: {
-        setting: "registrationTimeThreshold",
-        key: SETTING_KEYS.registrationTimeThreshold,
-        id: "bfilter-manager-registration-threshold",
+        setting: "hideUsersByRegistrationTimeThreshold",
+        key: SETTING_KEYS.hideUsersByRegistrationTimeThreshold,
+        id: "bfilter-manager-hide-users-by-registration-time-threshold",
         options: REGISTRATION_TIME_THRESHOLD_OPTIONS,
         defaultValue: DEFAULT_REGISTRATION_TIME_THRESHOLD,
         fallbackIndex: REGISTRATION_TIME_THRESHOLD_OPTIONS.length - 1,
       },
     },
     {
-      name: "hideShortVideos",
-      id: "bfilter-manager-hide-short-videos",
-      label: "Hide short videos",
+      name: "hideVideosByDuration",
+      id: "bfilter-manager-hide-videos-by-duration",
+      label: "Hide by duration",
       threshold: {
-        setting: "shortVideoThreshold",
-        key: SETTING_KEYS.shortVideoThreshold,
-        id: "bfilter-manager-short-video-threshold",
-        options: SHORT_VIDEO_THRESHOLD_OPTIONS,
-        defaultValue: DEFAULT_SHORT_VIDEO_THRESHOLD,
+        setting: "hideVideosByDurationThreshold",
+        key: SETTING_KEYS.hideVideosByDurationThreshold,
+        id: "bfilter-manager-hide-videos-by-duration-threshold",
+        options: VIDEO_DURATION_THRESHOLD_OPTIONS,
+        defaultValue: DEFAULT_VIDEO_DURATION_THRESHOLD,
         fallbackIndex: 2,
       },
     },
     {
-      name: "hideUnpopularVideos",
-      id: "bfilter-manager-hide-unpopular-videos",
-      label: "Hide unpopular videos",
+      name: "hideVideosByViews",
+      id: "bfilter-manager-hide-videos-by-views",
+      label: "Hide by views",
       threshold: {
-        setting: "unpopularVideoThreshold",
-        key: SETTING_KEYS.unpopularVideoThreshold,
-        id: "bfilter-manager-unpopular-video-threshold",
-        options: UNPOPULAR_VIDEO_THRESHOLD_OPTIONS,
-        defaultValue: DEFAULT_UNPOPULAR_VIDEO_THRESHOLD,
+        setting: "hideVideosByViewsThreshold",
+        key: SETTING_KEYS.hideVideosByViewsThreshold,
+        id: "bfilter-manager-hide-videos-by-views-threshold",
+        options: VIDEO_VIEWS_THRESHOLD_OPTIONS,
+        defaultValue: DEFAULT_VIDEO_VIEWS_THRESHOLD,
         fallbackIndex: 2,
       },
     },
     {
-      name: "hideBadgedVideos",
-      id: "bfilter-manager-hide-badged-videos",
-      label: "Hide badged videos",
+      name: "hideVideosByTypes",
+      id: "bfilter-manager-hide-videos-by-types",
+      label: "Hide by types",
     },
     {
-      name: "hideLiveVideos",
-      id: "bfilter-manager-hide-live-videos",
+      name: "hideVideosByTypeLive",
+      id: "bfilter-manager-hide-videos-by-type-live",
       label: "Live",
       defaultValue: false,
-      childOf: "hideBadgedVideos",
+      childOf: "hideVideosByTypes",
     },
     {
-      name: "hideMangaVideos",
-      id: "bfilter-manager-hide-manga-videos",
+      name: "hideVideosByTypeManga",
+      id: "bfilter-manager-hide-videos-by-type-manga",
       label: "Manga",
       defaultValue: false,
-      childOf: "hideBadgedVideos",
+      childOf: "hideVideosByTypes",
     },
     {
-      name: "hideCourseVideos",
-      id: "bfilter-manager-hide-course-videos",
+      name: "hideVideosByTypeCourse",
+      id: "bfilter-manager-hide-videos-by-type-course",
       label: "Course",
       defaultValue: false,
-      childOf: "hideBadgedVideos",
+      childOf: "hideVideosByTypes",
     },
     {
-      name: "hideBangumiVideos",
-      id: "bfilter-manager-hide-bangumi-videos",
+      name: "hideVideosByTypeBangumi",
+      id: "bfilter-manager-hide-videos-by-type-bangumi",
       label: "Bangumi",
       defaultValue: false,
-      childOf: "hideBadgedVideos",
+      childOf: "hideVideosByTypes",
     },
     {
-      name: "hideAtOnlyComments",
-      id: "bfilter-manager-hide-at-only-comments",
-      label: "Hide @-only comments",
+      name: "hideCommentsByMentionsOnly",
+      id: "bfilter-manager-hide-comments-by-mentions-only",
+      label: "Hide by mentions only",
       commentOption: true,
     },
     {
-      name: "hideImageComments",
-      id: "bfilter-manager-hide-image-comments",
-      label: "Hide comments with images",
+      name: "hideCommentsByImage",
+      id: "bfilter-manager-hide-comments-by-image",
+      label: "Hide by image",
       commentOption: true,
     },
     {
-      name: "hideCommentsByLevel",
-      id: "bfilter-manager-hide-comments-by-level",
-      label: "Hide comments by level",
+      name: "hideCommentsByCommenterLevel",
+      id: "bfilter-manager-hide-comments-by-commenter-level",
+      label: "Hide by commenter level",
       commentOption: true,
       threshold: {
-        setting: "commentLevelThreshold",
-        key: SETTING_KEYS.commentLevelThreshold,
-        id: "bfilter-manager-comment-level-threshold",
-        options: COMMENT_LEVEL_THRESHOLD_OPTIONS,
-        defaultValue: DEFAULT_COMMENT_LEVEL_THRESHOLD,
+        setting: "hideCommentsByCommenterLevelThreshold",
+        key: SETTING_KEYS.hideCommentsByCommenterLevelThreshold,
+        id: "bfilter-manager-hide-comments-by-commenter-level-threshold",
+        options: COMMENTER_LEVEL_THRESHOLD_OPTIONS,
+        defaultValue: DEFAULT_COMMENTER_LEVEL_THRESHOLD,
         fallbackIndex: 1,
       },
     },
@@ -329,37 +334,37 @@
       previewToggle: true,
     },
     {
-      name: "addUsernamesToFollowing",
-      id: "bfilter-manager-add-usernames-to-following",
+      name: "addUsernamesToFollowUsersByUid",
+      id: "bfilter-manager-add-usernames-to-follow-users-by-uid",
       label: "Add usernames by default",
       defaultValue: true,
-      followingOption: true,
+      followUsersByUidOption: true,
     },
   ];
 
-  const BLOCKED_UIDS = new Set();
-  const FOLLOWING_UIDS = new Set();
-  const BLOCKED_VIDEO_KEYWORDS = new Set();
-  const BLOCKED_COMMENT_KEYWORDS = new Set();
-  const BLOCKED_DANMAKU_KEYWORDS = new Set();
+  const HIDDEN_USER_UIDS = new Set();
+  const FOLLOW_USERS_BY_UID = new Set();
+  const HIDDEN_VIDEOS_BY_KEYWORD = new Set();
+  const HIDDEN_COMMENTS_BY_KEYWORD = new Set();
+  const HIDDEN_DANMAKUS_BY_KEYWORD = new Set();
   const settings = {
-    blockNewUsers: false,
-    hideAtOnlyComments: false,
-    hideImageComments: false,
-    hideCommentsByLevel: false,
+    hideUsersByRegistrationTime: false,
+    hideCommentsByMentionsOnly: false,
+    hideCommentsByImage: false,
+    hideCommentsByCommenterLevel: false,
     previewMode: false,
-    hideShortVideos: false,
-    hideUnpopularVideos: false,
-    hideBadgedVideos: false,
-    hideLiveVideos: false,
-    hideMangaVideos: false,
-    hideCourseVideos: false,
-    hideBangumiVideos: false,
-    addUsernamesToFollowing: true,
-    registrationTimeThreshold: DEFAULT_REGISTRATION_TIME_THRESHOLD,
-    shortVideoThreshold: DEFAULT_SHORT_VIDEO_THRESHOLD,
-    unpopularVideoThreshold: DEFAULT_UNPOPULAR_VIDEO_THRESHOLD,
-    commentLevelThreshold: DEFAULT_COMMENT_LEVEL_THRESHOLD,
+    hideVideosByDuration: false,
+    hideVideosByViews: false,
+    hideVideosByTypes: false,
+    hideVideosByTypeLive: false,
+    hideVideosByTypeManga: false,
+    hideVideosByTypeCourse: false,
+    hideVideosByTypeBangumi: false,
+    addUsernamesToFollowUsersByUid: true,
+    hideUsersByRegistrationTimeThreshold: DEFAULT_REGISTRATION_TIME_THRESHOLD,
+    hideVideosByDurationThreshold: DEFAULT_VIDEO_DURATION_THRESHOLD,
+    hideVideosByViewsThreshold: DEFAULT_VIDEO_VIEWS_THRESHOLD,
+    hideCommentsByCommenterLevelThreshold: DEFAULT_COMMENTER_LEVEL_THRESHOLD,
   };
 
   let scheduled = false;
@@ -370,20 +375,24 @@
   boot();
 
   function boot() {
-    replaceRuntimeBlockedUids(
-      parseBlockedUserListText(readSavedBlockedUserListText()),
+    replaceRuntimeHiddenUserUids(
+      parseHideUsersByUidListText(readSavedHideUsersByUidListText()),
     );
-    replaceRuntimeFollowingUids(
-      parseFollowingUserListText(readSavedFollowingUserListText()),
+    replaceRuntimeFollowUsersByUid(
+      parseFollowUsersByUidListText(readSavedFollowUsersByUidListText()),
     );
-    replaceRuntimeBlockedVideoKeywords(
-      parseVideoKeywordListText(readSavedVideoKeywordListText()),
+    replaceRuntimeHiddenVideosByKeyword(
+      parseHideVideosByKeywordListText(readSavedHideVideosByKeywordListText()),
     );
-    replaceRuntimeBlockedCommentKeywords(
-      parseCommentKeywordListText(readSavedCommentKeywordListText()),
+    replaceRuntimeHiddenCommentsByKeyword(
+      parseHideCommentsByKeywordListText(
+        readSavedHideCommentsByKeywordListText(),
+      ),
     );
-    replaceRuntimeBlockedDanmakuKeywords(
-      parseDanmakuKeywordListText(readSavedDanmakuKeywordListText()),
+    replaceRuntimeHiddenDanmakusByKeyword(
+      parseHideDanmakusByKeywordListText(
+        readSavedHideDanmakusByKeywordListText(),
+      ),
     );
     for (const { name } of BOOLEAN_CONTROLS) {
       const control = getControl(name);
@@ -530,33 +539,33 @@
   function setupStorageSync() {
     if (typeof GM_addValueChangeListener === "function") {
       GM_addValueChangeListener(
-        BLOCKLIST_STORAGE_KEY,
+        HIDE_USERS_BY_UID_STORAGE_KEY,
         (_key, _oldValue, value, remote) => {
-          if (remote) syncBlockedUids(value);
+          if (remote) syncHiddenUserUids(value);
         },
       );
       GM_addValueChangeListener(
-        FOLLOWING_STORAGE_KEY,
+        FOLLOW_USERS_BY_UID_STORAGE_KEY,
         (_key, _oldValue, value, remote) => {
-          if (remote) syncFollowingUids(value);
+          if (remote) syncFollowUsersByUid(value);
         },
       );
       GM_addValueChangeListener(
-        VIDEO_KEYWORD_BLOCKLIST_STORAGE_KEY,
+        HIDE_VIDEOS_BY_KEYWORD_STORAGE_KEY,
         (_key, _oldValue, value, remote) => {
-          if (remote) syncBlockedVideoKeywords(value);
+          if (remote) syncHiddenVideosByKeyword(value);
         },
       );
       GM_addValueChangeListener(
-        COMMENT_KEYWORD_BLOCKLIST_STORAGE_KEY,
+        HIDE_COMMENTS_BY_KEYWORD_STORAGE_KEY,
         (_key, _oldValue, value, remote) => {
-          if (remote) syncBlockedCommentKeywords(value);
+          if (remote) syncHiddenCommentsByKeyword(value);
         },
       );
       GM_addValueChangeListener(
-        DANMAKU_KEYWORD_BLOCKLIST_STORAGE_KEY,
+        HIDE_DANMAKUS_BY_KEYWORD_STORAGE_KEY,
         (_key, _oldValue, value, remote) => {
-          if (remote) syncBlockedDanmakuKeywords(value);
+          if (remote) syncHiddenDanmakusByKeyword(value);
         },
       );
       for (const { name } of BOOLEAN_CONTROLS) {
@@ -579,15 +588,16 @@
     }
 
     window.addEventListener("storage", (event) => {
-      if (event.key === BLOCKLIST_STORAGE_KEY) syncBlockedUids(event.newValue);
-      if (event.key === FOLLOWING_STORAGE_KEY)
-        syncFollowingUids(event.newValue);
-      if (event.key === VIDEO_KEYWORD_BLOCKLIST_STORAGE_KEY)
-        syncBlockedVideoKeywords(event.newValue);
-      if (event.key === COMMENT_KEYWORD_BLOCKLIST_STORAGE_KEY)
-        syncBlockedCommentKeywords(event.newValue);
-      if (event.key === DANMAKU_KEYWORD_BLOCKLIST_STORAGE_KEY)
-        syncBlockedDanmakuKeywords(event.newValue);
+      if (event.key === HIDE_USERS_BY_UID_STORAGE_KEY)
+        syncHiddenUserUids(event.newValue);
+      if (event.key === FOLLOW_USERS_BY_UID_STORAGE_KEY)
+        syncFollowUsersByUid(event.newValue);
+      if (event.key === HIDE_VIDEOS_BY_KEYWORD_STORAGE_KEY)
+        syncHiddenVideosByKeyword(event.newValue);
+      if (event.key === HIDE_COMMENTS_BY_KEYWORD_STORAGE_KEY)
+        syncHiddenCommentsByKeyword(event.newValue);
+      if (event.key === HIDE_DANMAKUS_BY_KEYWORD_STORAGE_KEY)
+        syncHiddenDanmakusByKeyword(event.newValue);
       for (const { name } of BOOLEAN_CONTROLS) {
         if (event.key === SETTING_KEYS[name])
           syncBooleanSetting(name, event.newValue);
@@ -599,39 +609,41 @@
     });
   }
 
-  function syncBlockedUids(savedValue) {
-    replaceRuntimeBlockedUids(parseBlockedUserListText(savedValue || ""));
+  function syncHiddenUserUids(savedValue) {
+    replaceRuntimeHiddenUserUids(parseHideUsersByUidListText(savedValue || ""));
     refreshConsequences();
     refreshBfilterManagerPanel();
     renderUserPageBlockButton();
   }
 
-  function syncFollowingUids(savedValue) {
-    replaceRuntimeFollowingUids(parseFollowingUserListText(savedValue || ""));
+  function syncFollowUsersByUid(savedValue) {
+    replaceRuntimeFollowUsersByUid(
+      parseFollowUsersByUidListText(savedValue || ""),
+    );
     refreshConsequences();
     refreshBfilterManagerPanel();
     renderUserPageBlockButton();
   }
 
-  function syncBlockedVideoKeywords(savedValue) {
-    replaceRuntimeBlockedVideoKeywords(
-      parseVideoKeywordListText(savedValue || ""),
+  function syncHiddenVideosByKeyword(savedValue) {
+    replaceRuntimeHiddenVideosByKeyword(
+      parseHideVideosByKeywordListText(savedValue || ""),
     );
     refreshConsequences();
     refreshBfilterManagerPanel();
   }
 
-  function syncBlockedCommentKeywords(savedValue) {
-    replaceRuntimeBlockedCommentKeywords(
-      parseCommentKeywordListText(savedValue || ""),
+  function syncHiddenCommentsByKeyword(savedValue) {
+    replaceRuntimeHiddenCommentsByKeyword(
+      parseHideCommentsByKeywordListText(savedValue || ""),
     );
     refreshConsequences();
     refreshBfilterManagerPanel();
   }
 
-  function syncBlockedDanmakuKeywords(savedValue) {
-    replaceRuntimeBlockedDanmakuKeywords(
-      parseDanmakuKeywordListText(savedValue || ""),
+  function syncHiddenDanmakusByKeyword(savedValue) {
+    replaceRuntimeHiddenDanmakusByKeyword(
+      parseHideDanmakusByKeywordListText(savedValue || ""),
     );
     refreshConsequences();
     refreshBfilterManagerPanel();
@@ -652,60 +664,60 @@
     renderUserPageBlockButton();
   }
 
-  function readSavedBlockedUserListText() {
+  function readSavedHideUsersByUidListText() {
     try {
       const saved =
         typeof GM_getValue === "function"
-          ? GM_getValue(BLOCKLIST_STORAGE_KEY, null)
-          : localStorage.getItem(BLOCKLIST_STORAGE_KEY);
+          ? GM_getValue(HIDE_USERS_BY_UID_STORAGE_KEY, null)
+          : localStorage.getItem(HIDE_USERS_BY_UID_STORAGE_KEY);
       return String(saved || "");
     } catch (_error) {
       return "";
     }
   }
 
-  function readSavedFollowingUserListText() {
+  function readSavedFollowUsersByUidListText() {
     try {
       const saved =
         typeof GM_getValue === "function"
-          ? GM_getValue(FOLLOWING_STORAGE_KEY, null)
-          : localStorage.getItem(FOLLOWING_STORAGE_KEY);
+          ? GM_getValue(FOLLOW_USERS_BY_UID_STORAGE_KEY, null)
+          : localStorage.getItem(FOLLOW_USERS_BY_UID_STORAGE_KEY);
       return String(saved || "");
     } catch (_error) {
       return "";
     }
   }
 
-  function readSavedVideoKeywordListText() {
+  function readSavedHideVideosByKeywordListText() {
     try {
       const saved =
         typeof GM_getValue === "function"
-          ? GM_getValue(VIDEO_KEYWORD_BLOCKLIST_STORAGE_KEY, null)
-          : localStorage.getItem(VIDEO_KEYWORD_BLOCKLIST_STORAGE_KEY);
+          ? GM_getValue(HIDE_VIDEOS_BY_KEYWORD_STORAGE_KEY, null)
+          : localStorage.getItem(HIDE_VIDEOS_BY_KEYWORD_STORAGE_KEY);
       return String(saved || "");
     } catch (_error) {
       return "";
     }
   }
 
-  function readSavedCommentKeywordListText() {
+  function readSavedHideCommentsByKeywordListText() {
     try {
       const saved =
         typeof GM_getValue === "function"
-          ? GM_getValue(COMMENT_KEYWORD_BLOCKLIST_STORAGE_KEY, null)
-          : localStorage.getItem(COMMENT_KEYWORD_BLOCKLIST_STORAGE_KEY);
+          ? GM_getValue(HIDE_COMMENTS_BY_KEYWORD_STORAGE_KEY, null)
+          : localStorage.getItem(HIDE_COMMENTS_BY_KEYWORD_STORAGE_KEY);
       return String(saved || "");
     } catch (_error) {
       return "";
     }
   }
 
-  function readSavedDanmakuKeywordListText() {
+  function readSavedHideDanmakusByKeywordListText() {
     try {
       const saved =
         typeof GM_getValue === "function"
-          ? GM_getValue(DANMAKU_KEYWORD_BLOCKLIST_STORAGE_KEY, null)
-          : localStorage.getItem(DANMAKU_KEYWORD_BLOCKLIST_STORAGE_KEY);
+          ? GM_getValue(HIDE_DANMAKUS_BY_KEYWORD_STORAGE_KEY, null)
+          : localStorage.getItem(HIDE_DANMAKUS_BY_KEYWORD_STORAGE_KEY);
       return String(saved || "");
     } catch (_error) {
       return "";
@@ -773,103 +785,103 @@
     }
   }
 
-  function replaceRuntimeBlockedUids(nextUids) {
+  function replaceRuntimeHiddenUserUids(nextUids) {
     const next = new Set(nextUids.map(normalizeUid).filter(Boolean));
-    for (const uid of [...BLOCKED_UIDS]) {
+    for (const uid of [...HIDDEN_USER_UIDS]) {
       if (!next.has(uid)) {
-        BLOCKED_UIDS.delete(uid);
+        HIDDEN_USER_UIDS.delete(uid);
         unhideCardsForUid(uid);
       }
     }
-    for (const uid of next) BLOCKED_UIDS.add(uid);
+    for (const uid of next) HIDDEN_USER_UIDS.add(uid);
   }
 
-  function replaceRuntimeFollowingUids(nextUids) {
-    FOLLOWING_UIDS.clear();
+  function replaceRuntimeFollowUsersByUid(nextUids) {
+    FOLLOW_USERS_BY_UID.clear();
     for (const uid of nextUids.map(normalizeUid).filter(Boolean))
-      FOLLOWING_UIDS.add(uid);
+      FOLLOW_USERS_BY_UID.add(uid);
   }
 
-  function replaceRuntimeBlockedVideoKeywords(nextKeywords) {
-    BLOCKED_VIDEO_KEYWORDS.clear();
+  function replaceRuntimeHiddenVideosByKeyword(nextKeywords) {
+    HIDDEN_VIDEOS_BY_KEYWORD.clear();
     for (const keyword of dedupeKeywords(nextKeywords)) {
-      BLOCKED_VIDEO_KEYWORDS.add(keyword);
+      HIDDEN_VIDEOS_BY_KEYWORD.add(keyword);
     }
   }
 
-  function replaceRuntimeBlockedCommentKeywords(nextKeywords) {
-    BLOCKED_COMMENT_KEYWORDS.clear();
+  function replaceRuntimeHiddenCommentsByKeyword(nextKeywords) {
+    HIDDEN_COMMENTS_BY_KEYWORD.clear();
     for (const keyword of dedupeKeywords(nextKeywords)) {
-      BLOCKED_COMMENT_KEYWORDS.add(keyword);
+      HIDDEN_COMMENTS_BY_KEYWORD.add(keyword);
     }
   }
 
-  function replaceRuntimeBlockedDanmakuKeywords(nextKeywords) {
-    BLOCKED_DANMAKU_KEYWORDS.clear();
+  function replaceRuntimeHiddenDanmakusByKeyword(nextKeywords) {
+    HIDDEN_DANMAKUS_BY_KEYWORD.clear();
     for (const keyword of dedupeKeywords(nextKeywords)) {
-      BLOCKED_DANMAKU_KEYWORDS.add(keyword);
+      HIDDEN_DANMAKUS_BY_KEYWORD.add(keyword);
     }
   }
 
-  function saveBlockedUserListText(textValue) {
+  function saveHideUsersByUidListText(textValue) {
     try {
       const value =
-        textValue == null ? getBlockedUidList().join("\n") : textValue;
+        textValue == null ? getHideUsersByUidList().join("\n") : textValue;
       if (typeof GM_setValue === "function")
-        GM_setValue(BLOCKLIST_STORAGE_KEY, value);
-      else localStorage.setItem(BLOCKLIST_STORAGE_KEY, value);
+        GM_setValue(HIDE_USERS_BY_UID_STORAGE_KEY, value);
+      else localStorage.setItem(HIDE_USERS_BY_UID_STORAGE_KEY, value);
     } catch (_error) {
       // Keep runtime blocklist even if persistence fails.
     }
   }
 
-  function saveFollowingUserListText(textValue) {
+  function saveFollowUsersByUidListText(textValue) {
     try {
       const value =
-        textValue == null ? getFollowingUidList().join("\n") : textValue;
+        textValue == null ? getFollowUsersByUidList().join("\n") : textValue;
       if (typeof GM_setValue === "function")
-        GM_setValue(FOLLOWING_STORAGE_KEY, value);
-      else localStorage.setItem(FOLLOWING_STORAGE_KEY, value);
+        GM_setValue(FOLLOW_USERS_BY_UID_STORAGE_KEY, value);
+      else localStorage.setItem(FOLLOW_USERS_BY_UID_STORAGE_KEY, value);
     } catch (_error) {
-      // Keep runtime following list even if persistence fails.
+      // Keep runtime follow users by UID list even if persistence fails.
     }
   }
 
-  function saveVideoKeywordListText(textValue) {
+  function saveHideVideosByKeywordListText(textValue) {
     try {
       const value =
-        textValue == null ? getBlockedVideoKeywordList().join("\n") : textValue;
+        textValue == null ? getHideVideosByKeywordList().join("\n") : textValue;
       if (typeof GM_setValue === "function")
-        GM_setValue(VIDEO_KEYWORD_BLOCKLIST_STORAGE_KEY, value);
-      else localStorage.setItem(VIDEO_KEYWORD_BLOCKLIST_STORAGE_KEY, value);
+        GM_setValue(HIDE_VIDEOS_BY_KEYWORD_STORAGE_KEY, value);
+      else localStorage.setItem(HIDE_VIDEOS_BY_KEYWORD_STORAGE_KEY, value);
     } catch (_error) {
       // Keep runtime video keywords even if persistence fails.
     }
   }
 
-  function saveCommentKeywordListText(textValue) {
+  function saveHideCommentsByKeywordListText(textValue) {
     try {
       const value =
         textValue == null
-          ? getBlockedCommentKeywordList().join("\n")
+          ? getHideCommentsByKeywordList().join("\n")
           : textValue;
       if (typeof GM_setValue === "function")
-        GM_setValue(COMMENT_KEYWORD_BLOCKLIST_STORAGE_KEY, value);
-      else localStorage.setItem(COMMENT_KEYWORD_BLOCKLIST_STORAGE_KEY, value);
+        GM_setValue(HIDE_COMMENTS_BY_KEYWORD_STORAGE_KEY, value);
+      else localStorage.setItem(HIDE_COMMENTS_BY_KEYWORD_STORAGE_KEY, value);
     } catch (_error) {
       // Keep runtime comment keywords even if persistence fails.
     }
   }
 
-  function saveDanmakuKeywordListText(textValue) {
+  function saveHideDanmakusByKeywordListText(textValue) {
     try {
       const value =
         textValue == null
-          ? getBlockedDanmakuKeywordList().join("\n")
+          ? getHideDanmakusByKeywordList().join("\n")
           : textValue;
       if (typeof GM_setValue === "function")
-        GM_setValue(DANMAKU_KEYWORD_BLOCKLIST_STORAGE_KEY, value);
-      else localStorage.setItem(DANMAKU_KEYWORD_BLOCKLIST_STORAGE_KEY, value);
+        GM_setValue(HIDE_DANMAKUS_BY_KEYWORD_STORAGE_KEY, value);
+      else localStorage.setItem(HIDE_DANMAKUS_BY_KEYWORD_STORAGE_KEY, value);
     } catch (_error) {
       // Keep runtime danmaku keywords even if persistence fails.
     }
@@ -882,12 +894,12 @@
     renderUserPageBlockButton();
   }
 
-  function setBadgedVideoTypes(selectedOptions) {
+  function setVideoTypes(selectedOptions) {
     const selected = new Set(
       [...selectedOptions].map((option) => option.value).filter(Boolean),
     );
     for (const control of BOOLEAN_CONTROLS.filter(
-      (child) => child.childOf === "hideBadgedVideos",
+      (child) => child.childOf === "hideVideosByTypes",
     )) {
       settings[control.name] = selected.has(control.name);
       saveBooleanSetting(SETTING_KEYS[control.name], settings[control.name]);
@@ -905,55 +917,61 @@
     renderUserPageBlockButton();
   }
 
-  function getBlockedUidList() {
-    return [...BLOCKED_UIDS];
+  function getHideUsersByUidList() {
+    return [...HIDDEN_USER_UIDS];
   }
 
-  function getFollowingUidList() {
-    return [...FOLLOWING_UIDS];
+  function getFollowUsersByUidList() {
+    return [...FOLLOW_USERS_BY_UID];
   }
 
-  function getBlockedUserListTextValue() {
-    return readSavedBlockedUserListText() || getBlockedUidList().join("\n");
-  }
-
-  function getFollowingUserListTextValue() {
-    return readSavedFollowingUserListText() || getFollowingUidList().join("\n");
-  }
-
-  function getBlockedVideoKeywordList() {
-    return [...BLOCKED_VIDEO_KEYWORDS];
-  }
-
-  function getVideoKeywordListTextValue() {
+  function getHideUsersByUidListTextValue() {
     return (
-      readSavedVideoKeywordListText() || getBlockedVideoKeywordList().join("\n")
+      readSavedHideUsersByUidListText() || getHideUsersByUidList().join("\n")
     );
   }
 
-  function getBlockedCommentKeywordList() {
-    return [...BLOCKED_COMMENT_KEYWORDS];
-  }
-
-  function getCommentKeywordListTextValue() {
+  function getFollowUsersByUidListTextValue() {
     return (
-      readSavedCommentKeywordListText() ||
-      getBlockedCommentKeywordList().join("\n")
+      readSavedFollowUsersByUidListText() ||
+      getFollowUsersByUidList().join("\n")
     );
   }
 
-  function getBlockedDanmakuKeywordList() {
-    return [...BLOCKED_DANMAKU_KEYWORDS];
+  function getHideVideosByKeywordList() {
+    return [...HIDDEN_VIDEOS_BY_KEYWORD];
   }
 
-  function getDanmakuKeywordListTextValue() {
+  function getHideVideosByKeywordListTextValue() {
     return (
-      readSavedDanmakuKeywordListText() ||
-      getBlockedDanmakuKeywordList().join("\n")
+      readSavedHideVideosByKeywordListText() ||
+      getHideVideosByKeywordList().join("\n")
     );
   }
 
-  function parseBlockedUserListText(text) {
+  function getHideCommentsByKeywordList() {
+    return [...HIDDEN_COMMENTS_BY_KEYWORD];
+  }
+
+  function getHideCommentsByKeywordListTextValue() {
+    return (
+      readSavedHideCommentsByKeywordListText() ||
+      getHideCommentsByKeywordList().join("\n")
+    );
+  }
+
+  function getHideDanmakusByKeywordList() {
+    return [...HIDDEN_DANMAKUS_BY_KEYWORD];
+  }
+
+  function getHideDanmakusByKeywordListTextValue() {
+    return (
+      readSavedHideDanmakusByKeywordListText() ||
+      getHideDanmakusByKeywordList().join("\n")
+    );
+  }
+
+  function parseHideUsersByUidListText(text) {
     return [
       ...new Set(
         text
@@ -965,8 +983,8 @@
     ];
   }
 
-  function parseFollowingUserListText(text) {
-    return parseBlockedUserListText(text);
+  function parseFollowUsersByUidListText(text) {
+    return parseHideUsersByUidListText(text);
   }
 
   function parseKeywordListText(text) {
@@ -977,29 +995,34 @@
     );
   }
 
-  function updateFollowingText(text, uid, following, username = "") {
+  function updateFollowUsersByUidText(
+    text,
+    uid,
+    followUsersByUid,
+    username = "",
+  ) {
     const normalizedUid = normalizeUid(uid);
     if (!normalizedUid) return text || "";
     const lines = String(text || "").split(/\r?\n/);
     const nextLines = lines.filter(
       (line) => normalizeUid(stripLineComment(line)) !== normalizedUid,
     );
-    if (following) {
+    if (followUsersByUid) {
       const name = String(username || "").trim();
       nextLines.push(name ? `${normalizedUid} # ${name}` : normalizedUid);
     }
     return nextLines.filter((line) => String(line || "").trim()).join("\n");
   }
 
-  function parseVideoKeywordListText(text) {
+  function parseHideVideosByKeywordListText(text) {
     return parseKeywordListText(text);
   }
 
-  function parseCommentKeywordListText(text) {
+  function parseHideCommentsByKeywordListText(text) {
     return parseKeywordListText(text);
   }
 
-  function parseDanmakuKeywordListText(text) {
+  function parseHideDanmakusByKeywordListText(text) {
     return parseKeywordListText(text);
   }
 
@@ -1066,8 +1089,8 @@
     for (const candidate of collectCandidates(root)) {
       const comment = resolveCommentItem(candidate);
       if (comment) {
-        if (followedCommentAuthorReason(comment)) {
-          applyFollow(comment);
+        if (followUsersByUidCommentAuthorReason(comment)) {
+          applyFollowUsersByUid(comment);
           continue;
         }
         const reason = evaluateComment(comment);
@@ -1086,14 +1109,14 @@
       const card = resolveVideoCard(candidate);
       if (!card) continue;
 
-      const followedUid = followedUidReason(card);
-      if (followedUid) {
+      const followUsersByUid = followUsersByUidReason(card);
+      if (followUsersByUid) {
         const target = resolveConsequenceTarget(card, {
-          type: "uid",
-          uid: followedUid,
+          type: "hide-users-by-uid",
+          uid: followUsersByUid,
         });
-        if (isValidConsequenceTarget(target, card, { uid: followedUid }))
-          applyFollow(target);
+        if (isValidConsequenceTarget(target, card, { uid: followUsersByUid }))
+          applyFollowUsersByUid(target);
         continue;
       }
 
@@ -1118,7 +1141,7 @@
     addIfMatches(root, UPLOADER_SELECTOR, candidates);
     addIfMatches(root, COMMENT_USER_LINK_SELECTOR, candidates);
     addIfMatches(root, VIDEO_LINK_SELECTOR, candidates);
-    addIfMatches(root, BADGED_VIDEO_LINK_SELECTOR, candidates);
+    addIfMatches(root, TYPE_VIDEO_LINK_SELECTOR, candidates);
     for (const selector of [
       CARD_SELECTOR,
       COMMENT_ITEM_SELECTOR,
@@ -1127,7 +1150,7 @@
       UPLOADER_SELECTOR,
       COMMENT_USER_LINK_SELECTOR,
       VIDEO_LINK_SELECTOR,
-      BADGED_VIDEO_LINK_SELECTOR,
+      TYPE_VIDEO_LINK_SELECTOR,
     ]) {
       for (const element of root.querySelectorAll(selector))
         candidates.add(element);
@@ -1195,7 +1218,7 @@
   function isPotentialVideoCard(element) {
     if (!isElement(element) || isUnsafePageContainer(element)) return false;
     if (matches(element, ".video-card__content")) return false;
-    if (isPotentialBadgedCard(element)) return true;
+    if (isPotentialTypeCard(element)) return true;
     if (!hasInOrSelf(element, VIDEO_LINK_SELECTOR)) return false;
     if (matches(element, CARD_SELECTOR)) return true;
     return (
@@ -1205,29 +1228,29 @@
     );
   }
 
-  function isPotentialBadgedCard(element) {
+  function isPotentialTypeCard(element) {
     return Boolean(
-      settings.hideBadgedVideos &&
+      settings.hideVideosByTypes &&
       matches(element, CARD_SELECTOR) &&
-      hasBadgedVideoLinkInside(element),
+      hasTypeVideoLinkInside(element),
     );
   }
 
-  function hasBadgedVideoLinkInside(card) {
-    const selector = getActiveBadgedVideoLinkSelector();
+  function hasTypeVideoLinkInside(card) {
+    const selector = getActiveTypeVideoLinkSelector();
     if (!selector) return false;
     return [...card.querySelectorAll(selector)].some((link) =>
       link.closest(CARD_SELECTOR),
     );
   }
 
-  function getActiveBadgedVideoLinkSelector() {
-    if (!settings.hideBadgedVideos) return "";
+  function getActiveTypeVideoLinkSelector() {
+    if (!settings.hideVideosByTypes) return "";
     return [
-      settings.hideLiveVideos && BADGED_VIDEO_LINK_SELECTORS.live,
-      settings.hideMangaVideos && BADGED_VIDEO_LINK_SELECTORS.manga,
-      settings.hideCourseVideos && BADGED_VIDEO_LINK_SELECTORS.course,
-      settings.hideBangumiVideos && BADGED_VIDEO_LINK_SELECTORS.bangumi,
+      settings.hideVideosByTypeLive && TYPE_VIDEO_LINK_SELECTORS.live,
+      settings.hideVideosByTypeManga && TYPE_VIDEO_LINK_SELECTORS.manga,
+      settings.hideVideosByTypeCourse && TYPE_VIDEO_LINK_SELECTORS.course,
+      settings.hideVideosByTypeBangumi && TYPE_VIDEO_LINK_SELECTORS.bangumi,
     ]
       .filter(Boolean)
       .join(",");
@@ -1301,68 +1324,76 @@
 
   function evaluateCard(card) {
     return (
-      blockedUidReason(card) ||
-      blockedVideoKeywordReason(card) ||
-      newUserReason(card) ||
-      shortVideoReason(card) ||
-      unpopularVideoReason(card) ||
-      badgedVideoReason(card)
+      hiddenUserUidReason(card) ||
+      hiddenVideosByKeywordReason(card) ||
+      registrationTimeReason(card) ||
+      videoDurationReason(card) ||
+      videoViewsReason(card) ||
+      videoTypesReason(card)
     );
   }
 
   function evaluateComment(comment) {
     return (
-      blockedCommentAuthorReason(comment) ||
-      blockedCommentKeywordReason(comment) ||
-      atOnlyCommentReason(comment) ||
+      hiddenCommentAuthorUidReason(comment) ||
+      hiddenCommentsByKeywordReason(comment) ||
+      mentionsOnlyCommentReason(comment) ||
       imageCommentReason(comment) ||
-      commentLevelReason(comment) ||
-      newCommentAuthorReason(comment)
+      commenterLevelReason(comment) ||
+      registrationTimeCommentAuthorReason(comment)
     );
   }
 
   function evaluateDanmaku(danmaku) {
-    const keyword = getMatchedDanmakuKeyword(getDanmakuText(danmaku));
-    return keyword ? { type: "danmaku-keyword", uid: "", keyword } : null;
+    const keyword = getMatchedHideDanmakusByKeyword(getDanmakuText(danmaku));
+    return keyword
+      ? { type: "hide-danmakus-by-keyword", uid: "", keyword }
+      : null;
   }
 
-  function followedUidReason(card) {
-    return getUploaderUidsInside(card).find((uid) => FOLLOWING_UIDS.has(uid));
+  function followUsersByUidReason(card) {
+    return getUploaderUidsInside(card).find((uid) =>
+      FOLLOW_USERS_BY_UID.has(uid),
+    );
   }
 
-  function followedCommentAuthorReason(comment) {
+  function followUsersByUidCommentAuthorReason(comment) {
     return getCommentAuthorUidsInside(comment).find((uid) =>
-      FOLLOWING_UIDS.has(uid),
+      FOLLOW_USERS_BY_UID.has(uid),
     );
   }
 
-  function blockedUidReason(card) {
+  function hiddenUserUidReason(card) {
     const uid = getUploaderUidsInside(card).find((value) =>
-      BLOCKED_UIDS.has(value),
+      HIDDEN_USER_UIDS.has(value),
     );
-    return uid ? { type: "uid", uid } : null;
+    return uid ? { type: "hide-users-by-uid", uid } : null;
   }
 
-  function blockedCommentAuthorReason(comment) {
+  function hiddenCommentAuthorUidReason(comment) {
     const uid = getCommentAuthorUidsInside(comment).find((value) =>
-      BLOCKED_UIDS.has(value),
+      HIDDEN_USER_UIDS.has(value),
     );
-    return uid ? { type: "uid", uid } : null;
+    return uid ? { type: "hide-users-by-uid", uid } : null;
   }
 
-  function newUserReason(card) {
-    if (!settings.blockNewUsers) return null;
-    const uid = getUploaderUidsInside(card).find(isNewUserUid);
-    return uid ? { type: "new-user", uid } : null;
+  function registrationTimeReason(card) {
+    if (!settings.hideUsersByRegistrationTime) return null;
+    const uid = getUploaderUidsInside(card).find(
+      matchesRegistrationTimeHeuristic,
+    );
+    return uid ? { type: "hide-users-by-registration-time", uid } : null;
   }
 
-  function newCommentAuthorReason(comment) {
-    if (!settings.blockNewUsers) return null;
-    const uid = getCommentAuthorUidsInside(comment).find(isNewUserUid);
-    return uid ? { type: "new-user", uid } : null;
+  function registrationTimeCommentAuthorReason(comment) {
+    if (!settings.hideUsersByRegistrationTime) return null;
+    const uid = getCommentAuthorUidsInside(comment).find(
+      matchesRegistrationTimeHeuristic,
+    );
+    return uid ? { type: "hide-users-by-registration-time", uid } : null;
   }
 
-  function isNewUserUid(uid) {
+  function matchesRegistrationTimeHeuristic(uid) {
     return /^\d+$/.test(uid) && uid.length >= getRegistrationTimeThreshold();
   }
 
@@ -1371,7 +1402,7 @@
   }
 
   function getRegistrationTimeThresholdOption(
-    value = settings.registrationTimeThreshold,
+    value = settings.hideUsersByRegistrationTimeThreshold,
   ) {
     return (
       REGISTRATION_TIME_THRESHOLD_OPTIONS.find(
@@ -1383,32 +1414,34 @@
     );
   }
 
-  function blockedVideoKeywordReason(card) {
-    const keyword = getMatchedVideoKeyword(getVideoTitleText(card));
-    return keyword ? { type: "video-keyword", uid: "", keyword } : null;
-  }
-
-  function shortVideoReason(card) {
-    if (!settings.hideShortVideos || !canUseMetadataFilter(card)) return null;
-    const seconds = getVideoDurationSeconds(card);
-    return seconds > 0 && seconds < getShortVideoThresholdSeconds()
-      ? { type: "short-video", uid: "" }
+  function hiddenVideosByKeywordReason(card) {
+    const keyword = getMatchedHideVideosByKeyword(getVideoTitleText(card));
+    return keyword
+      ? { type: "hide-videos-by-keyword", uid: "", keyword }
       : null;
   }
 
-  function unpopularVideoReason(card) {
-    if (!settings.hideUnpopularVideos || !canUseMetadataFilter(card))
+  function videoDurationReason(card) {
+    if (!settings.hideVideosByDuration || !canUseMetadataFilter(card))
       return null;
-    const views = getVideoViewCount(card);
-    return views != null && views < getUnpopularVideoThresholdViews()
-      ? { type: "unpopular-video", uid: "" }
+    const seconds = getVideoDurationSeconds(card);
+    return seconds > 0 && seconds < getVideoDurationThresholdSeconds()
+      ? { type: "hide-videos-by-duration", uid: "" }
       : null;
   }
 
-  function badgedVideoReason(card) {
-    if (!settings.hideBadgedVideos || !canUseMetadataFilter(card)) return null;
-    return hasBadgedVideoLinkInside(card)
-      ? { type: "badged-video", uid: "" }
+  function videoViewsReason(card) {
+    if (!settings.hideVideosByViews || !canUseMetadataFilter(card)) return null;
+    const views = getVideoViewCount(card);
+    return views != null && views < getVideoViewsThreshold()
+      ? { type: "hide-videos-by-views", uid: "" }
+      : null;
+  }
+
+  function videoTypesReason(card) {
+    if (!settings.hideVideosByTypes || !canUseMetadataFilter(card)) return null;
+    return hasTypeVideoLinkInside(card)
+      ? { type: "hide-videos-by-types", uid: "" }
       : null;
   }
 
@@ -1416,8 +1449,8 @@
     return !isDirectVideoPage() || isInsideRecommendationArea(card);
   }
 
-  function getMatchedVideoKeyword(text) {
-    return getMatchedKeyword(text, BLOCKED_VIDEO_KEYWORDS);
+  function getMatchedHideVideosByKeyword(text) {
+    return getMatchedKeyword(text, HIDDEN_VIDEOS_BY_KEYWORD);
   }
 
   function getVideoTitleText(card) {
@@ -1458,28 +1491,30 @@
     return elements;
   }
 
-  function getShortVideoThresholdSeconds() {
-    return getShortVideoThresholdOption().seconds;
+  function getVideoDurationThresholdSeconds() {
+    return getVideoDurationThresholdOption().seconds;
   }
 
-  function getShortVideoThresholdOption(value = settings.shortVideoThreshold) {
+  function getVideoDurationThresholdOption(
+    value = settings.hideVideosByDurationThreshold,
+  ) {
     return (
-      SHORT_VIDEO_THRESHOLD_OPTIONS.find((option) => option.label === value) ||
-      SHORT_VIDEO_THRESHOLD_OPTIONS[2]
+      VIDEO_DURATION_THRESHOLD_OPTIONS.find(
+        (option) => option.label === value,
+      ) || VIDEO_DURATION_THRESHOLD_OPTIONS[2]
     );
   }
 
-  function getUnpopularVideoThresholdViews() {
-    return getUnpopularVideoThresholdOption().views;
+  function getVideoViewsThreshold() {
+    return getVideoViewsThresholdOption().views;
   }
 
-  function getUnpopularVideoThresholdOption(
-    value = settings.unpopularVideoThreshold,
+  function getVideoViewsThresholdOption(
+    value = settings.hideVideosByViewsThreshold,
   ) {
     return (
-      UNPOPULAR_VIDEO_THRESHOLD_OPTIONS.find(
-        (option) => option.label === value,
-      ) || UNPOPULAR_VIDEO_THRESHOLD_OPTIONS[2]
+      VIDEO_VIEWS_THRESHOLD_OPTIONS.find((option) => option.label === value) ||
+      VIDEO_VIEWS_THRESHOLD_OPTIONS[2]
     );
   }
 
@@ -1561,28 +1596,31 @@
     return value;
   }
 
-  function blockedCommentKeywordReason(comment) {
-    const keyword = getMatchedCommentKeyword(getCommentText(comment));
-    return keyword ? { type: "comment-keyword", uid: "", keyword } : null;
-  }
-
-  function atOnlyCommentReason(comment) {
-    if (!settings.hideAtOnlyComments || !isAtOnlyComment(comment)) return null;
-    return { type: "comment-at-only", uid: "" };
-  }
-
-  function imageCommentReason(comment) {
-    if (!settings.hideImageComments) return null;
-    return hasCommentImageAttachment(comment)
-      ? { type: "comment-image", uid: "" }
+  function hiddenCommentsByKeywordReason(comment) {
+    const keyword = getMatchedHideCommentsByKeyword(getCommentText(comment));
+    return keyword
+      ? { type: "hide-comments-by-keyword", uid: "", keyword }
       : null;
   }
 
-  function commentLevelReason(comment) {
-    if (!settings.hideCommentsByLevel) return null;
+  function mentionsOnlyCommentReason(comment) {
+    if (!settings.hideCommentsByMentionsOnly || !isMentionsOnlyComment(comment))
+      return null;
+    return { type: "hide-comments-by-mentions-only", uid: "" };
+  }
+
+  function imageCommentReason(comment) {
+    if (!settings.hideCommentsByImage) return null;
+    return hasCommentImageAttachment(comment)
+      ? { type: "hide-comments-by-image", uid: "" }
+      : null;
+  }
+
+  function commenterLevelReason(comment) {
+    if (!settings.hideCommentsByCommenterLevel) return null;
     const level = getCommentLevel(comment);
-    return level !== null && level <= getCommentLevelThreshold()
-      ? { type: "comment-level", uid: "" }
+    return level !== null && level <= getCommenterLevelThreshold()
+      ? { type: "hide-comments-by-commenter-level", uid: "" }
       : null;
   }
 
@@ -1600,17 +1638,17 @@
     return null;
   }
 
-  function getCommentLevelThreshold() {
-    return getCommentLevelThresholdOption().maxLevel;
+  function getCommenterLevelThreshold() {
+    return getCommenterLevelThresholdOption().maxLevel;
   }
 
-  function getCommentLevelThresholdOption(
-    value = settings.commentLevelThreshold,
+  function getCommenterLevelThresholdOption(
+    value = settings.hideCommentsByCommenterLevelThreshold,
   ) {
     return (
-      COMMENT_LEVEL_THRESHOLD_OPTIONS.find(
+      COMMENTER_LEVEL_THRESHOLD_OPTIONS.find(
         (option) => option.label === value,
-      ) || COMMENT_LEVEL_THRESHOLD_OPTIONS[1]
+      ) || COMMENTER_LEVEL_THRESHOLD_OPTIONS[1]
     );
   }
 
@@ -1620,8 +1658,8 @@
     );
   }
 
-  function getMatchedCommentKeyword(text) {
-    return getMatchedKeyword(text, BLOCKED_COMMENT_KEYWORDS);
+  function getMatchedHideCommentsByKeyword(text) {
+    return getMatchedKeyword(text, HIDDEN_COMMENTS_BY_KEYWORD);
   }
 
   function getCommentText(comment) {
@@ -1629,7 +1667,7 @@
     return text ? text.textContent || "" : comment.textContent || "";
   }
 
-  function isAtOnlyComment(comment) {
+  function isMentionsOnlyComment(comment) {
     const text = getCommentTextElement(comment);
     if (!text || !text.querySelector(COMMENT_MENTION_LINK_SELECTOR))
       return false;
@@ -1649,8 +1687,8 @@
     return comment.querySelector(COMMENT_TEXT_SELECTOR);
   }
 
-  function getMatchedDanmakuKeyword(text) {
-    return getMatchedKeyword(text, BLOCKED_DANMAKU_KEYWORDS);
+  function getMatchedHideDanmakusByKeyword(text) {
+    return getMatchedKeyword(text, HIDDEN_DANMAKUS_BY_KEYWORD);
   }
 
   function getDanmakuText(danmaku) {
@@ -1694,7 +1732,7 @@
   }
 
   function resolveConsequenceTarget(card, reason) {
-    if (isBadgedVideoReason(reason)) {
+    if (isVideoTypesReason(reason)) {
       const searchResultCard = card.closest(".video-list-item");
       if (isSearchPage() && isSafeTargetShape(searchResultCard))
         return searchResultCard;
@@ -1711,8 +1749,8 @@
       : card;
   }
 
-  function isBadgedVideoReason(reason) {
-    return reason && reason.type === "badged-video";
+  function isVideoTypesReason(reason) {
+    return reason && reason.type === "hide-videos-by-types";
   }
 
   function isValidConsequenceTarget(target, card, reason) {
@@ -1734,11 +1772,11 @@
   }
 
   function applyConsequence(target, reason) {
-    target.removeAttribute(FOLLOW_ATTR);
+    target.removeAttribute(FOLLOW_USERS_BY_UID_ATTR);
     clearNestedConsequences(target);
-    target.removeAttribute(settings.previewMode ? BLOCK_ATTR : PREVIEW_ATTR);
+    target.removeAttribute(settings.previewMode ? HIDDEN_ATTR : PREVIEW_ATTR);
 
-    const activeAttr = settings.previewMode ? PREVIEW_ATTR : BLOCK_ATTR;
+    const activeAttr = settings.previewMode ? PREVIEW_ATTR : HIDDEN_ATTR;
     if (
       target.parentElement &&
       target.parentElement.closest(`[${activeAttr}]`)
@@ -1748,18 +1786,18 @@
     }
 
     target.setAttribute(activeAttr, "true");
-    target.setAttribute(BLOCKED_UID_ATTR, reason.uid || "");
+    target.setAttribute(HIDDEN_UID_ATTR, reason.uid || "");
   }
 
-  function applyFollow(target) {
+  function applyFollowUsersByUid(target) {
     clearNestedConsequences(target);
     clearConsequence(target);
-    target.setAttribute(FOLLOW_ATTR, "true");
+    target.setAttribute(FOLLOW_USERS_BY_UID_ATTR, "true");
   }
 
   function refreshConsequences() {
     for (const element of document.querySelectorAll(
-      `[${BLOCK_ATTR}], [${PREVIEW_ATTR}], [${FOLLOW_ATTR}]`,
+      `[${HIDDEN_ATTR}], [${PREVIEW_ATTR}], [${FOLLOW_USERS_BY_UID_ATTR}]`,
     )) {
       clearConsequence(element);
     }
@@ -1768,22 +1806,22 @@
 
   function clearNestedConsequences(target) {
     for (const nested of target.querySelectorAll(
-      `[${BLOCK_ATTR}], [${PREVIEW_ATTR}], [${FOLLOW_ATTR}]`,
+      `[${HIDDEN_ATTR}], [${PREVIEW_ATTR}], [${FOLLOW_USERS_BY_UID_ATTR}]`,
     )) {
       clearConsequence(nested);
     }
   }
 
   function clearConsequence(element) {
-    element.removeAttribute(BLOCK_ATTR);
+    element.removeAttribute(HIDDEN_ATTR);
     element.removeAttribute(PREVIEW_ATTR);
-    element.removeAttribute(FOLLOW_ATTR);
-    element.removeAttribute(BLOCKED_UID_ATTR);
+    element.removeAttribute(FOLLOW_USERS_BY_UID_ATTR);
+    element.removeAttribute(HIDDEN_UID_ATTR);
   }
 
   function unhideCardsForUid(uid) {
     for (const element of document.querySelectorAll(
-      `[${BLOCKED_UID_ATTR}="${uid}"]`,
+      `[${HIDDEN_UID_ATTR}="${uid}"]`,
     )) {
       clearConsequence(element);
     }
@@ -1902,52 +1940,52 @@
       </div>
       <section class="bfilter-manager-section">
         <div class="bfilter-manager-tabs" role="tablist">
-          <button class="bfilter-manager-tab" type="button" role="tab" aria-selected="${String(activeTab === "users")}" data-tab="users">Users</button>
-          <button class="bfilter-manager-tab" type="button" role="tab" aria-selected="${String(activeTab === "following")}" data-tab="following">Following</button>
-          <button class="bfilter-manager-tab" type="button" role="tab" aria-selected="${String(activeTab === "video-keywords")}" data-tab="video-keywords">Videos</button>
-          <button class="bfilter-manager-tab" type="button" role="tab" aria-selected="${String(activeTab === "comment-keywords")}" data-tab="comment-keywords">Comments</button>
-          <button class="bfilter-manager-tab" type="button" role="tab" aria-selected="${String(activeTab === "danmaku-keywords")}" data-tab="danmaku-keywords">Danmakus</button>
+          <button class="bfilter-manager-tab" type="button" role="tab" aria-selected="${String(activeTab === "hide-users-by-uid")}" data-tab="hide-users-by-uid">Users</button>
+          <button class="bfilter-manager-tab" type="button" role="tab" aria-selected="${String(activeTab === "follow-users-by-uid")}" data-tab="follow-users-by-uid">Following</button>
+          <button class="bfilter-manager-tab" type="button" role="tab" aria-selected="${String(activeTab === "hide-videos-by-keyword")}" data-tab="hide-videos-by-keyword">Videos</button>
+          <button class="bfilter-manager-tab" type="button" role="tab" aria-selected="${String(activeTab === "hide-comments-by-keyword")}" data-tab="hide-comments-by-keyword">Comments</button>
+          <button class="bfilter-manager-tab" type="button" role="tab" aria-selected="${String(activeTab === "hide-danmakus-by-keyword")}" data-tab="hide-danmakus-by-keyword">Danmakus</button>
           <button class="bfilter-manager-tab" type="button" role="tab" aria-selected="${String(activeTab === "settings")}" data-tab="settings">Settings</button>
         </div>
-        <div class="bfilter-manager-tab-panel" role="tabpanel" data-tab-panel="users" ${activeTab === "users" ? "" : "hidden"}>
+        <div class="bfilter-manager-tab-panel" role="tabpanel" data-tab-panel="hide-users-by-uid" ${activeTab === "hide-users-by-uid" ? "" : "hidden"}>
           ${BOOLEAN_CONTROLS.filter(
-            (control) => control.name === "blockNewUsers",
+            (control) => control.name === "hideUsersByRegistrationTime",
           )
             .map(renderManagerOption)
             .join("")}
-          ${renderManagerTextarea(MANAGER_TEXTAREA_ID)}
-          <div class="bfilter-manager-help" data-help="users"></div>
+          ${renderManagerTextarea(MANAGER_HIDE_USERS_BY_UID_TEXTAREA_ID)}
+          <div class="bfilter-manager-help" data-help="hide-users-by-uid"></div>
         </div>
-        <div class="bfilter-manager-tab-panel" role="tabpanel" data-tab-panel="following" ${activeTab === "following" ? "" : "hidden"}>
-          ${BOOLEAN_CONTROLS.filter((control) => control.followingOption)
+        <div class="bfilter-manager-tab-panel" role="tabpanel" data-tab-panel="follow-users-by-uid" ${activeTab === "follow-users-by-uid" ? "" : "hidden"}>
+          ${BOOLEAN_CONTROLS.filter((control) => control.followUsersByUidOption)
             .map(renderManagerOption)
             .join("")}
-          ${renderManagerTextarea(MANAGER_FOLLOWING_TEXTAREA_ID)}
-          <div class="bfilter-manager-help" data-help="following"></div>
+          ${renderManagerTextarea(MANAGER_FOLLOW_USERS_BY_UID_TEXTAREA_ID)}
+          <div class="bfilter-manager-help" data-help="follow-users-by-uid"></div>
         </div>
-        <div class="bfilter-manager-tab-panel" role="tabpanel" data-tab-panel="video-keywords" ${activeTab === "video-keywords" ? "" : "hidden"}>
+        <div class="bfilter-manager-tab-panel" role="tabpanel" data-tab-panel="hide-videos-by-keyword" ${activeTab === "hide-videos-by-keyword" ? "" : "hidden"}>
           ${BOOLEAN_CONTROLS.filter((control) =>
             [
-              "hideShortVideos",
-              "hideUnpopularVideos",
-              "hideBadgedVideos",
+              "hideVideosByDuration",
+              "hideVideosByViews",
+              "hideVideosByTypes",
             ].includes(control.name),
           )
             .map(renderManagerOption)
             .join("")}
-          ${renderManagerTextarea(MANAGER_VIDEO_KEYWORDS_TEXTAREA_ID)}
-          <div class="bfilter-manager-help" data-help="video-keywords"></div>
+          ${renderManagerTextarea(MANAGER_HIDE_VIDEOS_BY_KEYWORD_TEXTAREA_ID)}
+          <div class="bfilter-manager-help" data-help="hide-videos-by-keyword"></div>
         </div>
-        <div class="bfilter-manager-tab-panel" role="tabpanel" data-tab-panel="comment-keywords" ${activeTab === "comment-keywords" ? "" : "hidden"}>
+        <div class="bfilter-manager-tab-panel" role="tabpanel" data-tab-panel="hide-comments-by-keyword" ${activeTab === "hide-comments-by-keyword" ? "" : "hidden"}>
           ${BOOLEAN_CONTROLS.filter((control) => control.commentOption)
             .map(renderManagerOption)
             .join("")}
-          ${renderManagerTextarea(MANAGER_COMMENT_KEYWORDS_TEXTAREA_ID)}
-          <div class="bfilter-manager-help" data-help="comment-keywords"></div>
+          ${renderManagerTextarea(MANAGER_HIDE_COMMENTS_BY_KEYWORD_TEXTAREA_ID)}
+          <div class="bfilter-manager-help" data-help="hide-comments-by-keyword"></div>
         </div>
-        <div class="bfilter-manager-tab-panel" role="tabpanel" data-tab-panel="danmaku-keywords" ${activeTab === "danmaku-keywords" ? "" : "hidden"}>
-          ${renderManagerTextarea(MANAGER_DANMAKU_KEYWORDS_TEXTAREA_ID)}
-          <div class="bfilter-manager-help" data-help="danmaku-keywords"></div>
+        <div class="bfilter-manager-tab-panel" role="tabpanel" data-tab-panel="hide-danmakus-by-keyword" ${activeTab === "hide-danmakus-by-keyword" ? "" : "hidden"}>
+          ${renderManagerTextarea(MANAGER_HIDE_DANMAKUS_BY_KEYWORD_TEXTAREA_ID)}
+          <div class="bfilter-manager-help" data-help="hide-danmakus-by-keyword"></div>
         </div>
         <div class="bfilter-manager-tab-panel" role="tabpanel" data-tab-panel="settings" ${activeTab === "settings" ? "" : "hidden"}>
           <div class="bfilter-manager-settings-section">
@@ -1966,7 +2004,7 @@
             <span>Preview</span>
           </label>
           <div class="bfilter-manager-action-buttons">
-            <button class="bfilter-manager-action bfilter-manager-action-primary" type="button" data-action="go-following" title="Open selected user space" hidden>Go</button>
+            <button class="bfilter-manager-action bfilter-manager-action-primary" type="button" data-action="go-follow-users-by-uid" title="Open selected user space" hidden>Go</button>
             <button class="bfilter-manager-action bfilter-manager-action-primary" type="button" data-action="sort" title="Sort all Manager lists">Sort</button>
             <button class="bfilter-manager-action bfilter-manager-action-primary" type="button" data-action="save" disabled>Save</button>
           </div>
@@ -1982,8 +2020,8 @@
       if (target.matches(".bfilter-manager-tab[data-tab]")) {
         setActiveManagerTab(panel, target.getAttribute("data-tab"));
       }
-      if (target.getAttribute("data-action") === "go-following") {
-        openSelectedFollowingDynamic(panel);
+      if (target.getAttribute("data-action") === "go-follow-users-by-uid") {
+        openSelectedFollowUsersByUidDynamic(panel);
       }
       if (target.getAttribute("data-action") === "sort") {
         if (
@@ -2009,11 +2047,11 @@
       const target = event.target;
       if (
         target &&
-        (target.id === MANAGER_TEXTAREA_ID ||
-          target.id === MANAGER_FOLLOWING_TEXTAREA_ID ||
-          target.id === MANAGER_VIDEO_KEYWORDS_TEXTAREA_ID ||
-          target.id === MANAGER_COMMENT_KEYWORDS_TEXTAREA_ID ||
-          target.id === MANAGER_DANMAKU_KEYWORDS_TEXTAREA_ID)
+        (target.id === MANAGER_HIDE_USERS_BY_UID_TEXTAREA_ID ||
+          target.id === MANAGER_FOLLOW_USERS_BY_UID_TEXTAREA_ID ||
+          target.id === MANAGER_HIDE_VIDEOS_BY_KEYWORD_TEXTAREA_ID ||
+          target.id === MANAGER_HIDE_COMMENTS_BY_KEYWORD_TEXTAREA_ID ||
+          target.id === MANAGER_HIDE_DANMAKUS_BY_KEYWORD_TEXTAREA_ID)
       )
         updateManagerSaveButtonState(panel);
     });
@@ -2030,8 +2068,8 @@
         refreshThresholdControls(panel);
         return;
       }
-      if (target && target.matches("[data-badged-video-types]")) {
-        setBadgedVideoTypes(target.selectedOptions);
+      if (target && target.matches("[data-hide-videos-by-types]")) {
+        setVideoTypes(target.selectedOptions);
         refreshBooleanControls(panel);
         return;
       }
@@ -2055,15 +2093,15 @@
       (child) => child.childOf === control.name,
     );
     if (children.length) {
-      return `<div class="bfilter-manager-badged-video-control">${checkbox}${renderBadgedVideoTypeSelect(children)}</div>`;
+      return `<div class="bfilter-manager-video-types-control">${checkbox}${renderVideoTypeSelect(children)}</div>`;
     }
     return control.threshold
-      ? `<div class="bfilter-manager-registration-time-control">${checkbox}${renderThresholdSelect(control)}</div>`
+      ? `<div class="bfilter-manager-threshold-control">${checkbox}${renderThresholdSelect(control)}</div>`
       : checkbox;
   }
 
   function renderThresholdSelect(control) {
-    return `<select id="${control.threshold.id}" class="bfilter-manager-registration-threshold">${control.threshold.options
+    return `<select id="${control.threshold.id}" class="bfilter-manager-threshold">${control.threshold.options
       .map(
         (option, index) =>
           `<option value="${index}">${escapeHtml(option.label)}</option>`,
@@ -2071,8 +2109,8 @@
       .join("")}</select>`;
   }
 
-  function renderBadgedVideoTypeSelect(controls) {
-    return `<select class="bfilter-manager-badged-types" data-badged-video-types multiple size="1">${controls
+  function renderVideoTypeSelect(controls) {
+    return `<select class="bfilter-manager-video-types" data-hide-videos-by-types multiple size="1">${controls
       .map(
         (control) =>
           `<option value="${control.name}">${escapeHtml(control.label)}</option>`,
@@ -2085,92 +2123,98 @@
     textValues = {},
   ) {
     if (!panel) return;
-    const uids = getBlockedUidList();
-    const blockedUserText = getBlockedUserListTextValue();
-    const followingUids = getFollowingUidList();
-    const followingText = getFollowingUserListTextValue();
-    const videoKeywords = getBlockedVideoKeywordList();
-    const videoKeywordText = getVideoKeywordListTextValue();
-    const commentKeywords = getBlockedCommentKeywordList();
-    const commentKeywordText = getCommentKeywordListTextValue();
-    const danmakuKeywords = getBlockedDanmakuKeywordList();
-    const danmakuKeywordText = getDanmakuKeywordListTextValue();
-    const textarea = panel.querySelector(`#${MANAGER_TEXTAREA_ID}`);
-    const followingTextarea = panel.querySelector(
-      `#${MANAGER_FOLLOWING_TEXTAREA_ID}`,
+    const uids = getHideUsersByUidList();
+    const hideUsersByUidText = getHideUsersByUidListTextValue();
+    const followUsersByUidUids = getFollowUsersByUidList();
+    const followUsersByUidText = getFollowUsersByUidListTextValue();
+    const hideVideosByKeyword = getHideVideosByKeywordList();
+    const videoKeywordText = getHideVideosByKeywordListTextValue();
+    const hideCommentsByKeyword = getHideCommentsByKeywordList();
+    const commentKeywordText = getHideCommentsByKeywordListTextValue();
+    const hideDanmakusByKeyword = getHideDanmakusByKeywordList();
+    const danmakuKeywordText = getHideDanmakusByKeywordListTextValue();
+    const textarea = panel.querySelector(
+      `#${MANAGER_HIDE_USERS_BY_UID_TEXTAREA_ID}`,
     );
-    const videoKeywordsTextarea = panel.querySelector(
-      `#${MANAGER_VIDEO_KEYWORDS_TEXTAREA_ID}`,
+    const followUsersByUidTextarea = panel.querySelector(
+      `#${MANAGER_FOLLOW_USERS_BY_UID_TEXTAREA_ID}`,
     );
-    const commentKeywordsTextarea = panel.querySelector(
-      `#${MANAGER_COMMENT_KEYWORDS_TEXTAREA_ID}`,
+    const hideVideosByKeywordTextarea = panel.querySelector(
+      `#${MANAGER_HIDE_VIDEOS_BY_KEYWORD_TEXTAREA_ID}`,
     );
-    const help = panel.querySelector('[data-help="users"]');
-    const followingHelp = panel.querySelector('[data-help="following"]');
-    const videoKeywordsHelp = panel.querySelector(
-      '[data-help="video-keywords"]',
+    const hideCommentsByKeywordTextarea = panel.querySelector(
+      `#${MANAGER_HIDE_COMMENTS_BY_KEYWORD_TEXTAREA_ID}`,
     );
-    const commentKeywordsHelp = panel.querySelector(
-      '[data-help="comment-keywords"]',
+    const help = panel.querySelector('[data-help="hide-users-by-uid"]');
+    const followUsersByUidHelp = panel.querySelector(
+      '[data-help="follow-users-by-uid"]',
     );
-    const danmakuKeywordsTextarea = panel.querySelector(
-      `#${MANAGER_DANMAKU_KEYWORDS_TEXTAREA_ID}`,
+    const hideVideosByKeywordHelp = panel.querySelector(
+      '[data-help="hide-videos-by-keyword"]',
     );
-    const danmakuKeywordsHelp = panel.querySelector(
-      '[data-help="danmaku-keywords"]',
+    const hideCommentsByKeywordHelp = panel.querySelector(
+      '[data-help="hide-comments-by-keyword"]',
+    );
+    const hideDanmakusByKeywordTextarea = panel.querySelector(
+      `#${MANAGER_HIDE_DANMAKUS_BY_KEYWORD_TEXTAREA_ID}`,
+    );
+    const hideDanmakusByKeywordHelp = panel.querySelector(
+      '[data-help="hide-danmakus-by-keyword"]',
     );
     if (textarea) {
       textarea.value = getManagerTextValue(
         textValues,
-        "users",
-        blockedUserText,
+        "hideUsersByUid",
+        hideUsersByUidText,
       );
       textarea.dataset.cleanValue = textarea.value;
     }
-    if (followingTextarea) {
-      followingTextarea.value = getManagerTextValue(
+    if (followUsersByUidTextarea) {
+      followUsersByUidTextarea.value = getManagerTextValue(
         textValues,
-        "following",
-        followingText,
+        "followUsersByUid",
+        followUsersByUidText,
       );
-      followingTextarea.dataset.cleanValue = followingTextarea.value;
+      followUsersByUidTextarea.dataset.cleanValue =
+        followUsersByUidTextarea.value;
     }
-    if (videoKeywordsTextarea) {
-      videoKeywordsTextarea.value = getManagerTextValue(
+    if (hideVideosByKeywordTextarea) {
+      hideVideosByKeywordTextarea.value = getManagerTextValue(
         textValues,
-        "videoKeywords",
+        "hideVideosByKeyword",
         videoKeywordText,
       );
-      videoKeywordsTextarea.dataset.cleanValue = videoKeywordsTextarea.value;
+      hideVideosByKeywordTextarea.dataset.cleanValue =
+        hideVideosByKeywordTextarea.value;
     }
-    if (commentKeywordsTextarea) {
-      commentKeywordsTextarea.value = getManagerTextValue(
+    if (hideCommentsByKeywordTextarea) {
+      hideCommentsByKeywordTextarea.value = getManagerTextValue(
         textValues,
-        "commentKeywords",
+        "hideCommentsByKeyword",
         commentKeywordText,
       );
-      commentKeywordsTextarea.dataset.cleanValue =
-        commentKeywordsTextarea.value;
+      hideCommentsByKeywordTextarea.dataset.cleanValue =
+        hideCommentsByKeywordTextarea.value;
     }
-    if (danmakuKeywordsTextarea) {
-      danmakuKeywordsTextarea.value = getManagerTextValue(
+    if (hideDanmakusByKeywordTextarea) {
+      hideDanmakusByKeywordTextarea.value = getManagerTextValue(
         textValues,
-        "danmakuKeywords",
+        "hideDanmakusByKeyword",
         danmakuKeywordText,
       );
-      danmakuKeywordsTextarea.dataset.cleanValue =
-        danmakuKeywordsTextarea.value;
+      hideDanmakusByKeywordTextarea.dataset.cleanValue =
+        hideDanmakusByKeywordTextarea.value;
     }
     if (help)
       help.innerHTML = `<strong>${uids.length}</strong> user(s) have been blocked.\nEnter one UID per line to block users.`;
-    if (followingHelp)
-      followingHelp.innerHTML = `<strong>${followingUids.length}</strong> user(s) are followed.\nEnter one UID per line to highlight users.`;
-    if (videoKeywordsHelp)
-      videoKeywordsHelp.innerHTML = `<strong>${videoKeywords.length}</strong> keyword(s) have been blocked.\nEnter one keyword per line to block videos containing it in their titles.`;
-    if (commentKeywordsHelp)
-      commentKeywordsHelp.innerHTML = `<strong>${commentKeywords.length}</strong> keyword(s) have been blocked.\nEnter one keyword per line to block comments containing it.`;
-    if (danmakuKeywordsHelp)
-      danmakuKeywordsHelp.innerHTML = `<strong>${danmakuKeywords.length}</strong> keyword(s) have been blocked.\nEnter one keyword per line to block danmakus containing it.`;
+    if (followUsersByUidHelp)
+      followUsersByUidHelp.innerHTML = `<strong>${followUsersByUidUids.length}</strong> user(s) are followed.\nEnter one UID per line to highlight users.`;
+    if (hideVideosByKeywordHelp)
+      hideVideosByKeywordHelp.innerHTML = `<strong>${hideVideosByKeyword.length}</strong> keyword(s) have been blocked.\nEnter one keyword per line to block videos containing it in their titles.`;
+    if (hideCommentsByKeywordHelp)
+      hideCommentsByKeywordHelp.innerHTML = `<strong>${hideCommentsByKeyword.length}</strong> keyword(s) have been blocked.\nEnter one keyword per line to block comments containing it.`;
+    if (hideDanmakusByKeywordHelp)
+      hideDanmakusByKeywordHelp.innerHTML = `<strong>${hideDanmakusByKeyword.length}</strong> keyword(s) have been blocked.\nEnter one keyword per line to block danmakus containing it.`;
     refreshBooleanControls(panel);
     refreshManagerGoButton(panel);
     updateManagerSaveButtonState(panel);
@@ -2202,26 +2246,26 @@
 
   function getValidManagerTabName(tabName) {
     return [
-      "users",
-      "video-keywords",
-      "comment-keywords",
-      "danmaku-keywords",
-      "following",
+      "hide-users-by-uid",
+      "hide-videos-by-keyword",
+      "hide-comments-by-keyword",
+      "hide-danmakus-by-keyword",
+      "follow-users-by-uid",
       "settings",
     ].includes(tabName)
       ? tabName
-      : "users";
+      : "hide-users-by-uid";
   }
 
   function readActiveManagerTabName() {
     try {
       const saved =
         typeof GM_getValue === "function"
-          ? GM_getValue(ACTIVE_MANAGER_TAB_STORAGE_KEY, "users")
+          ? GM_getValue(ACTIVE_MANAGER_TAB_STORAGE_KEY, "hide-users-by-uid")
           : localStorage.getItem(ACTIVE_MANAGER_TAB_STORAGE_KEY);
       return getValidManagerTabName(saved);
     } catch (_error) {
-      return "users";
+      return "hide-users-by-uid";
     }
   }
 
@@ -2269,11 +2313,11 @@
       version: SCRIPT_VERSION || "",
       exportedAt: new Date().toISOString(),
       lists: {
-        users: readSavedBlockedUserListText(),
-        following: readSavedFollowingUserListText(),
-        videoKeywords: readSavedVideoKeywordListText(),
-        commentKeywords: readSavedCommentKeywordListText(),
-        danmakuKeywords: readSavedDanmakuKeywordListText(),
+        hideUsersByUid: readSavedHideUsersByUidListText(),
+        followUsersByUid: readSavedFollowUsersByUidListText(),
+        hideVideosByKeyword: readSavedHideVideosByKeywordListText(),
+        hideCommentsByKeyword: readSavedHideCommentsByKeywordListText(),
+        hideDanmakusByKeyword: readSavedHideDanmakusByKeywordListText(),
       },
       settings: exportedSettings,
     };
@@ -2316,28 +2360,30 @@
     if (!importedSettings || typeof importedSettings !== "object")
       throw new Error("Invalid settings");
 
-    const users = String(lists.users || "");
-    const following = String(lists.following || "");
-    const videoKeywords = String(lists.videoKeywords || "");
-    const commentKeywords = String(lists.commentKeywords || "");
-    const danmakuKeywords = String(lists.danmakuKeywords || "");
+    const hideUsersByUid = String(lists.hideUsersByUid || "");
+    const followUsersByUid = String(lists.followUsersByUid || "");
+    const hideVideosByKeyword = String(lists.hideVideosByKeyword || "");
+    const hideCommentsByKeyword = String(lists.hideCommentsByKeyword || "");
+    const hideDanmakusByKeyword = String(lists.hideDanmakusByKeyword || "");
 
-    replaceRuntimeBlockedUids(parseBlockedUserListText(users));
-    replaceRuntimeFollowingUids(parseFollowingUserListText(following));
-    replaceRuntimeBlockedVideoKeywords(
-      parseVideoKeywordListText(videoKeywords),
+    replaceRuntimeHiddenUserUids(parseHideUsersByUidListText(hideUsersByUid));
+    replaceRuntimeFollowUsersByUid(
+      parseFollowUsersByUidListText(followUsersByUid),
     );
-    replaceRuntimeBlockedCommentKeywords(
-      parseCommentKeywordListText(commentKeywords),
+    replaceRuntimeHiddenVideosByKeyword(
+      parseHideVideosByKeywordListText(hideVideosByKeyword),
     );
-    replaceRuntimeBlockedDanmakuKeywords(
-      parseDanmakuKeywordListText(danmakuKeywords),
+    replaceRuntimeHiddenCommentsByKeyword(
+      parseHideCommentsByKeywordListText(hideCommentsByKeyword),
     );
-    saveBlockedUserListText(users);
-    saveFollowingUserListText(following);
-    saveVideoKeywordListText(videoKeywords);
-    saveCommentKeywordListText(commentKeywords);
-    saveDanmakuKeywordListText(danmakuKeywords);
+    replaceRuntimeHiddenDanmakusByKeyword(
+      parseHideDanmakusByKeywordListText(hideDanmakusByKeyword),
+    );
+    saveHideUsersByUidListText(hideUsersByUid);
+    saveFollowUsersByUidListText(followUsersByUid);
+    saveHideVideosByKeywordListText(hideVideosByKeyword);
+    saveHideCommentsByKeywordListText(hideCommentsByKeyword);
+    saveHideDanmakusByKeywordListText(hideDanmakusByKeyword);
 
     for (const { name } of BOOLEAN_CONTROLS) {
       const control = getControl(name);
@@ -2362,16 +2408,18 @@
   }
 
   function refreshManagerGoButton(panel) {
-    const goButton = panel.querySelector('[data-action="go-following"]');
+    const goButton = panel.querySelector(
+      '[data-action="go-follow-users-by-uid"]',
+    );
     if (!goButton) return;
-    goButton.hidden = getActiveManagerTabName(panel) !== "following";
+    goButton.hidden = getActiveManagerTabName(panel) !== "follow-users-by-uid";
   }
 
   function getActiveManagerTabName(panel) {
     const activeTab = panel.querySelector(
       '.bfilter-manager-tab[data-tab][aria-selected="true"]',
     );
-    return activeTab ? activeTab.getAttribute("data-tab") : "users";
+    return activeTab ? activeTab.getAttribute("data-tab") : "hide-users-by-uid";
   }
 
   function getActiveManagerTextarea(panel) {
@@ -2379,9 +2427,11 @@
     return activePanel ? activePanel.querySelector("textarea") : null;
   }
 
-  function openSelectedFollowingDynamic(panel) {
-    const textarea = panel.querySelector(`#${MANAGER_FOLLOWING_TEXTAREA_ID}`);
-    const uid = getSelectedFollowingUid(textarea);
+  function openSelectedFollowUsersByUidDynamic(panel) {
+    const textarea = panel.querySelector(
+      `#${MANAGER_FOLLOW_USERS_BY_UID_TEXTAREA_ID}`,
+    );
+    const uid = getSelectedFollowUsersByUid(textarea);
     if (!uid) {
       alert(
         "1. Select one numeric UID in the Following list. Do not include spaces, comments, or multiple lines in the selection.\n2. Click Go to visit the user space.",
@@ -2391,7 +2441,7 @@
     window.open(`https://space.bilibili.com/${uid}/upload`, "_blank");
   }
 
-  function getSelectedFollowingUid(textarea) {
+  function getSelectedFollowUsersByUid(textarea) {
     if (!textarea) return "";
     const selectedText = textarea.value.slice(
       textarea.selectionStart,
@@ -2412,11 +2462,11 @@
 
   function getManagerTextareas(panel) {
     return [
-      MANAGER_TEXTAREA_ID,
-      MANAGER_FOLLOWING_TEXTAREA_ID,
-      MANAGER_VIDEO_KEYWORDS_TEXTAREA_ID,
-      MANAGER_COMMENT_KEYWORDS_TEXTAREA_ID,
-      MANAGER_DANMAKU_KEYWORDS_TEXTAREA_ID,
+      MANAGER_HIDE_USERS_BY_UID_TEXTAREA_ID,
+      MANAGER_FOLLOW_USERS_BY_UID_TEXTAREA_ID,
+      MANAGER_HIDE_VIDEOS_BY_KEYWORD_TEXTAREA_ID,
+      MANAGER_HIDE_COMMENTS_BY_KEYWORD_TEXTAREA_ID,
+      MANAGER_HIDE_DANMAKUS_BY_KEYWORD_TEXTAREA_ID,
     ]
       .map((id) => panel.querySelector(`#${id}`))
       .filter(Boolean);
@@ -2447,60 +2497,72 @@
   }
 
   function saveManagerTextareas(panel) {
-    const textarea = panel.querySelector(`#${MANAGER_TEXTAREA_ID}`);
-    const followingTextarea = panel.querySelector(
-      `#${MANAGER_FOLLOWING_TEXTAREA_ID}`,
+    const textarea = panel.querySelector(
+      `#${MANAGER_HIDE_USERS_BY_UID_TEXTAREA_ID}`,
     );
-    const videoKeywordsTextarea = panel.querySelector(
-      `#${MANAGER_VIDEO_KEYWORDS_TEXTAREA_ID}`,
+    const followUsersByUidTextarea = panel.querySelector(
+      `#${MANAGER_FOLLOW_USERS_BY_UID_TEXTAREA_ID}`,
     );
-    const commentKeywordsTextarea = panel.querySelector(
-      `#${MANAGER_COMMENT_KEYWORDS_TEXTAREA_ID}`,
+    const hideVideosByKeywordTextarea = panel.querySelector(
+      `#${MANAGER_HIDE_VIDEOS_BY_KEYWORD_TEXTAREA_ID}`,
     );
-    const danmakuKeywordsTextarea = panel.querySelector(
-      `#${MANAGER_DANMAKU_KEYWORDS_TEXTAREA_ID}`,
+    const hideCommentsByKeywordTextarea = panel.querySelector(
+      `#${MANAGER_HIDE_COMMENTS_BY_KEYWORD_TEXTAREA_ID}`,
+    );
+    const hideDanmakusByKeywordTextarea = panel.querySelector(
+      `#${MANAGER_HIDE_DANMAKUS_BY_KEYWORD_TEXTAREA_ID}`,
     );
     const textValues = {
-      users: textarea ? textarea.value : "",
-      following: followingTextarea ? followingTextarea.value : "",
-      videoKeywords: videoKeywordsTextarea ? videoKeywordsTextarea.value : "",
-      commentKeywords: commentKeywordsTextarea
-        ? commentKeywordsTextarea.value
+      hideUsersByUid: textarea ? textarea.value : "",
+      followUsersByUid: followUsersByUidTextarea
+        ? followUsersByUidTextarea.value
         : "",
-      danmakuKeywords: danmakuKeywordsTextarea
-        ? danmakuKeywordsTextarea.value
+      hideVideosByKeyword: hideVideosByKeywordTextarea
+        ? hideVideosByKeywordTextarea.value
+        : "",
+      hideCommentsByKeyword: hideCommentsByKeywordTextarea
+        ? hideCommentsByKeywordTextarea.value
+        : "",
+      hideDanmakusByKeyword: hideDanmakusByKeywordTextarea
+        ? hideDanmakusByKeywordTextarea.value
         : "",
     };
     if (textarea)
-      replaceRuntimeBlockedUids(parseBlockedUserListText(textarea.value));
-    if (followingTextarea)
-      replaceRuntimeFollowingUids(
-        parseFollowingUserListText(followingTextarea.value),
+      replaceRuntimeHiddenUserUids(parseHideUsersByUidListText(textarea.value));
+    if (followUsersByUidTextarea)
+      replaceRuntimeFollowUsersByUid(
+        parseFollowUsersByUidListText(followUsersByUidTextarea.value),
       );
-    if (videoKeywordsTextarea)
-      replaceRuntimeBlockedVideoKeywords(
-        parseVideoKeywordListText(videoKeywordsTextarea.value),
+    if (hideVideosByKeywordTextarea)
+      replaceRuntimeHiddenVideosByKeyword(
+        parseHideVideosByKeywordListText(hideVideosByKeywordTextarea.value),
       );
-    if (commentKeywordsTextarea)
-      replaceRuntimeBlockedCommentKeywords(
-        parseCommentKeywordListText(commentKeywordsTextarea.value),
+    if (hideCommentsByKeywordTextarea)
+      replaceRuntimeHiddenCommentsByKeyword(
+        parseHideCommentsByKeywordListText(hideCommentsByKeywordTextarea.value),
       );
-    if (danmakuKeywordsTextarea)
-      replaceRuntimeBlockedDanmakuKeywords(
-        parseDanmakuKeywordListText(danmakuKeywordsTextarea.value),
+    if (hideDanmakusByKeywordTextarea)
+      replaceRuntimeHiddenDanmakusByKeyword(
+        parseHideDanmakusByKeywordListText(hideDanmakusByKeywordTextarea.value),
       );
-    saveBlockedUserListText(textarea ? textarea.value : undefined);
-    saveFollowingUserListText(
-      followingTextarea ? followingTextarea.value : undefined,
+    saveHideUsersByUidListText(textarea ? textarea.value : undefined);
+    saveFollowUsersByUidListText(
+      followUsersByUidTextarea ? followUsersByUidTextarea.value : undefined,
     );
-    saveVideoKeywordListText(
-      videoKeywordsTextarea ? videoKeywordsTextarea.value : undefined,
+    saveHideVideosByKeywordListText(
+      hideVideosByKeywordTextarea
+        ? hideVideosByKeywordTextarea.value
+        : undefined,
     );
-    saveCommentKeywordListText(
-      commentKeywordsTextarea ? commentKeywordsTextarea.value : undefined,
+    saveHideCommentsByKeywordListText(
+      hideCommentsByKeywordTextarea
+        ? hideCommentsByKeywordTextarea.value
+        : undefined,
     );
-    saveDanmakuKeywordListText(
-      danmakuKeywordsTextarea ? danmakuKeywordsTextarea.value : undefined,
+    saveHideDanmakusByKeywordListText(
+      hideDanmakusByKeywordTextarea
+        ? hideDanmakusByKeywordTextarea.value
+        : undefined,
     );
     refreshConsequences();
     refreshBfilterManagerPanel(panel, textValues);
@@ -2516,10 +2578,10 @@
       input.checked = settings[control.name];
       input.disabled = Boolean(control.childOf && !settings[control.childOf]);
     }
-    const badgedTypes = panel.querySelector("[data-badged-video-types]");
-    if (badgedTypes) {
-      badgedTypes.disabled = !settings.hideBadgedVideos;
-      for (const option of badgedTypes.options) {
+    const videoTypes = panel.querySelector("[data-hide-videos-by-types]");
+    if (videoTypes) {
+      videoTypes.disabled = !settings.hideVideosByTypes;
+      for (const option of videoTypes.options) {
         option.selected = settings[option.value];
       }
     }
@@ -2536,64 +2598,68 @@
       select.value = String(getOptionIndex(control));
       select.disabled = !settings[control.name];
       select.classList.toggle(
-        "bfilter-manager-registration-threshold-disabled",
+        "bfilter-manager-threshold-disabled",
         !settings[control.name],
       );
     }
   }
 
   function updateManagerSaveButtonState(panel) {
-    const textarea = panel.querySelector(`#${MANAGER_TEXTAREA_ID}`);
-    const followingTextarea = panel.querySelector(
-      `#${MANAGER_FOLLOWING_TEXTAREA_ID}`,
+    const textarea = panel.querySelector(
+      `#${MANAGER_HIDE_USERS_BY_UID_TEXTAREA_ID}`,
     );
-    const videoKeywordsTextarea = panel.querySelector(
-      `#${MANAGER_VIDEO_KEYWORDS_TEXTAREA_ID}`,
+    const followUsersByUidTextarea = panel.querySelector(
+      `#${MANAGER_FOLLOW_USERS_BY_UID_TEXTAREA_ID}`,
     );
-    const commentKeywordsTextarea = panel.querySelector(
-      `#${MANAGER_COMMENT_KEYWORDS_TEXTAREA_ID}`,
+    const hideVideosByKeywordTextarea = panel.querySelector(
+      `#${MANAGER_HIDE_VIDEOS_BY_KEYWORD_TEXTAREA_ID}`,
     );
-    const danmakuKeywordsTextarea = panel.querySelector(
-      `#${MANAGER_DANMAKU_KEYWORDS_TEXTAREA_ID}`,
+    const hideCommentsByKeywordTextarea = panel.querySelector(
+      `#${MANAGER_HIDE_COMMENTS_BY_KEYWORD_TEXTAREA_ID}`,
+    );
+    const hideDanmakusByKeywordTextarea = panel.querySelector(
+      `#${MANAGER_HIDE_DANMAKUS_BY_KEYWORD_TEXTAREA_ID}`,
     );
     const saveButton = panel.querySelector('[data-action="save"]');
     if (saveButton)
       saveButton.disabled = ![
         textarea,
-        followingTextarea,
-        videoKeywordsTextarea,
-        commentKeywordsTextarea,
-        danmakuKeywordsTextarea,
+        followUsersByUidTextarea,
+        hideVideosByKeywordTextarea,
+        hideCommentsByKeywordTextarea,
+        hideDanmakusByKeywordTextarea,
       ].some(
         (input) => input && input.value !== (input.dataset.cleanValue || ""),
       );
   }
 
   function setUidBlocked(uid, blocked) {
-    replaceRuntimeBlockedUids(
-      parseBlockedUserListText(readSavedBlockedUserListText()),
+    replaceRuntimeHiddenUserUids(
+      parseHideUsersByUidListText(readSavedHideUsersByUidListText()),
     );
-    if (blocked) BLOCKED_UIDS.add(uid);
+    if (blocked) HIDDEN_USER_UIDS.add(uid);
     else {
-      BLOCKED_UIDS.delete(uid);
+      HIDDEN_USER_UIDS.delete(uid);
       unhideCardsForUid(uid);
     }
-    saveBlockedUserListText();
+    saveHideUsersByUidListText();
     refreshConsequences();
     refreshBfilterManagerPanel();
   }
 
-  function setUidFollowing(uid, following, username = "") {
-    const followingText = updateFollowingText(
-      readSavedFollowingUserListText(),
+  function setUidFollowUsersByUid(uid, followUsersByUid, username = "") {
+    const followUsersByUidText = updateFollowUsersByUidText(
+      readSavedFollowUsersByUidListText(),
       uid,
-      following,
-      settings.addUsernamesToFollowing ? username : "",
+      followUsersByUid,
+      settings.addUsernamesToFollowUsersByUid ? username : "",
     );
-    replaceRuntimeFollowingUids(parseFollowingUserListText(followingText));
-    if (following) FOLLOWING_UIDS.add(uid);
-    else FOLLOWING_UIDS.delete(uid);
-    saveFollowingUserListText(followingText);
+    replaceRuntimeFollowUsersByUid(
+      parseFollowUsersByUidListText(followUsersByUidText),
+    );
+    if (followUsersByUid) FOLLOW_USERS_BY_UID.add(uid);
+    else FOLLOW_USERS_BY_UID.delete(uid);
+    saveFollowUsersByUidListText(followUsersByUidText);
     refreshConsequences();
     refreshBfilterManagerPanel();
   }
@@ -2616,12 +2682,12 @@
       followButton.addEventListener("click", () => {
         const currentUid = followButton.getAttribute("data-uid");
         if (!currentUid) return;
-        setUidFollowing(
+        setUidFollowUsersByUid(
           currentUid,
-          !FOLLOWING_UIDS.has(currentUid),
+          !FOLLOW_USERS_BY_UID.has(currentUid),
           getCurrentUserPageUsername(),
         );
-        updateUserPageFollowButton(followButton, currentUid);
+        updateUserPageFollowUsersByUidButton(followButton, currentUid);
         if (button) updateUserPageBlockButton(button, currentUid);
       });
     }
@@ -2634,11 +2700,11 @@
       button.addEventListener("click", () => {
         const currentUid = button.getAttribute("data-uid");
         if (!currentUid) return;
-        setUidBlocked(currentUid, !BLOCKED_UIDS.has(currentUid));
+        setUidBlocked(currentUid, !HIDDEN_USER_UIDS.has(currentUid));
         updateUserPageBlockButton(button, currentUid);
       });
     }
-    updateUserPageFollowButton(followButton, uid);
+    updateUserPageFollowUsersByUidButton(followButton, uid);
     updateUserPageBlockButton(button, uid);
     appendUserPageBlockButton(followButton, button);
   }
@@ -2654,41 +2720,44 @@
     }
   }
 
-  function updateUserPageFollowButton(button, uid) {
-    const following = FOLLOWING_UIDS.has(uid);
+  function updateUserPageFollowUsersByUidButton(button, uid) {
+    const followUsersByUid = FOLLOW_USERS_BY_UID.has(uid);
     button.setAttribute("data-uid", uid);
-    button.setAttribute("data-following", String(following));
-    button.textContent = following ? "FOLLOWING" : "FOLLOW";
-    button.title = `${following ? "Unfollow" : "Follow"} Bilibili user UID ${uid}`;
+    button.setAttribute("data-follow-users-by-uid", String(followUsersByUid));
+    button.textContent = followUsersByUid ? "FOLLOWING" : "FOLLOW";
+    button.title = `${followUsersByUid ? "Unfollow" : "Follow"} Bilibili user UID ${uid}`;
   }
 
   function updateUserPageBlockButton(button, uid) {
-    const blocked = BLOCKED_UIDS.has(uid);
-    const following = FOLLOWING_UIDS.has(uid);
-    const blockedByNewUserFilter =
-      !blocked && settings.blockNewUsers && isNewUserUid(uid);
+    const blocked = HIDDEN_USER_UIDS.has(uid);
+    const followUsersByUid = FOLLOW_USERS_BY_UID.has(uid);
+    const hiddenByRegistrationTimeFilter =
+      !blocked &&
+      settings.hideUsersByRegistrationTime &&
+      matchesRegistrationTimeHeuristic(uid);
     button.setAttribute("data-uid", uid);
     button.setAttribute("data-blocked", String(blocked));
-    button.disabled = following;
+    button.disabled = followUsersByUid;
     button.textContent = blocked ? "BLOCKED" : "BLOCK";
-    if (blockedByNewUserFilter) {
+    if (hiddenByRegistrationTimeFilter) {
       const hint = document.createElement("span");
-      hint.textContent = "Already blocked as New Users";
+      hint.textContent = "Already hidden by registration time";
       button.appendChild(hint);
     }
-    button.title = following
+    button.title = followUsersByUid
       ? `Followed Bilibili user UID ${uid} cannot be blocked here`
       : `${blocked ? "Unblock" : "Block"} Bilibili user UID ${uid}`;
   }
 
   function blockAllCommenters() {
-    replaceRuntimeBlockedUids(
-      parseBlockedUserListText(readSavedBlockedUserListText()),
+    replaceRuntimeHiddenUserUids(
+      parseHideUsersByUidListText(readSavedHideUsersByUidListText()),
     );
     for (const item of document.querySelectorAll(COMMENT_ITEM_SELECTOR)) {
-      for (const uid of getCommentAuthorUidsInside(item)) BLOCKED_UIDS.add(uid);
+      for (const uid of getCommentAuthorUidsInside(item))
+        HIDDEN_USER_UIDS.add(uid);
     }
-    saveBlockedUserListText();
+    saveHideUsersByUidListText();
     refreshConsequences();
     refreshBfilterManagerPanel();
   }
@@ -2696,7 +2765,7 @@
   function renderCommentBlockButtons() {
     if (!isOpusPage() && !isDirectVideoPage() && !isTPage()) return;
     for (const item of document.querySelectorAll(COMMENT_ITEM_SELECTOR)) {
-      if (item.hasAttribute(BLOCK_ATTR)) continue;
+      if (item.hasAttribute(HIDDEN_ATTR)) continue;
       const userLink = item.querySelector(COMMENT_USER_LINK_SELECTOR);
       if (!userLink) continue;
       const href = userLink.getAttribute("href");
@@ -2713,11 +2782,11 @@
           e.preventDefault();
           const currentUid = btn.dataset.uid;
           if (currentUid)
-            setUidBlocked(currentUid, !BLOCKED_UIDS.has(currentUid));
+            setUidBlocked(currentUid, !HIDDEN_USER_UIDS.has(currentUid));
         });
         userLink.insertAdjacentElement("afterend", btn);
       }
-      const blocked = BLOCKED_UIDS.has(uid);
+      const blocked = HIDDEN_USER_UIDS.has(uid);
       btn.textContent = blocked ? "Unblock" : "Block";
       btn.dataset.blocked = String(blocked);
       btn.dataset.uid = uid;
@@ -2774,8 +2843,8 @@
 
   function getStyleVisibility() {
     return `
-      [${BLOCK_ATTR}="true"] { display: none !important; }
-      .video-list.row > [class*="col_"][class*="mb_"]:has([${BLOCK_ATTR}="true"]) { display: none !important; }
+      [${HIDDEN_ATTR}="true"] { display: none !important; }
+      .video-list.row > [class*="col_"][class*="mb_"]:has([${HIDDEN_ATTR}="true"]) { display: none !important; }
       [${PREVIEW_ATTR}="true"] {
         background-color: var(--bfilter-preview-background-color) !important;
         outline: 2px solid var(--bfilter-preview-outline-color) !important;
@@ -2788,14 +2857,14 @@
       [${PREVIEW_ATTR}="true"] .bili-video-card__wrap[${PREVIEW_ATTR}="true"] {
         outline: none !important;
       }
-      [${FOLLOW_ATTR}="true"], [${FOLLOW_ATTR}="true"] .bili-video-card__wrap {
+      [${FOLLOW_USERS_BY_UID_ATTR}="true"], [${FOLLOW_USERS_BY_UID_ATTR}="true"] .bili-video-card__wrap {
         background-color: var(--bfilter-follow-background-color) !important;
       }
-      [${FOLLOW_ATTR}="true"] {
+      [${FOLLOW_USERS_BY_UID_ATTR}="true"] {
         outline: 2px solid var(--bfilter-follow-outline-color) !important;
         outline-offset: -2px;
       }
-      [${FOLLOW_ATTR}="true"] .bili-video-card__wrap[${FOLLOW_ATTR}="true"] {
+      [${FOLLOW_USERS_BY_UID_ATTR}="true"] .bili-video-card__wrap[${FOLLOW_USERS_BY_UID_ATTR}="true"] {
         outline: none !important;
       }
   `;
@@ -2832,8 +2901,8 @@
         color: #fff; background: var(--bfilter-button-color);
       }
       .${PROFILE_BUTTON_CLASS}[data-blocked="true"]:hover { background: var(--bfilter-button-hover-color); }
-      .${PROFILE_BUTTON_CLASS}[data-following] { color: var(--bfilter-follow-color); border-color: var(--bfilter-follow-color); }
-      .${PROFILE_BUTTON_CLASS}[data-following]:hover, .${PROFILE_BUTTON_CLASS}[data-following="true"] { color: #fff; background: var(--bfilter-follow-color); }
+      .${PROFILE_BUTTON_CLASS}[data-follow-users-by-uid] { color: var(--bfilter-follow-color); border-color: var(--bfilter-follow-color); }
+      .${PROFILE_BUTTON_CLASS}[data-follow-users-by-uid]:hover, .${PROFILE_BUTTON_CLASS}[data-follow-users-by-uid="true"] { color: #fff; background: var(--bfilter-follow-color); }
       .${PROFILE_BUTTON_CLASS}:disabled, .${PROFILE_BUTTON_CLASS}:disabled:hover {
         color: #9499a0; background: #f1f2f3; border-color: #c9ccd0; cursor: not-allowed;
         text-decoration: line-through;
@@ -2864,19 +2933,19 @@
       #${MANAGER_PANEL_ID} .bfilter-manager-option:last-child { margin-bottom: 0; }
       #${MANAGER_PANEL_ID} .bfilter-manager-option input { margin: 0; }
       #${MANAGER_PANEL_ID} .bfilter-manager-option:has(input:disabled) { color: #9499a0; cursor: not-allowed; }
-      #${MANAGER_PANEL_ID} .bfilter-manager-badged-video-control { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
-      #${MANAGER_PANEL_ID} .bfilter-manager-badged-video-control .bfilter-manager-option { margin-bottom: 0; }
-      #${MANAGER_PANEL_ID} .bfilter-manager-badged-types,
-      #${MANAGER_PANEL_ID} .bfilter-manager-registration-threshold { box-sizing: border-box; width: 105px; height: 20px; border: 1px solid #c9ccd0; border-radius: 6px; padding: 0 4px; background: #fff; color: #18191c; font-size: 13px; appearance: auto; -webkit-appearance: auto; }
-      #${MANAGER_PANEL_ID} .bfilter-manager-badged-types:disabled { opacity: .42; }
-      #${MANAGER_PANEL_ID} .bfilter-manager-registration-time-control { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
-      #${MANAGER_PANEL_ID} .bfilter-manager-registration-time-control .bfilter-manager-option { margin-bottom: 0; }
-      #${MANAGER_PANEL_ID} .bfilter-manager-registration-threshold { transition: opacity .2s ease; }
-      #${MANAGER_PANEL_ID} .bfilter-manager-registration-threshold-disabled { opacity: .42; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-video-types-control { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-video-types-control .bfilter-manager-option { margin-bottom: 0; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-video-types,
+      #${MANAGER_PANEL_ID} .bfilter-manager-threshold { box-sizing: border-box; width: 105px; height: 20px; border: 1px solid #c9ccd0; border-radius: 6px; padding: 0 4px; background: #fff; color: #18191c; font-size: 13px; appearance: auto; -webkit-appearance: auto; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-video-types:disabled { opacity: .42; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-threshold-control { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-threshold-control .bfilter-manager-option { margin-bottom: 0; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-threshold { transition: opacity .2s ease; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-threshold-disabled { opacity: .42; }
       #${MANAGER_PANEL_ID} .bfilter-manager-tabs { display: flex; flex-direction: column; align-items: stretch; gap: 2px; border-right: 1px solid #e3e5e7; }
       #${MANAGER_PANEL_ID} .bfilter-manager-tab { position: relative; border: 1px solid transparent; border-right: 0; border-radius: 8px 0 0 8px; padding: 5px 9px; color: #61666d; background: transparent; font-size: 14px; text-align: left; cursor: pointer; }
       #${MANAGER_PANEL_ID} .bfilter-manager-tab[aria-selected="true"] { border-color: #e3e5e7; color: var(--bfilter-button-color); background: #fff; cursor: default; }
-      #${MANAGER_PANEL_ID} .bfilter-manager-tab[data-tab="following"][aria-selected="true"] { color: var(--bfilter-follow-color); }
+      #${MANAGER_PANEL_ID} .bfilter-manager-tab[data-tab="follow-users-by-uid"][aria-selected="true"] { color: var(--bfilter-follow-color); }
       #${MANAGER_PANEL_ID} .bfilter-manager-tab[aria-selected="true"]::after { content: ""; position: absolute; top: 0; right: -1px; bottom: 0; width: 1px; background: #fff; }
       #${MANAGER_PANEL_ID} .bfilter-manager-tab-panel { grid-column: 2; grid-row: 1; min-height: 290px; }
       #${MANAGER_PANEL_ID} .bfilter-manager-tab-panel[hidden] { display: none !important; }
