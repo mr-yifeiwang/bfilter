@@ -55,6 +55,7 @@ The script can:
 - Hide comments by text keywords.
 - Optionally hide comments whose text only mentions other users.
 - Optionally hide comments with attached images.
+- Optionally hide comments by commenter level.
 - Hide danmakus by text keywords on direct video pages.
 - Optionally hide accounts that look newly registered, based on UID length.
 - Optionally hide short videos, low-view videos, and selected non-standard content links such as live, manga, or course cards.
@@ -190,6 +191,7 @@ The tab also includes:
 
 - **Hide @-only comments**: hides comments whose visible comment text consists only of one or more user mentions.
 - **Hide comments with images**: hides comments with attached images. It does not match emoji images in comment text.
+- **Hide comments by level**: hides comments from the selected commenter level range. Its dropdown offers `≤ 1`, `≤ 2`, `≤ 3`, `≤ 4`, and `≤ 5` (default `≤ 2`).
 
 ### Danmakus tab
 
@@ -255,7 +257,7 @@ For video cards, followed UIDs are checked first. If a card belongs to a followe
 5. Unpopular-video rule.
 6. Badged-video rule.
 
-For comments, followed author UIDs are highlighted before hide checks. If not followed, comments are hidden/previewed because their author UID is blocked or because of a matching comment keyword, at-only rule, image-attachment rule, or new-user rule.
+For comments, followed author UIDs are highlighted before hide checks. If not followed, comments are hidden/previewed because their author UID is blocked or because of a matching comment keyword, at-only rule, image-attachment rule, commenter-level rule, or new-user rule.
 
 ### User filters
 
@@ -352,6 +354,14 @@ Comments with any additional text are not matched by this filter.
 
 When enabled, Bfilter hides or previews comments that contain an attached image in the comment item's image exhibition area. Emoji images embedded in comment text do not match this filter.
 
+#### Comment-level filter
+
+When enabled, Bfilter checks the commenter's level badge in the comment's own `.user-info` or `.sub-user-info` area. It accepts only direct badge spans whose trimmed text is exactly `LV0` through `LV6`, so levels from nested replies do not affect their parent comment.
+
+- `≤ 1` hides level 0 and level 1 commenters.
+- `≤ 2` through `≤ 5` hide commenters at or below the selected level.
+- The default selection is `≤ 2`.
+
 ### Danmaku filters
 
 Danmaku filters apply to detected player danmaku rows on direct video pages.
@@ -405,6 +415,8 @@ The storage keys are internal compatibility identifiers and remain unchanged eve
 | Registration-time threshold | `bfilter:registration-time-threshold` |
 | Hide @-only comments        | `bfilter:hide-at-only-comments`       |
 | Hide comments with images   | `bfilter:hide-image-comments`         |
+| Hide comments by level      | `bfilter:hide-comments-by-level`      |
+| Comment-level threshold     | `bfilter:comment-level-threshold`     |
 | Preview mode                | `bfilter:preview-mode`                |
 | Hide short videos           | `bfilter:hide-short-videos`           |
 | Short-video threshold       | `bfilter:short-video-threshold`       |

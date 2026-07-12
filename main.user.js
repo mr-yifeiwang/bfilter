@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Bfilter
 // @namespace    https://github.com/mr-yifeiwang/bfilter
-// @version      0.23.0
+// @version      0.24.0
 // @description  Manage in-browser Bilibili followlist and blocklist
 // @author       mr-yifeiwang
 // @icon         https://raw.githubusercontent.com/mr-yifeiwang/bfilter/master/assets/logo-128x128.png
@@ -39,6 +39,8 @@
     registrationTimeThreshold: "bfilter:registration-time-threshold",
     hideAtOnlyComments: "bfilter:hide-at-only-comments",
     hideImageComments: "bfilter:hide-image-comments",
+    hideCommentsByLevel: "bfilter:hide-comments-by-level",
+    commentLevelThreshold: "bfilter:comment-level-threshold",
     previewMode: "bfilter:preview-mode",
     hideShortVideos: "bfilter:hide-short-videos",
     shortVideoThreshold: "bfilter:short-video-threshold",
@@ -212,6 +214,15 @@
   ];
   const DEFAULT_UNPOPULAR_VIDEO_THRESHOLD = "< 1k views";
 
+  const COMMENT_LEVEL_THRESHOLD_OPTIONS = [
+    { label: "≤ 1", maxLevel: 1 },
+    { label: "≤ 2", maxLevel: 2 },
+    { label: "≤ 3", maxLevel: 3 },
+    { label: "≤ 4", maxLevel: 4 },
+    { label: "≤ 5", maxLevel: 5 },
+  ];
+  const DEFAULT_COMMENT_LEVEL_THRESHOLD = "≤ 2";
+
   const BOOLEAN_CONTROLS = [
     {
       name: "blockNewUsers",
@@ -298,6 +309,20 @@
       commentOption: true,
     },
     {
+      name: "hideCommentsByLevel",
+      id: "bfilter-manager-hide-comments-by-level",
+      label: "Hide comments by level",
+      commentOption: true,
+      threshold: {
+        setting: "commentLevelThreshold",
+        key: SETTING_KEYS.commentLevelThreshold,
+        id: "bfilter-manager-comment-level-threshold",
+        options: COMMENT_LEVEL_THRESHOLD_OPTIONS,
+        defaultValue: DEFAULT_COMMENT_LEVEL_THRESHOLD,
+        fallbackIndex: 1,
+      },
+    },
+    {
       name: "previewMode",
       id: "bfilter-manager-preview-mode",
       label: "Preview",
@@ -321,6 +346,7 @@
     blockNewUsers: false,
     hideAtOnlyComments: false,
     hideImageComments: false,
+    hideCommentsByLevel: false,
     previewMode: false,
     hideShortVideos: false,
     hideUnpopularVideos: false,
@@ -333,6 +359,7 @@
     registrationTimeThreshold: DEFAULT_REGISTRATION_TIME_THRESHOLD,
     shortVideoThreshold: DEFAULT_SHORT_VIDEO_THRESHOLD,
     unpopularVideoThreshold: DEFAULT_UNPOPULAR_VIDEO_THRESHOLD,
+    commentLevelThreshold: DEFAULT_COMMENT_LEVEL_THRESHOLD,
   };
 
   let scheduled = false;
@@ -1289,6 +1316,7 @@
       blockedCommentKeywordReason(comment) ||
       atOnlyCommentReason(comment) ||
       imageCommentReason(comment) ||
+      commentLevelReason(comment) ||
       newCommentAuthorReason(comment)
     );
   }
@@ -1548,6 +1576,42 @@
     return hasCommentImageAttachment(comment)
       ? { type: "comment-image", uid: "" }
       : null;
+  }
+
+  function commentLevelReason(comment) {
+    if (!settings.hideCommentsByLevel) return null;
+    const level = getCommentLevel(comment);
+    return level !== null && level <= getCommentLevelThreshold()
+      ? { type: "comment-level", uid: "" }
+      : null;
+  }
+
+  function getCommentLevel(comment) {
+    for (const info of comment.querySelectorAll(".user-info, .sub-user-info")) {
+      if (info.closest(COMMENT_ITEM_SELECTOR) !== comment) continue;
+      for (const child of info.children) {
+        if (child.tagName !== "SPAN") continue;
+        const match = String(child.textContent || "")
+          .trim()
+          .match(/^LV([0-6])$/);
+        if (match) return Number(match[1]);
+      }
+    }
+    return null;
+  }
+
+  function getCommentLevelThreshold() {
+    return getCommentLevelThresholdOption().maxLevel;
+  }
+
+  function getCommentLevelThresholdOption(
+    value = settings.commentLevelThreshold,
+  ) {
+    return (
+      COMMENT_LEVEL_THRESHOLD_OPTIONS.find(
+        (option) => option.label === value,
+      ) || COMMENT_LEVEL_THRESHOLD_OPTIONS[1]
+    );
   }
 
   function hasCommentImageAttachment(comment) {
