@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Bfilter
 // @namespace    https://github.com/mr-yifeiwang/bfilter
-// @version      0.27.0
+// @version      0.27.1
 // @description  Manage in-browser Bilibili blocked and followed user lists
 // @author       mr-yifeiwang
 // @icon         https://raw.githubusercontent.com/mr-yifeiwang/bfilter/master/assets/logo-128x128.png
@@ -1744,6 +1744,7 @@
   }
 
   function hiddenCommentsByKeywordReason(comment) {
+    if (!HIDDEN_COMMENTS_BY_KEYWORD.size) return null;
     const keyword = getMatchedHideCommentsByKeyword(getCommentText(comment));
     return keyword
       ? { type: "hide-comments-by-keyword", uid: "", keyword }
@@ -1811,7 +1812,26 @@
 
   function getCommentText(comment) {
     const text = getCommentTextElement(comment);
-    return text ? text.textContent || "" : comment.textContent || "";
+    if (!text) return "";
+    const walker = document.createTreeWalker(
+      text,
+      NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT,
+      {
+        acceptNode(node) {
+          if (node.nodeType === Node.ELEMENT_NODE && node.tagName === "A")
+            return NodeFilter.FILTER_REJECT;
+          return node.nodeType === Node.TEXT_NODE
+            ? NodeFilter.FILTER_ACCEPT
+            : NodeFilter.FILTER_SKIP;
+        },
+      },
+    );
+    const values = [];
+    let node;
+    while ((node = walker.nextNode())) {
+      values.push(node.nodeValue || "");
+    }
+    return values.join("");
   }
 
   function isMentionsOnlyComment(comment) {

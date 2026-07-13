@@ -182,7 +182,7 @@ Metadata filters are applied to card-like results and to recommendation areas on
 
 ### Comments tab
 
-Use this tab to maintain text keywords for hiding comments.
+Use this tab to maintain comment body text keywords for hiding comments. Keywords search only plain comment text, excluding links, author names, and other metadata. It shall be noted that a username appears as plain text when a commenter mentions a user who has blocked him.
 
 - Each line is one keyword.
 - Matching is case-sensitive and uses simple substring matching.
