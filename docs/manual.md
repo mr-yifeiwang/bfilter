@@ -168,9 +168,9 @@ The **Add usernames by default** option (`addUsernamesToFollowedUserUids`) contr
 Use this tab to maintain title keywords for hiding videos.
 
 - Each line is one keyword.
-- Matching is case-sensitive and uses simple substring matching.
+- Matching is case-insensitive and uses simple substring matching.
 - Text after `#` is treated as a comment.
-- Duplicate keyword lines are removed at runtime.
+- Keywords are stored and displayed in lowercase. Case-insensitive duplicate lines are removed, retaining the first line's comment.
 
 This tab also includes video metadata filters:
 
@@ -185,9 +185,9 @@ Metadata filters are applied to card-like results and to recommendation areas on
 Use this tab to maintain comment body text keywords for hiding comments. Keywords search only plain comment text, excluding links, author names, and other metadata. It shall be noted that a username appears as plain text when a commenter mentions a user who has blocked him.
 
 - Each line is one keyword.
-- Matching is case-sensitive and uses simple substring matching.
+- Matching is case-insensitive and uses simple substring matching.
 - Text after `#` is treated as a comment.
-- Duplicate keyword lines are removed at runtime.
+- Keywords are stored and displayed in lowercase. Case-insensitive duplicate lines are removed, retaining the first line's comment.
 
 The tab also includes:
 
@@ -200,9 +200,9 @@ The tab also includes:
 Use this tab to maintain danmaku text keywords.
 
 - Each line is one keyword.
-- Matching is case-sensitive and uses simple substring matching.
+- Matching is case-insensitive and uses simple substring matching.
 - Text after `#` is treated as a comment.
-- Duplicate keyword lines are removed at runtime.
+- Keywords are stored and displayed in lowercase. Case-insensitive duplicate lines are removed, retaining the first line's comment.
 
 Danmaku scanning is only resolved on direct video pages. Matching danmaku rows are hidden or previewed according to the global preview setting.
 
@@ -409,7 +409,8 @@ Parsing rules:
 - Empty lines are ignored.
 - Duplicates are removed while preserving first-seen order.
 - Keyword entries are not trimmed after comment stripping beyond the parser's normal comment-strip trim, and matching is substring matching.
-- Keyword matching supports emoji text. Search text and keywords are NFC-normalized, and emoji/text variation selectors are ignored so common forms such as `❤` and `❤️` match each other.
+- Keyword matching supports emoji text. Search text and keywords are NFC-normalized, and emoji/text variation selectors (`U+FE0E` and `U+FE0F`) are ignored so common forms such as `❤` and `❤️` match each other. Emoji code points, skin-tone modifiers, and zero-width-joiner sequences are otherwise unchanged.
+- Saved keyword text uses the same normalization and is displayed in its normalized lowercase form. Removing a variation selector can therefore change an emoji's presentation in the list. Text after `#` is a comment and retains its original casing and characters.
 
 Import/export stores the blocked and followed user lists in `lists.blockedUserUids` and `lists.followedUserUids`.
 
@@ -463,7 +464,7 @@ Version `0.25.0` renames the blocked/followed user-list schema. Export or otherw
 
 - Bilibili DOM changes can break selectors or reduce detection quality.
 - Keyword matching is simple substring matching, not regex or fuzzy matching.
-- Keyword matching is case-sensitive.
+- Keyword matching is case-insensitive.
 - Registration-time detection is heuristic and based only on UID length.
 - View and duration extraction depend on visible card metadata.
 - Some pages do not expose specific types of metadata, so relevant filters are unavailable on those pages.

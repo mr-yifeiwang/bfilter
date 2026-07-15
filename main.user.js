@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Bfilter
 // @namespace    https://github.com/mr-yifeiwang/bfilter
-// @version      0.27.1
+// @version      0.28.0
 // @description  Manage in-browser Bilibili blocked and followed user lists
 // @author       mr-yifeiwang
 // @icon         https://raw.githubusercontent.com/mr-yifeiwang/bfilter/master/assets/logo-128x128.png
@@ -879,7 +879,9 @@
   function saveHideVideosByKeywordListText(textValue) {
     try {
       const value =
-        textValue == null ? getHideVideosByKeywordList().join("\n") : textValue;
+        textValue == null
+          ? getHideVideosByKeywordList().join("\n")
+          : normalizeKeywordListText(textValue);
       if (typeof GM_setValue === "function")
         GM_setValue(HIDE_VIDEOS_BY_KEYWORD_STORAGE_KEY, value);
       else localStorage.setItem(HIDE_VIDEOS_BY_KEYWORD_STORAGE_KEY, value);
@@ -893,7 +895,7 @@
       const value =
         textValue == null
           ? getHideCommentsByKeywordList().join("\n")
-          : textValue;
+          : normalizeKeywordListText(textValue);
       if (typeof GM_setValue === "function")
         GM_setValue(HIDE_COMMENTS_BY_KEYWORD_STORAGE_KEY, value);
       else localStorage.setItem(HIDE_COMMENTS_BY_KEYWORD_STORAGE_KEY, value);
@@ -907,7 +909,7 @@
       const value =
         textValue == null
           ? getHideDanmakusByKeywordList().join("\n")
-          : textValue;
+          : normalizeKeywordListText(textValue);
       if (typeof GM_setValue === "function")
         GM_setValue(HIDE_DANMAKUS_BY_KEYWORD_STORAGE_KEY, value);
       else localStorage.setItem(HIDE_DANMAKUS_BY_KEYWORD_STORAGE_KEY, value);
@@ -1034,6 +1036,33 @@
     );
   }
 
+  function normalizeKeywordListText(text) {
+    const value = String(text || "");
+    const newline = value.includes("\r\n") ? "\r\n" : "\n";
+    const seen = new Set();
+    return value
+      .split(/\r?\n/)
+      .filter((line) => {
+        const key = normalizeKeywordSearchText(stripLineComment(line));
+        if (!key || !seen.has(key)) {
+          seen.add(key);
+          return true;
+        }
+        return false;
+      })
+      .map(normalizeKeywordLine)
+      .join(newline);
+  }
+
+  function normalizeKeywordLine(line) {
+    const value = String(line || "");
+    const commentStart = value.indexOf("#");
+    if (commentStart < 0) return normalizeKeywordSearchText(value);
+    return `${normalizeKeywordSearchText(value.slice(0, commentStart))}${value.slice(
+      commentStart,
+    )}`;
+  }
+
   function updateFollowedUserUidsText(text, uid, shouldFollow, username = "") {
     const normalizedUid = normalizeUid(uid);
     if (!normalizedUid) return text || "";
@@ -1072,8 +1101,9 @@
     for (const keyword of keywords
       .map((value) => String(value || ""))
       .filter(Boolean)) {
-      if (seen.has(keyword)) continue;
-      seen.add(keyword);
+      const key = normalizeKeywordSearchText(keyword);
+      if (seen.has(key)) continue;
+      seen.add(key);
       values.push(keyword);
     }
     return values;
@@ -1876,7 +1906,8 @@
   function normalizeKeywordSearchText(value) {
     return String(value || "")
       .normalize("NFC")
-      .replace(/[\uFE0E\uFE0F]/g, "");
+      .replace(/[\uFE0E\uFE0F]/g, "")
+      .toLowerCase();
   }
 
   function isUnsafePageContainer(element) {
@@ -2802,13 +2833,13 @@
         ? followedUserUidsTextarea.value
         : "",
       hideVideosByKeyword: hideVideosByKeywordTextarea
-        ? hideVideosByKeywordTextarea.value
+        ? normalizeKeywordListText(hideVideosByKeywordTextarea.value)
         : "",
       hideCommentsByKeyword: hideCommentsByKeywordTextarea
-        ? hideCommentsByKeywordTextarea.value
+        ? normalizeKeywordListText(hideCommentsByKeywordTextarea.value)
         : "",
       hideDanmakusByKeyword: hideDanmakusByKeywordTextarea
-        ? hideDanmakusByKeywordTextarea.value
+        ? normalizeKeywordListText(hideDanmakusByKeywordTextarea.value)
         : "",
     };
     if (textarea)
@@ -2821,33 +2852,31 @@
       );
     if (hideVideosByKeywordTextarea)
       replaceRuntimeHiddenVideosByKeyword(
-        parseHideVideosByKeywordListText(hideVideosByKeywordTextarea.value),
+        parseHideVideosByKeywordListText(textValues.hideVideosByKeyword),
       );
     if (hideCommentsByKeywordTextarea)
       replaceRuntimeHiddenCommentsByKeyword(
-        parseHideCommentsByKeywordListText(hideCommentsByKeywordTextarea.value),
+        parseHideCommentsByKeywordListText(textValues.hideCommentsByKeyword),
       );
     if (hideDanmakusByKeywordTextarea)
       replaceRuntimeHiddenDanmakusByKeyword(
-        parseHideDanmakusByKeywordListText(hideDanmakusByKeywordTextarea.value),
+        parseHideDanmakusByKeywordListText(textValues.hideDanmakusByKeyword),
       );
     saveBlockedUserUidsListText(textarea ? textarea.value : undefined);
     saveFollowedUserUidsListText(
       followedUserUidsTextarea ? followedUserUidsTextarea.value : undefined,
     );
     saveHideVideosByKeywordListText(
-      hideVideosByKeywordTextarea
-        ? hideVideosByKeywordTextarea.value
-        : undefined,
+      hideVideosByKeywordTextarea ? textValues.hideVideosByKeyword : undefined,
     );
     saveHideCommentsByKeywordListText(
       hideCommentsByKeywordTextarea
-        ? hideCommentsByKeywordTextarea.value
+        ? textValues.hideCommentsByKeyword
         : undefined,
     );
     saveHideDanmakusByKeywordListText(
       hideDanmakusByKeywordTextarea
-        ? hideDanmakusByKeywordTextarea.value
+        ? textValues.hideDanmakusByKeyword
         : undefined,
     );
     refreshConsequences();
