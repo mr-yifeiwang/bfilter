@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Bfilter
 // @namespace    https://github.com/mr-yifeiwang/bfilter
-// @version      0.28.0
+// @version      0.29.0
 // @description  Manage in-browser Bilibili blocked and followed user lists
 // @author       mr-yifeiwang
 // @icon         https://raw.githubusercontent.com/mr-yifeiwang/bfilter/master/assets/logo-128x128.png
@@ -350,31 +350,13 @@
     },
   ];
 
+  const DEFAULT_SETTINGS = getDefaultSettings();
   const BLOCKED_USER_UIDS = new Set();
   const FOLLOWED_USER_UIDS = new Set();
   const HIDDEN_VIDEOS_BY_KEYWORD = new Set();
   const HIDDEN_COMMENTS_BY_KEYWORD = new Set();
   const HIDDEN_DANMAKUS_BY_KEYWORD = new Set();
-  const settings = {
-    hideUsersByRegistrationTime: false,
-    hideCommentsByMentionsOnly: false,
-    hideCommentsByImagesAttached: false,
-    hideCommentsByCommenterLevel: false,
-    previewMode: false,
-    hideVideosByDuration: false,
-    hideVideosByViews: false,
-    hideVideosByType: false,
-    hideVideosByTypeLive: false,
-    hideVideosByTypeManga: false,
-    hideVideosByTypeCourse: false,
-    hideVideosByTypeBangumi: false,
-    addUsernamesToFollowedUserUids: true,
-    showStatisticsOverlay: false,
-    hideUsersByRegistrationTimeThreshold: DEFAULT_REGISTRATION_TIME_THRESHOLD,
-    hideVideosByDurationThreshold: DEFAULT_VIDEO_DURATION_THRESHOLD,
-    hideVideosByViewsThreshold: DEFAULT_VIDEO_VIEWS_THRESHOLD,
-    hideCommentsByCommenterLevelThreshold: DEFAULT_COMMENTER_LEVEL_THRESHOLD,
-  };
+  const settings = { ...DEFAULT_SETTINGS };
 
   let scheduled = false;
   let scanEpoch = 0;
@@ -406,10 +388,9 @@
       ),
     );
     for (const { name } of BOOLEAN_CONTROLS) {
-      const control = getControl(name);
       settings[name] = readBooleanSetting(
         SETTING_KEYS[name],
-        control.defaultValue || false,
+        DEFAULT_SETTINGS[name],
       );
     }
     for (const control of getThresholdControls()) {
@@ -421,7 +402,7 @@
     }
     settings.showStatisticsOverlay = readBooleanSetting(
       SETTING_KEYS.showStatisticsOverlay,
-      false,
+      DEFAULT_SETTINGS.showStatisticsOverlay,
     );
 
     setupStorageSync();
@@ -678,14 +659,17 @@
   }
 
   function syncBooleanSetting(name, savedValue) {
-    settings[name] = parseBooleanSetting(savedValue, false);
+    settings[name] = parseBooleanSetting(savedValue, DEFAULT_SETTINGS[name]);
     refreshConsequences();
     refreshBooleanControls();
     renderUserPageActionButtons();
   }
 
   function syncShowStatisticsOverlay(savedValue) {
-    settings.showStatisticsOverlay = parseBooleanSetting(savedValue, false);
+    settings.showStatisticsOverlay = parseBooleanSetting(
+      savedValue,
+      DEFAULT_SETTINGS.showStatisticsOverlay,
+    );
     refreshStatisticsOverlayToggle();
     renderStatisticsOverlay();
   }
@@ -2254,6 +2238,12 @@
               <button class="bfilter-manager-action bfilter-manager-action-primary" type="button" data-action="export" title="Export Bfilter data and settings">Export</button>
             </div>
           </div>
+          <div class="bfilter-manager-settings-section">
+            <div class="bfilter-manager-settings-heading">Reset</div>
+            <div class="bfilter-manager-settings-actions">
+              <button class="bfilter-manager-action bfilter-manager-action-primary" type="button" data-action="reset" title="Clear all Bfilter data and reset default settings">Reset</button>
+            </div>
+          </div>
           <input class="bfilter-manager-import-input" type="file" accept="application/json,.json" hidden>
         </div>
         <div class="bfilter-manager-actions">
@@ -2299,6 +2289,9 @@
       }
       if (target.getAttribute("data-action") === "export") {
         exportManagerData();
+      }
+      if (target.getAttribute("data-action") === "reset") {
+        resetManagerData(panel);
       }
     });
 
@@ -2652,6 +2645,17 @@
     };
   }
 
+  function getDefaultSettings() {
+    const defaults = { showStatisticsOverlay: false };
+    for (const control of BOOLEAN_CONTROLS) {
+      defaults[control.name] = Boolean(control.defaultValue);
+    }
+    for (const control of getThresholdControls()) {
+      defaults[control.threshold.setting] = control.threshold.defaultValue;
+    }
+    return defaults;
+  }
+
   function getDateStamp() {
     return new Date().toISOString().slice(0, 10);
   }
@@ -2717,10 +2721,9 @@
     saveHideDanmakusByKeywordListText(hideDanmakusByKeyword);
 
     for (const { name } of BOOLEAN_CONTROLS) {
-      const control = getControl(name);
       settings[name] = parseBooleanSetting(
         importedSettings[name],
-        control.defaultValue || false,
+        DEFAULT_SETTINGS[name],
       );
       saveBooleanSetting(SETTING_KEYS[name], settings[name]);
     }
@@ -2735,7 +2738,7 @@
     }
     settings.showStatisticsOverlay = parseBooleanSetting(
       importedSettings.showStatisticsOverlay,
-      false,
+      DEFAULT_SETTINGS.showStatisticsOverlay,
     );
     saveBooleanSetting(
       SETTING_KEYS.showStatisticsOverlay,
@@ -2745,6 +2748,45 @@
     refreshConsequences();
     refreshStatisticsOverlayToggle();
     renderStatisticsOverlay();
+    renderUserPageActionButtons();
+  }
+
+  function resetManagerData(panel) {
+    if (
+      !confirm(
+        "WARNING: This will clear all Manager lists and reset every filter setting to its default. Continue?",
+      )
+    )
+      return;
+
+    replaceRuntimeBlockedUserUids([]);
+    replaceRuntimeFollowedUserUids([]);
+    replaceRuntimeHiddenVideosByKeyword([]);
+    replaceRuntimeHiddenCommentsByKeyword([]);
+    replaceRuntimeHiddenDanmakusByKeyword([]);
+    saveBlockedUserUidsListText("");
+    saveFollowedUserUidsListText("");
+    saveHideVideosByKeywordListText("");
+    saveHideCommentsByKeywordListText("");
+    saveHideDanmakusByKeywordListText("");
+
+    for (const { name } of BOOLEAN_CONTROLS) {
+      settings[name] = DEFAULT_SETTINGS[name];
+      saveBooleanSetting(SETTING_KEYS[name], settings[name]);
+    }
+    for (const control of getThresholdControls()) {
+      const { setting, key } = control.threshold;
+      settings[setting] = DEFAULT_SETTINGS[setting];
+      saveLabelSetting(key, settings[setting]);
+    }
+    settings.showStatisticsOverlay = DEFAULT_SETTINGS.showStatisticsOverlay;
+    saveBooleanSetting(
+      SETTING_KEYS.showStatisticsOverlay,
+      settings.showStatisticsOverlay,
+    );
+
+    refreshConsequences();
+    refreshBfilterManagerPanel(panel);
     renderUserPageActionButtons();
   }
 

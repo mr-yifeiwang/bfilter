@@ -221,6 +221,8 @@ Use the **Migration** section in this tab to import or export Bfilter data and s
 - **Import** opens a JSON file picker. After a file is selected, Bfilter shows a warning that the imported data will overwrite the existing data and settings. Confirming replaces all Manager lists and saved settings with the imported values.
 - **Export** downloads a JSON backup containing all Manager lists and settings.
 
+Use the **Reset** section to clear all five Manager lists and return every filter setting to its default. Bfilter shows a destructive confirmation first; canceling leaves data and settings unchanged. Resetting does not change the active Manager tab.
+
 ### Preview mode
 
 Preview mode changes the consequence of a content match from hiding it to marking it visibly. Previewed matches count as filtered in Settings statistics.
