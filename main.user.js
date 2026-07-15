@@ -119,6 +119,11 @@
     '[class*="result-item"]',
     '[class*="ResultItem"]',
   ].join(",");
+  const BILI_VIDEO_CARD_INFO_SELECTOR = ".bili-video-card__info";
+  const BILI_VIDEO_CARD_CONTAINER_SELECTOR =
+    ".bili-video-card__wrap, .bili-video-card";
+  const BILI_VIDEO_CARD_VIEW_STAT_SELECTOR =
+    ".bili-video-card__stats--left > .bili-video-card__stats--item";
 
   const VIDEO_LINK_SELECTOR = [
     'a[href*="/video/"]',
@@ -1375,6 +1380,19 @@
   function resolveVideoCard(candidate) {
     if (!isElement(candidate) || isProtectedSearchVideoCard(candidate))
       return null;
+
+    const info = candidate.closest(BILI_VIDEO_CARD_INFO_SELECTOR);
+    if (info) {
+      const card = info.parentElement?.closest(
+        BILI_VIDEO_CARD_CONTAINER_SELECTOR,
+      );
+      return card &&
+        !isProtectedSearchVideoCard(card) &&
+        isPotentialVideoCard(card)
+        ? card
+        : null;
+    }
+
     if (isPotentialVideoCard(candidate)) return candidate;
 
     let best = null;
@@ -1728,6 +1746,14 @@
   }
 
   function getVideoViewCount(card) {
+    const biliVideoCardViewStat = card.querySelector(
+      BILI_VIDEO_CARD_VIEW_STAT_SELECTOR,
+    );
+    const biliVideoCardViewCount = parseViewCount(
+      biliVideoCardViewStat?.textContent || "",
+    );
+    if (biliVideoCardViewCount != null) return biliVideoCardViewCount;
+
     const preferred = [...card.querySelectorAll(STAT_SELECTOR)].filter(
       isViewCountElement,
     );

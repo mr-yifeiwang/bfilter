@@ -323,7 +323,7 @@ Available thresholds:
 
 #### Views filter
 
-When enabled, Bfilter parses view counts from stat-like elements. It recognizes plain numbers and Chinese units:
+When enabled, Bfilter reads the dedicated first view-stat item on known Bilibili cards before falling back to generic stat-like elements. It recognizes plain numbers and Chinese units:
 
 - `万` multiplies by 10,000.
 - `亿` multiplies by 100,000,000.
@@ -511,7 +511,7 @@ For each scan root, Bfilter collects candidates matching known selectors for:
 - video links,
 - live/manga/course links.
 
-It then resolves each candidate to a comment, danmaku, or video card and applies the first relevant consequence. Resolved items are counted once per category for the current-page Settings statistics; an item first seen before its lazy-loaded metadata matches can later be counted as filtered once the consequence is applied.
+It then resolves each candidate to a comment, danmaku, or video card and applies the first relevant consequence. Candidates in known Bilibili card-internal info branches resolve to their enclosing card so sibling metadata is evaluated together. Resolved items are counted once per category for the current-page Settings statistics; an item first seen before its lazy-loaded metadata matches can later be counted as filtered once the consequence is applied.
 
 ### Safety guards
 
