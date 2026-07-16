@@ -2472,9 +2472,15 @@
   }
 
   function renderManagerTextarea(id, disabled = false) {
-    return `<textarea id="${id}" class="bfilter-manager-textarea" spellcheck="false"${
+    return `<div class="bfilter-manager-textarea-shell${
+      disabled ? " bfilter-manager-textarea-shell-disabled" : ""
+    }"><textarea id="${id}" class="bfilter-manager-textarea" spellcheck="false"${
       disabled ? " disabled" : ""
-    }></textarea>`;
+    }></textarea>${
+      disabled
+        ? '<span class="bfilter-manager-textarea-disabled-label" role="note">Unified Keyword Mode</span>'
+        : ""
+    }</div>`;
   }
 
   function renderManagerOption(control) {
@@ -3564,6 +3570,11 @@
       #${MANAGER_PANEL_ID} .bfilter-manager-statistic output { overflow: hidden; margin: 0; color: #4b4f55; font-size: 13px; font-weight: 400; text-overflow: ellipsis; white-space: nowrap; }
       #${MANAGER_PANEL_ID} .bfilter-manager-statistics-help { color: #61666d; font-size: 12px; line-height: 1.45; }
       #${MANAGER_PANEL_ID} .bfilter-manager-textarea { box-sizing: border-box; display: block; width: 100%; min-height: 160px; border: 1px solid #c9ccd0; border-radius: 10px; padding: 10px; color: #18191c; background: #f6f7f8; font-size: 14px; line-height: 1.5; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace !important; white-space: pre-wrap; overflow-wrap: anywhere; caret-color: #18191c; resize: vertical; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-textarea:disabled { border-color: #e3e5e7; color: #18191c; background: #f1f2f3; cursor: not-allowed; opacity: .65; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-textarea-shell { position: relative; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-textarea-shell-disabled { overflow: hidden; border-radius: 10px; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-textarea-shell-disabled .bfilter-manager-textarea:disabled { color: transparent; text-shadow: 0 0 6px rgba(97,102,109,.55); }
+      #${MANAGER_PANEL_ID} .bfilter-manager-textarea-disabled-label { position: absolute; inset: 0; display: grid; place-items: center; padding: 10px; color: #4b4f55; background: rgba(246,247,248,.35); font-size: 16px; font-weight: 700; letter-spacing: .01em; line-height: 1.35; pointer-events: none; text-align: center; }
       #${MANAGER_PANEL_ID} .bfilter-manager-help { margin: 8px 0 12px; color: #9499a0; font-size: 12px; white-space: pre-line; }
       #${MANAGER_PANEL_ID} .bfilter-manager-actions { display: flex; grid-column: 1 / -1; align-items: center; justify-content: space-between; gap: 8px; }
       #${MANAGER_PANEL_ID} .bfilter-manager-action-buttons { display: inline-flex; align-items: center; gap: 8px; }
