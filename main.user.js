@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Bfilter
 // @namespace    https://github.com/mr-yifeiwang/bfilter
-// @version      0.29.0
+// @version      0.30.0
 // @description  Manage in-browser Bilibili blocked and followed user lists
 // @author       mr-yifeiwang
 // @icon         https://raw.githubusercontent.com/mr-yifeiwang/bfilter/master/assets/logo-128x128.png
@@ -33,6 +33,7 @@
     "bfilter:hide-comments-by-keyword";
   const HIDE_DANMAKUS_BY_KEYWORD_STORAGE_KEY =
     "bfilter:hide-danmakus-by-keyword";
+  const UNIFIED_KEYWORDS_STORAGE_KEY = "bfilter:unified-keywords";
   const ACTIVE_MANAGER_TAB_STORAGE_KEY = "bfilter:active-manager-tab";
   const SETTING_KEYS = {
     hideUsersByRegistrationTime: "bfilter:hide-users-by-registration-time",
@@ -56,6 +57,7 @@
     addUsernamesToFollowedUserUids:
       "bfilter:add-usernames-to-followed-user-uids",
     showStatisticsOverlay: "bfilter:show-statistics-overlay",
+    unifiedKeywordsMode: "bfilter:unified-keywords-mode",
   };
 
   const BLOCK_BUTTON_ID = "bfilter-block-button";
@@ -78,6 +80,8 @@
     "bfilter-manager-hide-comments-by-keyword-textarea";
   const MANAGER_HIDE_DANMAKUS_BY_KEYWORD_TEXTAREA_ID =
     "bfilter-manager-hide-danmakus-by-keyword-textarea";
+  const MANAGER_UNIFIED_KEYWORDS_TEXTAREA_ID =
+    "bfilter-manager-unified-keywords-textarea";
 
   const COMMENT_BLOCK_BUTTON_CLASS = "bfilter-comment-block-button";
   const BLOCK_ALL_COMMENTERS_BUTTON_CLASS =
@@ -238,6 +242,12 @@
 
   const BOOLEAN_CONTROLS = [
     {
+      name: "unifiedKeywordsMode",
+      id: "bfilter-manager-unified-keywords-mode",
+      label: "Unified keywords mode",
+      settingsOption: true,
+    },
+    {
       name: "hideUsersByRegistrationTime",
       id: "bfilter-manager-hide-users-by-registration-time",
       label: "Hide by registration time",
@@ -356,7 +366,9 @@
   const HIDDEN_VIDEOS_BY_KEYWORD = new Set();
   const HIDDEN_COMMENTS_BY_KEYWORD = new Set();
   const HIDDEN_DANMAKUS_BY_KEYWORD = new Set();
+  const HIDDEN_UNIFIED_KEYWORDS = new Set();
   const settings = { ...DEFAULT_SETTINGS };
+  let managerTextareaStates = {};
 
   let scheduled = false;
   let scanEpoch = 0;
@@ -386,6 +398,9 @@
       parseHideDanmakusByKeywordListText(
         readSavedHideDanmakusByKeywordListText(),
       ),
+    );
+    replaceRuntimeUnifiedKeywords(
+      parseUnifiedKeywordsListText(readSavedUnifiedKeywordsListText()),
     );
     for (const { name } of BOOLEAN_CONTROLS) {
       settings[name] = readBooleanSetting(
@@ -567,6 +582,12 @@
           if (remote) syncHiddenDanmakusByKeyword(value);
         },
       );
+      GM_addValueChangeListener(
+        UNIFIED_KEYWORDS_STORAGE_KEY,
+        (_key, _oldValue, value, remote) => {
+          if (remote) syncUnifiedKeywords(value);
+        },
+      );
       for (const { name } of BOOLEAN_CONTROLS) {
         GM_addValueChangeListener(
           SETTING_KEYS[name],
@@ -603,6 +624,8 @@
         syncHiddenCommentsByKeyword(event.newValue);
       if (event.key === HIDE_DANMAKUS_BY_KEYWORD_STORAGE_KEY)
         syncHiddenDanmakusByKeyword(event.newValue);
+      if (event.key === UNIFIED_KEYWORDS_STORAGE_KEY)
+        syncUnifiedKeywords(event.newValue);
       for (const { name } of BOOLEAN_CONTROLS) {
         if (event.key === SETTING_KEYS[name])
           syncBooleanSetting(name, event.newValue);
@@ -658,10 +681,20 @@
     refreshBfilterManagerPanel();
   }
 
+  function syncUnifiedKeywords(savedValue) {
+    delete managerTextareaStates[MANAGER_UNIFIED_KEYWORDS_TEXTAREA_ID];
+    replaceRuntimeUnifiedKeywords(
+      parseUnifiedKeywordsListText(savedValue || ""),
+    );
+    refreshConsequences();
+    refreshBfilterManagerPanel();
+  }
+
   function syncBooleanSetting(name, savedValue) {
     settings[name] = parseBooleanSetting(savedValue, DEFAULT_SETTINGS[name]);
     refreshConsequences();
     refreshBooleanControls();
+    if (name === "unifiedKeywordsMode") rerenderBfilterManagerPanel();
     renderUserPageActionButtons();
   }
 
@@ -736,6 +769,18 @@
         typeof GM_getValue === "function"
           ? GM_getValue(HIDE_DANMAKUS_BY_KEYWORD_STORAGE_KEY, null)
           : localStorage.getItem(HIDE_DANMAKUS_BY_KEYWORD_STORAGE_KEY);
+      return String(saved || "");
+    } catch (_error) {
+      return "";
+    }
+  }
+
+  function readSavedUnifiedKeywordsListText() {
+    try {
+      const saved =
+        typeof GM_getValue === "function"
+          ? GM_getValue(UNIFIED_KEYWORDS_STORAGE_KEY, null)
+          : localStorage.getItem(UNIFIED_KEYWORDS_STORAGE_KEY);
       return String(saved || "");
     } catch (_error) {
       return "";
@@ -841,6 +886,12 @@
     }
   }
 
+  function replaceRuntimeUnifiedKeywords(nextKeywords) {
+    HIDDEN_UNIFIED_KEYWORDS.clear();
+    for (const keyword of dedupeKeywords(nextKeywords))
+      HIDDEN_UNIFIED_KEYWORDS.add(keyword);
+  }
+
   function saveBlockedUserUidsListText(textValue) {
     try {
       const value =
@@ -907,10 +958,25 @@
     }
   }
 
+  function saveUnifiedKeywordsListText(textValue) {
+    try {
+      const value =
+        textValue == null
+          ? getUnifiedKeywordsList().join("\n")
+          : normalizeKeywordListText(textValue);
+      if (typeof GM_setValue === "function")
+        GM_setValue(UNIFIED_KEYWORDS_STORAGE_KEY, value);
+      else localStorage.setItem(UNIFIED_KEYWORDS_STORAGE_KEY, value);
+    } catch (_error) {
+      // Keep runtime unified keywords even if persistence fails.
+    }
+  }
+
   function setBooleanSetting(name, value) {
     settings[name] = Boolean(value);
     saveBooleanSetting(SETTING_KEYS[name], settings[name]);
     refreshConsequences();
+    if (name === "unifiedKeywordsMode") rerenderBfilterManagerPanel();
     renderUserPageActionButtons();
   }
 
@@ -1001,6 +1067,16 @@
     );
   }
 
+  function getUnifiedKeywordsList() {
+    return [...HIDDEN_UNIFIED_KEYWORDS];
+  }
+
+  function getUnifiedKeywordsListTextValue() {
+    return (
+      readSavedUnifiedKeywordsListText() || getUnifiedKeywordsList().join("\n")
+    );
+  }
+
   function parseBlockedUserUidsListText(text) {
     return [
       ...new Set(
@@ -1075,6 +1151,10 @@
   }
 
   function parseHideDanmakusByKeywordListText(text) {
+    return parseKeywordListText(text);
+  }
+
+  function parseUnifiedKeywordsListText(text) {
     return parseKeywordListText(text);
   }
 
@@ -1629,7 +1709,12 @@
   }
 
   function getMatchedHideVideosByKeyword(text) {
-    return getMatchedKeyword(text, HIDDEN_VIDEOS_BY_KEYWORD);
+    return getMatchedKeyword(
+      text,
+      settings.unifiedKeywordsMode
+        ? HIDDEN_UNIFIED_KEYWORDS
+        : HIDDEN_VIDEOS_BY_KEYWORD,
+    );
   }
 
   function getVideoTitleText(card) {
@@ -1784,7 +1869,14 @@
   }
 
   function hiddenCommentsByKeywordReason(comment) {
-    if (!HIDDEN_COMMENTS_BY_KEYWORD.size) return null;
+    if (
+      !(
+        settings.unifiedKeywordsMode
+          ? HIDDEN_UNIFIED_KEYWORDS
+          : HIDDEN_COMMENTS_BY_KEYWORD
+      ).size
+    )
+      return null;
     const keyword = getMatchedHideCommentsByKeyword(getCommentText(comment));
     return keyword
       ? { type: "hide-comments-by-keyword", uid: "", keyword }
@@ -1847,7 +1939,12 @@
   }
 
   function getMatchedHideCommentsByKeyword(text) {
-    return getMatchedKeyword(text, HIDDEN_COMMENTS_BY_KEYWORD);
+    return getMatchedKeyword(
+      text,
+      settings.unifiedKeywordsMode
+        ? HIDDEN_UNIFIED_KEYWORDS
+        : HIDDEN_COMMENTS_BY_KEYWORD,
+    );
   }
 
   function getCommentText(comment) {
@@ -1895,7 +1992,12 @@
   }
 
   function getMatchedHideDanmakusByKeyword(text) {
-    return getMatchedKeyword(text, HIDDEN_DANMAKUS_BY_KEYWORD);
+    return getMatchedKeyword(
+      text,
+      settings.unifiedKeywordsMode
+        ? HIDDEN_UNIFIED_KEYWORDS
+        : HIDDEN_DANMAKUS_BY_KEYWORD,
+    );
   }
 
   function getDanmakuText(danmaku) {
@@ -2171,6 +2273,11 @@
           <button class="bfilter-manager-tab" type="button" role="tab" aria-selected="${String(activeTab === "hide-videos-by-keyword")}" data-tab="hide-videos-by-keyword">Videos</button>
           <button class="bfilter-manager-tab" type="button" role="tab" aria-selected="${String(activeTab === "hide-comments-by-keyword")}" data-tab="hide-comments-by-keyword">Comments</button>
           <button class="bfilter-manager-tab" type="button" role="tab" aria-selected="${String(activeTab === "hide-danmakus-by-keyword")}" data-tab="hide-danmakus-by-keyword">Danmakus</button>
+          ${
+            settings.unifiedKeywordsMode
+              ? `<button class="bfilter-manager-tab" type="button" role="tab" aria-selected="${String(activeTab === "unified-keywords")}" data-tab="unified-keywords">Keywords</button>`
+              : ""
+          }
           <button class="bfilter-manager-tab" type="button" role="tab" aria-selected="${String(activeTab === "settings")}" data-tab="settings">Settings</button>
         </div>
         <div class="bfilter-manager-tab-panel" role="tabpanel" data-tab-panel="blocked-user-uids" ${activeTab === "blocked-user-uids" ? "" : "hidden"}>
@@ -2199,21 +2306,44 @@
           )
             .map(renderManagerOption)
             .join("")}
-          ${renderManagerTextarea(MANAGER_HIDE_VIDEOS_BY_KEYWORD_TEXTAREA_ID)}
+          ${renderManagerTextarea(
+            MANAGER_HIDE_VIDEOS_BY_KEYWORD_TEXTAREA_ID,
+            settings.unifiedKeywordsMode,
+          )}
           <div class="bfilter-manager-help" data-help="hide-videos-by-keyword"></div>
         </div>
         <div class="bfilter-manager-tab-panel" role="tabpanel" data-tab-panel="hide-comments-by-keyword" ${activeTab === "hide-comments-by-keyword" ? "" : "hidden"}>
           ${BOOLEAN_CONTROLS.filter((control) => control.commentOption)
             .map(renderManagerOption)
             .join("")}
-          ${renderManagerTextarea(MANAGER_HIDE_COMMENTS_BY_KEYWORD_TEXTAREA_ID)}
+          ${renderManagerTextarea(
+            MANAGER_HIDE_COMMENTS_BY_KEYWORD_TEXTAREA_ID,
+            settings.unifiedKeywordsMode,
+          )}
           <div class="bfilter-manager-help" data-help="hide-comments-by-keyword"></div>
         </div>
         <div class="bfilter-manager-tab-panel" role="tabpanel" data-tab-panel="hide-danmakus-by-keyword" ${activeTab === "hide-danmakus-by-keyword" ? "" : "hidden"}>
-          ${renderManagerTextarea(MANAGER_HIDE_DANMAKUS_BY_KEYWORD_TEXTAREA_ID)}
+          ${renderManagerTextarea(
+            MANAGER_HIDE_DANMAKUS_BY_KEYWORD_TEXTAREA_ID,
+            settings.unifiedKeywordsMode,
+          )}
           <div class="bfilter-manager-help" data-help="hide-danmakus-by-keyword"></div>
         </div>
+        ${
+          settings.unifiedKeywordsMode
+            ? `<div class="bfilter-manager-tab-panel" role="tabpanel" data-tab-panel="unified-keywords" ${activeTab === "unified-keywords" ? "" : "hidden"}>
+          ${renderManagerTextarea(MANAGER_UNIFIED_KEYWORDS_TEXTAREA_ID)}
+          <div class="bfilter-manager-help" data-help="unified-keywords"></div>
+        </div>`
+            : ""
+        }
         <div class="bfilter-manager-tab-panel" role="tabpanel" data-tab-panel="settings" ${activeTab === "settings" ? "" : "hidden"}>
+          <div class="bfilter-manager-settings-section">
+            <div class="bfilter-manager-settings-heading">Keywords</div>
+            ${BOOLEAN_CONTROLS.filter((control) => control.settingsOption)
+              .map(renderManagerOption)
+              .join("")}
+          </div>
           <section class="bfilter-manager-settings-section bfilter-manager-statistics" data-statistics aria-labelledby="bfilter-manager-statistics-heading">
             <div class="bfilter-manager-statistics-header">
               <div id="bfilter-manager-statistics-heading" class="bfilter-manager-settings-heading">Statistics</div>
@@ -2303,7 +2433,8 @@
           target.id === MANAGER_FOLLOWED_USER_UIDS_TEXTAREA_ID ||
           target.id === MANAGER_HIDE_VIDEOS_BY_KEYWORD_TEXTAREA_ID ||
           target.id === MANAGER_HIDE_COMMENTS_BY_KEYWORD_TEXTAREA_ID ||
-          target.id === MANAGER_HIDE_DANMAKUS_BY_KEYWORD_TEXTAREA_ID)
+          target.id === MANAGER_HIDE_DANMAKUS_BY_KEYWORD_TEXTAREA_ID ||
+          target.id === MANAGER_UNIFIED_KEYWORDS_TEXTAREA_ID)
       )
         updateManagerSaveButtonState(panel);
     });
@@ -2339,8 +2470,10 @@
     return panel;
   }
 
-  function renderManagerTextarea(id) {
-    return `<textarea id="${id}" class="bfilter-manager-textarea" spellcheck="false"></textarea>`;
+  function renderManagerTextarea(id, disabled = false) {
+    return `<textarea id="${id}" class="bfilter-manager-textarea" spellcheck="false"${
+      disabled ? " disabled" : ""
+    }></textarea>`;
   }
 
   function renderManagerOption(control) {
@@ -2389,6 +2522,8 @@
     const commentKeywordText = getHideCommentsByKeywordListTextValue();
     const hideDanmakusByKeyword = getHideDanmakusByKeywordList();
     const danmakuKeywordText = getHideDanmakusByKeywordListTextValue();
+    const unifiedKeywords = getUnifiedKeywordsList();
+    const unifiedKeywordText = getUnifiedKeywordsListTextValue();
     const textarea = panel.querySelector(
       `#${MANAGER_BLOCKED_USER_UIDS_TEXTAREA_ID}`,
     );
@@ -2416,6 +2551,12 @@
     );
     const hideDanmakusByKeywordHelp = panel.querySelector(
       '[data-help="hide-danmakus-by-keyword"]',
+    );
+    const unifiedKeywordsTextarea = panel.querySelector(
+      `#${MANAGER_UNIFIED_KEYWORDS_TEXTAREA_ID}`,
+    );
+    const unifiedKeywordsHelp = panel.querySelector(
+      '[data-help="unified-keywords"]',
     );
     if (textarea) {
       textarea.value = getManagerTextValue(
@@ -2461,6 +2602,15 @@
       hideDanmakusByKeywordTextarea.dataset.cleanValue =
         hideDanmakusByKeywordTextarea.value;
     }
+    if (unifiedKeywordsTextarea) {
+      unifiedKeywordsTextarea.value = getManagerTextValue(
+        textValues,
+        "unifiedKeywords",
+        unifiedKeywordText,
+      );
+      unifiedKeywordsTextarea.dataset.cleanValue =
+        unifiedKeywordsTextarea.value;
+    }
     if (help)
       help.innerHTML = `<strong>${uids.length}</strong> user(s) have been blocked.\nEnter one UID per line to block users.`;
     if (followedUserUidsHelp)
@@ -2471,6 +2621,10 @@
       hideCommentsByKeywordHelp.innerHTML = `<strong>${hideCommentsByKeyword.length}</strong> keyword(s) have been blocked.\nEnter one keyword per line to hide comments containing it.`;
     if (hideDanmakusByKeywordHelp)
       hideDanmakusByKeywordHelp.innerHTML = `<strong>${hideDanmakusByKeyword.length}</strong> keyword(s) have been blocked.\nEnter one keyword per line to hide danmakus containing it.`;
+    if (unifiedKeywordsHelp)
+      unifiedKeywordsHelp.innerHTML =
+        `<strong>${unifiedKeywords.length}</strong> keyword(s) have been blocked.\n` +
+        "Enter one keyword per line to hide videos, comments, and danmakus containing it.";
     refreshBooleanControls(panel);
     refreshStatisticsOverlayToggle(panel);
     refreshManagerGoButton(panel);
@@ -2571,6 +2725,7 @@
       "hide-videos-by-keyword",
       "hide-comments-by-keyword",
       "hide-danmakus-by-keyword",
+      ...(settings.unifiedKeywordsMode ? ["unified-keywords"] : []),
       "followed-user-uids",
       "settings",
     ].includes(tabName)
@@ -2640,6 +2795,7 @@
         hideVideosByKeyword: readSavedHideVideosByKeywordListText(),
         hideCommentsByKeyword: readSavedHideCommentsByKeywordListText(),
         hideDanmakusByKeyword: readSavedHideDanmakusByKeywordListText(),
+        unifiedKeywords: readSavedUnifiedKeywordsListText(),
       },
       settings: exportedSettings,
     };
@@ -2673,7 +2829,6 @@
     reader.addEventListener("load", () => {
       try {
         importManagerData(JSON.parse(String(reader.result || "")));
-        refreshBfilterManagerPanel(panel);
         alert("Bfilter data and settings imported.");
       } catch (_error) {
         alert("Import failed. Select a valid Bfilter JSON export file.");
@@ -2698,6 +2853,7 @@
     const hideVideosByKeyword = String(lists.hideVideosByKeyword || "");
     const hideCommentsByKeyword = String(lists.hideCommentsByKeyword || "");
     const hideDanmakusByKeyword = String(lists.hideDanmakusByKeyword || "");
+    const unifiedKeywords = String(lists.unifiedKeywords || "");
 
     replaceRuntimeBlockedUserUids(
       parseBlockedUserUidsListText(blockedUserUids),
@@ -2714,11 +2870,15 @@
     replaceRuntimeHiddenDanmakusByKeyword(
       parseHideDanmakusByKeywordListText(hideDanmakusByKeyword),
     );
+    replaceRuntimeUnifiedKeywords(
+      parseUnifiedKeywordsListText(unifiedKeywords),
+    );
     saveBlockedUserUidsListText(blockedUserUids);
     saveFollowedUserUidsListText(followedUserUidsText);
     saveHideVideosByKeywordListText(hideVideosByKeyword);
     saveHideCommentsByKeywordListText(hideCommentsByKeyword);
     saveHideDanmakusByKeywordListText(hideDanmakusByKeyword);
+    saveUnifiedKeywordsListText(unifiedKeywords);
 
     for (const { name } of BOOLEAN_CONTROLS) {
       settings[name] = parseBooleanSetting(
@@ -2749,6 +2909,7 @@
     refreshStatisticsOverlayToggle();
     renderStatisticsOverlay();
     renderUserPageActionButtons();
+    rerenderBfilterManagerPanel(false);
   }
 
   function resetManagerData(panel) {
@@ -2764,11 +2925,13 @@
     replaceRuntimeHiddenVideosByKeyword([]);
     replaceRuntimeHiddenCommentsByKeyword([]);
     replaceRuntimeHiddenDanmakusByKeyword([]);
+    replaceRuntimeUnifiedKeywords([]);
     saveBlockedUserUidsListText("");
     saveFollowedUserUidsListText("");
     saveHideVideosByKeywordListText("");
     saveHideCommentsByKeywordListText("");
     saveHideDanmakusByKeywordListText("");
+    saveUnifiedKeywordsListText("");
 
     for (const { name } of BOOLEAN_CONTROLS) {
       settings[name] = DEFAULT_SETTINGS[name];
@@ -2786,7 +2949,7 @@
     );
 
     refreshConsequences();
-    refreshBfilterManagerPanel(panel);
+    rerenderBfilterManagerPanel(false);
     renderUserPageActionButtons();
   }
 
@@ -2808,6 +2971,39 @@
   function getActiveManagerTextarea(panel) {
     const activePanel = panel.querySelector("[data-tab-panel]:not([hidden])");
     return activePanel ? activePanel.querySelector("textarea") : null;
+  }
+
+  function rerenderBfilterManagerPanel(preserveTextareaStates = true) {
+    const panel = document.getElementById(MANAGER_PANEL_ID);
+    if (!panel) return;
+    const hidden = panel.hidden;
+    if (preserveTextareaStates) {
+      for (const textarea of getManagerTextareas(panel)) {
+        managerTextareaStates[textarea.id] = {
+          value: textarea.value,
+          cleanValue: textarea.dataset.cleanValue,
+        };
+      }
+    } else {
+      managerTextareaStates = {};
+    }
+    if (
+      getActiveManagerTabName(panel) === "unified-keywords" &&
+      !settings.unifiedKeywordsMode
+    )
+      saveActiveManagerTabName("blocked-user-uids");
+    panel.remove();
+    renderBfilterManager();
+    const nextPanel = document.getElementById(MANAGER_PANEL_ID);
+    if (!nextPanel) return;
+    for (const textarea of getManagerTextareas(nextPanel)) {
+      const state = managerTextareaStates[textarea.id];
+      if (!state) continue;
+      textarea.value = state.value;
+      textarea.dataset.cleanValue = state.cleanValue;
+    }
+    updateManagerSaveButtonState(nextPanel);
+    nextPanel.hidden = hidden;
   }
 
   function openSelectedFollowedUserUidsDynamic(panel) {
@@ -2850,6 +3046,7 @@
       MANAGER_HIDE_VIDEOS_BY_KEYWORD_TEXTAREA_ID,
       MANAGER_HIDE_COMMENTS_BY_KEYWORD_TEXTAREA_ID,
       MANAGER_HIDE_DANMAKUS_BY_KEYWORD_TEXTAREA_ID,
+      MANAGER_UNIFIED_KEYWORDS_TEXTAREA_ID,
     ]
       .map((id) => panel.querySelector(`#${id}`))
       .filter(Boolean);
@@ -2895,6 +3092,9 @@
     const hideDanmakusByKeywordTextarea = panel.querySelector(
       `#${MANAGER_HIDE_DANMAKUS_BY_KEYWORD_TEXTAREA_ID}`,
     );
+    const unifiedKeywordsTextarea = panel.querySelector(
+      `#${MANAGER_UNIFIED_KEYWORDS_TEXTAREA_ID}`,
+    );
     const textValues = {
       blockedUserUids: textarea ? textarea.value : "",
       followedUserUids: followedUserUidsTextarea
@@ -2908,6 +3108,9 @@
         : "",
       hideDanmakusByKeyword: hideDanmakusByKeywordTextarea
         ? normalizeKeywordListText(hideDanmakusByKeywordTextarea.value)
+        : "",
+      unifiedKeywords: unifiedKeywordsTextarea
+        ? normalizeKeywordListText(unifiedKeywordsTextarea.value)
         : "",
     };
     if (textarea)
@@ -2930,6 +3133,10 @@
       replaceRuntimeHiddenDanmakusByKeyword(
         parseHideDanmakusByKeywordListText(textValues.hideDanmakusByKeyword),
       );
+    if (unifiedKeywordsTextarea)
+      replaceRuntimeUnifiedKeywords(
+        parseUnifiedKeywordsListText(textValues.unifiedKeywords),
+      );
     saveBlockedUserUidsListText(textarea ? textarea.value : undefined);
     saveFollowedUserUidsListText(
       followedUserUidsTextarea ? followedUserUidsTextarea.value : undefined,
@@ -2947,6 +3154,8 @@
         ? textValues.hideDanmakusByKeyword
         : undefined,
     );
+    if (unifiedKeywordsTextarea)
+      saveUnifiedKeywordsListText(textValues.unifiedKeywords);
     refreshConsequences();
     refreshBfilterManagerPanel(panel, textValues);
   }
@@ -3003,6 +3212,9 @@
     const hideDanmakusByKeywordTextarea = panel.querySelector(
       `#${MANAGER_HIDE_DANMAKUS_BY_KEYWORD_TEXTAREA_ID}`,
     );
+    const unifiedKeywordsTextarea = panel.querySelector(
+      `#${MANAGER_UNIFIED_KEYWORDS_TEXTAREA_ID}`,
+    );
     const saveButton = panel.querySelector('[data-action="save"]');
     if (saveButton)
       saveButton.disabled = ![
@@ -3011,6 +3223,7 @@
         hideVideosByKeywordTextarea,
         hideCommentsByKeywordTextarea,
         hideDanmakusByKeywordTextarea,
+        unifiedKeywordsTextarea,
       ].some(
         (input) => input && input.value !== (input.dataset.cleanValue || ""),
       );

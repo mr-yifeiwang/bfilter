@@ -11,6 +11,7 @@
     - [Videos tab](#videos-tab)
     - [Comments tab](#comments-tab)
     - [Danmakus tab](#danmakus-tab)
+    - [Keywords tab](#keywords-tab)
     - [Settings tab](#settings-tab)
     - [Preview mode](#preview-mode)
   - [Page actions](#page-actions)
@@ -122,13 +123,13 @@ User-space pages deliberately do not run the normal card/comment scanner. They o
 
 ## Manager panel
 
-The floating **Open Bfilter** button creates a panel with a vertical left-side tab list: **Users**, **Following**, **Videos**, **Comments**, **Danmakus**, and **Settings**. The panel also includes a global **Preview** toggle, a **Sort** button, and a **Save** button.
+The floating **Open Bfilter** button creates a panel with a vertical left-side tab list: **Users**, **Following**, **Videos**, **Comments**, **Danmakus**, and **Settings**. Unified keywords mode also shows a **Keywords** tab. The panel includes a global **Preview** toggle, a **Sort** button, and a **Save** button.
 
 The Save button is enabled only when one or more textareas differ from their last loaded value. Changing checkboxes or dropdowns is saved immediately.
 
 The manager remembers the last selected tab and opens that tab the next time the panel is created. For new users with no saved tab yet, the panel opens the **Users** tab.
 
-Click **Sort** and confirm the warning to sort all Manager list textareas and remove duplicate, comment-only, and empty-line entries. Duplicate matching uses the entry text after removing inline comments. Inline comments stay attached to the kept original line, and the sorted lists are saved immediately.
+Click **Sort** and confirm the warning to sort all available Manager list textareas (including the unified list when its mode is enabled) and remove duplicate, comment-only, and empty-line entries. Duplicate matching uses the entry text after removing inline comments. Inline comments stay attached to the kept original line, and the sorted lists are saved immediately.
 
 ### Users tab
 
@@ -206,7 +207,13 @@ Use this tab to maintain danmaku text keywords.
 
 Danmaku scanning is only resolved on direct video pages. Matching danmaku rows are hidden or previewed according to the global preview setting.
 
+### Keywords tab
+
+The **Keywords** tab appears only when **Unified keywords mode** is enabled in Settings. Its list is independent from the Videos, Comments, and Danmakus lists. In this mode, the three separate keyword textareas remain visible but disabled, while the unified list alone filters video titles, comment text, and danmaku text. Disabling the mode hides this tab and resumes filtering from the three separate lists; lists are never merged or migrated.
+
 ### Settings tab
+
+The **Keywords** section contains **Unified keywords mode**, which is disabled by default and saved with other settings.
 
 The **Statistics** section appears on content-scanning pages and shows the current page's loaded videos, comments, and danmakus. It remains empty on user-space pages, where normal card/comment scanning is deliberately excluded. Each value shows the filtered count and percentage of uniquely observed items in that category (`hidden or previewed ÷ uniquely observed`). Followed and unmatched items are included in the observed total. Statistics are in memory only: they are not saved or exported.
 
@@ -221,7 +228,7 @@ Use the **Migration** section in this tab to import or export Bfilter data and s
 - **Import** opens a JSON file picker. After a file is selected, Bfilter shows a warning that the imported data will overwrite the existing data and settings. Confirming replaces all Manager lists and saved settings with the imported values.
 - **Export** downloads a JSON backup containing all Manager lists and settings.
 
-Use the **Reset** section to clear all five Manager lists and return every filter setting to its default. Bfilter shows a destructive confirmation first; canceling leaves data and settings unchanged. Resetting does not change the active Manager tab.
+Use the **Reset** section to clear all six Manager lists and return every filter setting to its default. Bfilter shows a destructive confirmation first; canceling leaves data and settings unchanged. Resetting preserves the active Manager tab unless it disables unified mode while **Keywords** is active, in which case the panel falls back to **Users**.
 
 ### Preview mode
 
@@ -414,7 +421,7 @@ Parsing rules:
 - Keyword matching supports emoji text. Search text and keywords are NFC-normalized, and emoji/text variation selectors (`U+FE0E` and `U+FE0F`) are ignored so common forms such as `❤` and `❤️` match each other. Emoji code points, skin-tone modifiers, and zero-width-joiner sequences are otherwise unchanged.
 - Saved keyword text uses the same normalization and is displayed in its normalized lowercase form. Removing a variation selector can therefore change an emoji's presentation in the list. Text after `#` is a comment and retains its original casing and characters.
 
-Import/export stores the blocked and followed user lists in `lists.blockedUserUids` and `lists.followedUserUids`.
+Import/export stores all Manager lists, including `lists.blockedUserUids`, `lists.followedUserUids`, the three separate keyword lists, and `lists.unifiedKeywords` for the unified list. Older imports without the unified fields import an empty unified list with unified mode disabled.
 
 ## Persistence and synchronization
 
@@ -429,6 +436,8 @@ Storage uses the canonical filter identifiers below.
 | Video keyword list                  | `bfilter:hide-videos-by-keyword`                     |
 | Comment keyword list                | `bfilter:hide-comments-by-keyword`                   |
 | Danmaku keyword list                | `bfilter:hide-danmakus-by-keyword`                   |
+| Unified keyword list                | `bfilter:unified-keywords`                           |
+| Unified keywords mode               | `bfilter:unified-keywords-mode`                      |
 | Hide by registration time           | `bfilter:hide-users-by-registration-time`            |
 | Registration-time threshold         | `bfilter:hide-users-by-registration-time-threshold`  |
 | Hide by mentions only               | `bfilter:hide-comments-by-mentions-only`             |
