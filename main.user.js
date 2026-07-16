@@ -244,8 +244,9 @@
     {
       name: "unifiedKeywordsMode",
       id: "bfilter-manager-unified-keywords-mode",
-      label: "Unified keywords mode",
+      label: "Enable Unified Keywords mode",
       settingsOption: true,
+      toggle: true,
     },
     {
       name: "hideUsersByRegistrationTime",
@@ -2337,13 +2338,7 @@
         </div>`
             : ""
         }
-        <div class="bfilter-manager-tab-panel" role="tabpanel" data-tab-panel="settings" ${activeTab === "settings" ? "" : "hidden"}>
-          <div class="bfilter-manager-settings-section">
-            <div class="bfilter-manager-settings-heading">Keywords</div>
-            ${BOOLEAN_CONTROLS.filter((control) => control.settingsOption)
-              .map(renderManagerOption)
-              .join("")}
-          </div>
+        <div class="bfilter-manager-tab-panel bfilter-manager-settings-panel" role="tabpanel" data-tab-panel="settings" ${activeTab === "settings" ? "" : "hidden"}>
           <section class="bfilter-manager-settings-section bfilter-manager-statistics" data-statistics aria-labelledby="bfilter-manager-statistics-heading">
             <div class="bfilter-manager-statistics-header">
               <div id="bfilter-manager-statistics-heading" class="bfilter-manager-settings-heading">Statistics</div>
@@ -2361,6 +2356,12 @@
             </div>
             <div class="bfilter-manager-statistics-help">... have been blocked on the current page. The statistics may be inaccurate due to lazy loading.</div>
           </section>
+          <div class="bfilter-manager-settings-section">
+            <div class="bfilter-manager-settings-heading">Keyword Unification</div>
+            ${BOOLEAN_CONTROLS.filter((control) => control.settingsOption)
+              .map(renderManagerOption)
+              .join("")}
+          </div>
           <div class="bfilter-manager-settings-section">
             <div class="bfilter-manager-settings-heading">Migration</div>
             <div class="bfilter-manager-settings-actions">
@@ -2477,7 +2478,7 @@
   }
 
   function renderManagerOption(control) {
-    const checkbox = `<label class="bfilter-manager-option" for="${control.id}"><input id="${control.id}" type="checkbox" data-setting="${control.name}"><span>${escapeHtml(control.label)}</span></label>`;
+    const checkbox = `<label class="bfilter-manager-option${control.toggle ? " bfilter-manager-setting-toggle" : ""}" for="${control.id}"><input id="${control.id}" type="checkbox" data-setting="${control.name}">${control.toggle ? '<span class="bfilter-manager-toggle-track" aria-hidden="true"></span>' : ""}<span>${escapeHtml(control.label)}</span></label>`;
     const children = BOOLEAN_CONTROLS.filter(
       (child) => child.childOf === control.name,
     );
@@ -3528,6 +3529,10 @@
       #${MANAGER_PANEL_ID} .bfilter-manager-option { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; color: #18191c; font-size: 13px; cursor: pointer; }
       #${MANAGER_PANEL_ID} .bfilter-manager-option:last-child { margin-bottom: 0; }
       #${MANAGER_PANEL_ID} .bfilter-manager-option input { margin: 0; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-setting-toggle input { position: absolute; opacity: 0; pointer-events: none; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-setting-toggle input:checked + .bfilter-manager-toggle-track { background: var(--bfilter-button-color); }
+      #${MANAGER_PANEL_ID} .bfilter-manager-setting-toggle input:checked + .bfilter-manager-toggle-track::before { transform: translateX(16px); }
+      #${MANAGER_PANEL_ID} .bfilter-manager-setting-toggle input:focus-visible + .bfilter-manager-toggle-track { outline: 2px solid #18191c; outline-offset: 2px; }
       #${MANAGER_PANEL_ID} .bfilter-manager-option:has(input:disabled) { color: #9499a0; cursor: not-allowed; }
       #${MANAGER_PANEL_ID} .bfilter-manager-video-types-control { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
       #${MANAGER_PANEL_ID} .bfilter-manager-video-types-control .bfilter-manager-option { margin-bottom: 0; }
@@ -3545,11 +3550,12 @@
       #${MANAGER_PANEL_ID} .bfilter-manager-tab[aria-selected="true"]::after { content: ""; position: absolute; top: 0; right: -1px; bottom: 0; width: 1px; background: #fff; }
       #${MANAGER_PANEL_ID} .bfilter-manager-tab-panel { grid-column: 2; grid-row: 1; min-height: 290px; }
       #${MANAGER_PANEL_ID} .bfilter-manager-tab-panel[hidden] { display: none !important; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-settings-panel { display: grid; align-content: start; gap: 14px; }
       #${MANAGER_PANEL_ID} .bfilter-manager-settings-section { display: grid; gap: 8px; }
       #${MANAGER_PANEL_ID} .bfilter-manager-settings-heading { color: #18191c; font-size: 13px; font-weight: 700; }
-      #${MANAGER_PANEL_ID} .bfilter-manager-settings-actions { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-settings-actions { display: flex; align-items: center; gap: 8px; }
       #${MANAGER_PANEL_ID} .bfilter-manager-statistics-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-      #${MANAGER_PANEL_ID} .bfilter-manager-statistics { margin-bottom: 18px; padding: 12px; border: 1px solid #e3e5e7; border-radius: 10px; background: linear-gradient(135deg, #f6f7f8, #fff); }
+      #${MANAGER_PANEL_ID} .bfilter-manager-statistics { margin-bottom: 0; padding: 12px; border: 1px solid #e3e5e7; border-radius: 10px; background: linear-gradient(135deg, #f6f7f8, #fff); }
       #${MANAGER_PANEL_ID} .bfilter-manager-statistics-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
       #${MANAGER_PANEL_ID} .bfilter-manager-statistic { display: grid; gap: 3px; min-width: 0; padding: 8px; border-radius: 7px; background: rgba(255,255,255,.8); color: #61666d; font-size: 12px; font-weight: 400; line-height: 1.35; }
       #${MANAGER_PANEL_ID} .bfilter-manager-statistic[data-statistics-level="low"], #${STATISTICS_OVERLAY_ID} .bfilter-statistics-overlay-list > div[data-statistics-level="low"] { background: #ccebd4; }

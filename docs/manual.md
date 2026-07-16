@@ -212,8 +212,6 @@ The **Keywords** tab appears only when **Unified keywords mode** is enabled in S
 
 ### Settings tab
 
-The **Keywords** section contains **Unified keywords mode**, which is disabled by default and saved with other settings.
-
 The **Statistics** section appears on content-scanning pages and shows the current page's loaded videos, comments, and danmakus. It remains empty on user-space pages, where normal card/comment scanning is deliberately excluded. Each value shows the filtered count and percentage of uniquely observed items in that category (`hidden or previewed ÷ uniquely observed`). Followed and unmatched items are included in the observed total. Statistics are in memory only: they are not saved or exported.
 
 Each statistic uses a background color based on its filtered percentage: green for `0–20%`, orange for more than `20%` through `40%`, and red for more than `40%`.
@@ -221,6 +219,8 @@ Each statistic uses a background color based on its filtered percentage: green f
 The values update as Bilibili lazy-loads content. They reset and recount after navigation, a full refresh, or a filtering/settings change that rescans the page.
 
 Use the **Hide** / **Show** toggle beside the Statistics heading to control the **Show Statistics overlay** preference for a compact Statistics overlay beneath **Open Bfilter** outside the Manager. The left, off position hides it; the right, on position shows it. It is hidden by default, remains visible after the Manager closes, and updates with the same lazy-loaded values. Its close button also switches the preference to Hide. This display preference is saved and included in Manager imports and exports.
+
+The **Keyword Unification** section contains the **Enable Unified Keywords mode** toggle, which is disabled by default and saved with other settings.
 
 Use the **Migration** section in this tab to import or export Bfilter data and settings.
 
