@@ -36,7 +36,6 @@
       - [Danmaku keyword filter](#danmaku-keyword-filter)
   - [Data format](#data-format)
   - [Persistence and synchronization](#persistence-and-synchronization)
-    - [Breaking 0.25.0 user-list schema](#breaking-0250-user-list-schema)
   - [Limitations](#limitations)
   - [Troubleshooting](#troubleshooting)
   - [Implementation notes](#implementation-notes)
@@ -461,15 +460,6 @@ Storage uses the canonical filter identifiers below.
 When `GM_addValueChangeListener` is available, Bfilter listens for remote changes to filter lists and settings and refreshes runtime state across userscript contexts. Otherwise, it listens for the browser `storage` event as a fallback. The active manager tab is not synchronized.
 
 After a synchronized list or setting change, Bfilter refreshes consequences on the page, updates the manager panel, and rerenders relevant page buttons. The saved active tab is read only when a manager panel is created; saving it does not force an already-created panel in another context to switch tabs.
-
-### Breaking 0.25.0 user-list schema
-
-Version `0.25.0` renames the blocked/followed user-list schema. Export or otherwise back up your data before updating.
-
-- Old `bfilter:hide-users-by-uid` and `bfilter:follow-users-by-uid` storage is ignored; it is not read or migrated.
-- Old exports use `lists.hideUsersByUid` and `lists.followUsersByUid`. When imported by `0.25.0`, the renamed blocked/followed lists are empty, while compatible keyword lists and settings may still import.
-- Old and new versions use different list storage keys, so blocked/followed list changes do not synchronize across versions.
-- Old saved manager-tab values `hide-users-by-uid` and `follow-users-by-uid` are invalid under the new schema and fall back to the default **Users** tab when a panel is created.
 
 ## Limitations
 
