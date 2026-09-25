@@ -65,7 +65,7 @@ The script can:
 - Add quick block/follow controls to Bilibili user-space pages.
 - Add per-comment author-block buttons and a bulk “Block All Commenters” button on supported comment pages.
 
-The current script metadata in `main.user.js` identifies the script as version `0.25.0` and runs it at `document-start` on these URL families:
+The current script metadata in `main.user.js` identifies the script as version `1.0.0` and runs it at `document-start` on these URL families:
 
 - `https://www.bilibili.com/*`
 - `https://search.bilibili.com/*`
