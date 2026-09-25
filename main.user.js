@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Bfilter
 // @namespace    https://github.com/mr-yifeiwang/bfilter
-// @version      0.30.0
+// @version      0.30.1
 // @description  Manage in-browser Bilibili blocked and followed user lists
 // @author       mr-yifeiwang
 // @icon         https://raw.githubusercontent.com/mr-yifeiwang/bfilter/master/assets/logo-128x128.png
@@ -447,7 +447,10 @@
     new MutationObserver((mutations) => {
       for (const mutation of mutations) {
         if (mutation.type === "childList") {
-          for (const node of mutation.addedNodes) scheduleScan(node);
+          // Queue the shared parent once, rather than every added descendant.
+          // A single render can add many nested nodes which all resolve to the
+          // same card or comment.
+          scheduleScan(mutation.target);
         } else if (mutation.type === "characterData") {
           scheduleScan(mutation.target.parentElement);
         } else {
@@ -1205,8 +1208,7 @@
   function scheduleScan(root, options = {}) {
     if (!isContentScanningPage() || !isElement(root)) return;
     if (isInsideBfilterUi(root)) return;
-    pendingRoots.add(root);
-    if (options.force) pendingRoots.add(document.documentElement);
+    queueScanRoot(options.force ? document.documentElement : root);
     if (scheduled) return;
 
     scheduled = true;
@@ -1218,9 +1220,23 @@
       pendingRoots.clear();
       for (const pendingRoot of roots) {
         if (!pendingRoot.isConnected) continue;
-        scan(pendingRoot, options);
+        scan(pendingRoot, false);
       }
+      finishScan();
     });
+  }
+
+  function queueScanRoot(root) {
+    // Do not scan both a container and one of its descendants. DOM frameworks
+    // commonly report many mutations for one render, so this bounds a batch to
+    // its outermost changed regions.
+    for (const pendingRoot of pendingRoots) {
+      if (pendingRoot === root || pendingRoot.contains(root)) return;
+    }
+    for (const pendingRoot of [...pendingRoots]) {
+      if (root.contains(pendingRoot)) pendingRoots.delete(pendingRoot);
+    }
+    pendingRoots.add(root);
   }
 
   function resetScanQueue() {
@@ -1239,7 +1255,7 @@
     );
   }
 
-  function scan(root) {
+  function scan(root, finish = true) {
     if (!isContentScanningPage() || !isElement(root) || !root.isConnected)
       return;
 
@@ -1294,6 +1310,10 @@
         applyConsequence(target, reason, "videos", card);
       } else clearVideoConsequence(card);
     }
+    if (finish) finishScan();
+  }
+
+  function finishScan() {
     renderCommentBlockButtons();
     renderBlockAllCommentersButton();
     refreshStatisticsDisplays();

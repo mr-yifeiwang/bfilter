@@ -500,7 +500,7 @@ At load time, Bfilter:
 
 ### Scanning flow
 
-The scanner is driven by a `MutationObserver`. DOM mutations schedule a batched scan via `requestAnimationFrame`.
+The scanner is driven by a `MutationObserver`. DOM mutations schedule a batched scan via `requestAnimationFrame`. Within one batch, Bfilter combines overlapping changed areas and scans only their outermost parent regions. This avoids repeatedly scanning the same cards or comments when one Bilibili update produces several related DOM changes. Comment controls and statistics are refreshed once after the batch.
 
 For each scan root, Bfilter collects candidates matching known selectors for:
 
