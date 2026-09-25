@@ -1,17 +1,11 @@
 # AGENTS.md
 
-## Scope
+Before making changes, read `main.user.js`, `README.md`, and `docs/manual.md`.
 
-This repository is a plain JavaScript userscript for Bilibili. The main file is `main.user.js`. Documentation is in `README.md` and `docs/manual.md`.
+## Development and Testing
 
-## Rules
-
-Match the existing JavaScript style. Understand existing behavior before changing it, and distinguish confirmed inconsistencies from subjective preferences. Ask when intent is ambiguous; otherwise make the smallest coherent change that keeps code, behavior, terminology, and documentation aligned. For broad or risky work, plan and review in phases, preserve clear semantic boundaries, and avoid compatibility layers or abstractions unless they are required. Validate each phase with the strongest checks available and state any remaining verification limits plainly.
-
-## Testing
-
-There is no assumed automated test harness unless one already exists.
-
-## Documentation
-
-Update `docs/manual.md` for behavior, setting, storage, or UI changes. Update `README.md` only for high-level installation or feature changes.
+1. Follow test-driven development (TDD). When changing behavior in `main.user.js`, update the corresponding tests and run `npm test` to verify the changes.
+1. Update `docs/manual.md` whenever behavior defined in `main.user.js` changes.
+1. Follow the Conventional Commits specification for commit messages. Update the version according to the type of change:
+   - Increment the minor version when adding a feature.
+   - Increment the patch version when fixing a bug.
