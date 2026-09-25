@@ -44,6 +44,7 @@
     - [Safety guards](#safety-guards)
     - [Injected UI and styling](#injected-ui-and-styling)
   - [Developer reference](#developer-reference)
+  - [Developer testing](#developer-testing)
 
 ## Overview
 
@@ -564,3 +565,7 @@ Key code areas in `main.user.js`:
 | Comment UI             | `renderCommentBlockButtons`, `renderBlockAllCommentersButton`, `blockAllCommenters`                                                        |
 
 When modifying filters, keep the safety guards and direct-video protections in mind. Most regressions on Bilibili pages come from selecting too large a target or matching a container that includes multiple unrelated video links.
+
+## Developer testing
+
+The repository includes a Playwright contract suite under `tests/`. It runs against deterministic Bilibili-shaped fixture pages, using localStorage and browser mocks rather than network access. Run `npm install` once (and install Playwright Chromium if needed), then run `npm test`; `node --check main.user.js` and `git diff --check` are useful companion checks. The suite covers filtering, manager persistence/actions, supported-page guards, comments/danmakus, statistics, preview, mutation scanning, and SPA navigation.
