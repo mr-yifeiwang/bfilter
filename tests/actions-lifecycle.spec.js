@@ -92,6 +92,121 @@ test.describe("actions, guards, and lifecycle contracts", () => {
     });
   }
 
+  for (const url of [
+    "https://www.bilibili.com/video/BV1",
+    "https://www.bilibili.com/opus/1",
+    "https://t.bilibili.com/1",
+  ]) {
+    test(`Preview gives a blocked top-level comment its own control on ${new URL(url).hostname}${new URL(url).pathname}`, async ({
+      page,
+    }) => {
+      const replies = ["222", "333"]
+        .map((uid) =>
+          comment({ id: `reply-${uid}`, uid })
+            .replace('class="reply-item"', 'class="sub-reply-item"')
+            .replace('class="user-info"', 'class="sub-user-info"')
+            .replace('class="user-name"', 'class="sub-user-name"'),
+        )
+        .join("");
+      await loadBfilter(page, {
+        url,
+        storage: { [keys.blocked]: "111" },
+        html: `<main>${comment({ id: "parent", uid: "111", extra: replies })}</main>`,
+      });
+      const parentButton = page.locator(
+        "#parent > .user-info > .bfilter-comment-block-button",
+      );
+      await expect(page.locator("#parent")).toHaveAttribute(
+        "data-bfilter-hidden",
+        "true",
+      );
+      await expect(parentButton).toHaveCount(0);
+      await expect(page.locator(".bfilter-comment-block-button")).toHaveCount(
+        2,
+      );
+      await page.locator("#bfilter-manager-button").click();
+      await page
+        .locator("#bfilter-manager-preview-mode")
+        .check({ force: true });
+      await expect(page.locator("#parent")).toHaveAttribute(
+        "data-bfilter-previewed",
+        "true",
+      );
+      await expect(parentButton).toHaveCount(1);
+      await expect(parentButton).toBeVisible();
+      await expect(parentButton).toHaveText("Unblock");
+      await expect(parentButton).toHaveAttribute("data-uid", "111");
+      for (const uid of ["222", "333"]) {
+        const button = page.locator(
+          `#reply-${uid} .bfilter-comment-block-button`,
+        );
+        await expect(button).toHaveCount(1);
+        await expect(button).toHaveText("Block");
+        await expect(button).toHaveAttribute("data-uid", uid);
+      }
+      await page.locator("#reply-222 .bfilter-comment-block-button").click();
+      await expect(
+        page.evaluate(() => localStorage.getItem("bfilter:blocked-user-uids")),
+      ).resolves.toBe("111\n222");
+      await expect(parentButton).toHaveText("Unblock");
+      await parentButton.click();
+      await expect(
+        page.evaluate(() => localStorage.getItem("bfilter:blocked-user-uids")),
+      ).resolves.toBe("222");
+      await expect(parentButton).toHaveText("Block");
+      await expect(page.locator("#parent")).not.toHaveAttribute(
+        "data-bfilter-previewed",
+      );
+      await expect(page.locator("#reply-222")).toHaveAttribute(
+        "data-bfilter-previewed",
+        "true",
+      );
+      await expect(
+        page.locator("#reply-222 .bfilter-comment-block-button"),
+      ).toHaveText("Unblock");
+      await expect(page.locator(".bfilter-comment-block-button")).toHaveCount(
+        3,
+      );
+    });
+  }
+
+  test("comment controls use their own author even when a nested reply appears first", async ({
+    page,
+  }) => {
+    const nested = comment({ id: "nested", uid: "222" }).replace(
+      'class="reply-item"',
+      'class="sub-reply-item"',
+    );
+    await loadBfilter(page, {
+      url: "https://www.bilibili.com/video/BV1",
+      storage: { [keys.blocked]: "111", [keys.preview]: "true" },
+      html: `<main><article class="reply-item" id="parent">
+        ${nested}
+        <div class="user-info"><a class="user-name" href="https://space.bilibili.com/111">Parent</a></div>
+        <div class="reply-content">ordinary</div>
+      </article></main>`,
+    });
+    const parentButton = page.locator(
+      "#parent > .user-info > .bfilter-comment-block-button",
+    );
+    const nestedButton = page.locator("#nested .bfilter-comment-block-button");
+    await expect(parentButton).toHaveText("Unblock");
+    await expect(parentButton).toHaveAttribute("data-uid", "111");
+    await expect(nestedButton).toHaveText("Block");
+    await expect(nestedButton).toHaveAttribute("data-uid", "222");
+    await page.locator("#nested .user-name").evaluate((link) => {
+      link.href = "https://space.bilibili.com/444";
+    });
+    await settle(page);
+    await expect(parentButton).toHaveAttribute("data-uid", "111");
+    await expect(nestedButton).toHaveAttribute("data-uid", "444");
+    await expect(page.locator(".bfilter-comment-block-button")).toHaveCount(2);
+    await nestedButton.click();
+    await expect(
+      page.evaluate(() => localStorage.getItem("bfilter:blocked-user-uids")),
+    ).resolves.toBe("111\n444");
+  });
+
   test("bulk commenter action honors confirmation and only includes currently loaded comments", async ({
     page,
   }) => {

@@ -3391,13 +3391,17 @@
     if (!isOpusPage() && !isDirectVideoPage() && !isTPage()) return;
     for (const item of document.querySelectorAll(COMMENT_ITEM_SELECTOR)) {
       if (item.hasAttribute(HIDDEN_ATTR)) continue;
-      const userLink = item.querySelector(COMMENT_USER_LINK_SELECTOR);
+      const userLink = [
+        ...item.querySelectorAll(COMMENT_USER_LINK_SELECTOR),
+      ].find((link) => link.closest(COMMENT_ITEM_SELECTOR) === item);
       if (!userLink) continue;
       const href = userLink.getAttribute("href");
       const match = href && href.match(/space\.bilibili\.com\/(\d+)/i);
       if (!match) continue;
       const uid = match[1];
-      let btn = item.querySelector(`.${COMMENT_BLOCK_BUTTON_CLASS}`);
+      let btn = [
+        ...item.querySelectorAll(`.${COMMENT_BLOCK_BUTTON_CLASS}`),
+      ].find((button) => button.closest(COMMENT_ITEM_SELECTOR) === item);
       if (!btn) {
         btn = document.createElement("button");
         btn.className = COMMENT_BLOCK_BUTTON_CLASS;
