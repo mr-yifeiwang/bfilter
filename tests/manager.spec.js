@@ -7,6 +7,112 @@ test.describe("manager and persistence contracts", () => {
     await expect(page.locator("#bfilter-manager-panel")).toBeVisible();
   }
 
+  for (const unifiedMode of [false, true]) {
+    for (const viewportWidth of [1280, 420]) {
+      test(`Manager minimum dimensions and bottom layout hold across tabs at ${viewportWidth}px with unified mode ${unifiedMode}`, async ({
+        page,
+      }) => {
+        await page.setViewportSize({ width: viewportWidth, height: 800 });
+        await loadBfilter(page, {
+          storage: { [keys.unifiedMode]: String(unifiedMode) },
+        });
+        await openManager(page);
+        const panel = page.locator("#bfilter-manager-panel");
+        const tabs = page.locator(".bfilter-manager-tab");
+        await expect(tabs).toHaveCount(unifiedMode ? 7 : 6);
+        for (let index = 0; index < (await tabs.count()); index += 1) {
+          await tabs.nth(index).click();
+          const bounds = await panel.boundingBox();
+          expect(bounds.width).toBe(Math.min(450, viewportWidth - 48));
+          expect(bounds.height).toBeGreaterThanOrEqual(600);
+          if (viewportWidth === 1280) expect(bounds.height).toBe(600);
+          await expect(panel).toHaveCSS("min-height", "600px");
+          const footer = await panel
+            .locator(".bfilter-manager-actions")
+            .boundingBox();
+          expect(
+            bounds.y + bounds.height - footer.y - footer.height,
+          ).toBeCloseTo(17, 0);
+          const editor = panel.locator(
+            "[data-tab-panel]:not([hidden]) textarea",
+          );
+          if (await editor.count()) {
+            const editorBounds = await editor.boundingBox();
+            const help = await panel
+              .locator("[data-tab-panel]:not([hidden]) .bfilter-manager-help")
+              .boundingBox();
+            expect(editorBounds.height).toBeGreaterThan(160);
+            expect(
+              help.y - editorBounds.y - editorBounds.height,
+            ).toBeCloseTo(8, 0);
+            expect(footer.y - help.y - help.height).toBeCloseTo(12, 0);
+          }
+        }
+      });
+    }
+  }
+
+  test("Manager grows beyond its minimum dimensions for oversized content", async ({
+    page,
+  }) => {
+    await loadBfilter(page);
+    await openManager(page);
+    await page
+      .locator("#bfilter-manager-blocked-user-uids-textarea")
+      .evaluate((textarea) => {
+        textarea.style.height = "900px";
+      });
+    const panel = page.locator("#bfilter-manager-panel");
+    const bounds = await panel.boundingBox();
+    expect(bounds.width).toBe(450);
+    expect(bounds.height).toBeGreaterThan(900);
+    const footer = await panel
+      .locator(".bfilter-manager-actions")
+      .boundingBox();
+    expect(
+      bounds.y + bounds.height - footer.y - footer.height,
+    ).toBeCloseTo(17, 0);
+    await expect(panel).toHaveCSS("min-height", "600px");
+    await page
+      .locator("#bfilter-manager-blocked-user-uids-textarea")
+      .evaluate((textarea) => {
+        textarea.style.height = "160px";
+      });
+    expect((await panel.boundingBox()).height).toBe(600);
+  });
+
+  for (const viewportWidth of [1280, 420]) {
+    test(`textarea resize keeps the footer below the editor at ${viewportWidth}px`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width: viewportWidth, height: 1000 });
+      await loadBfilter(page);
+      await openManager(page);
+      const editor = page.locator(
+        "#bfilter-manager-blocked-user-uids-textarea",
+      );
+      const before = await editor.boundingBox();
+      const x = before.x + before.width - 3;
+      const y = before.y + before.height - 3;
+      await page.mouse.move(x, y);
+      await page.mouse.down();
+      await page.mouse.move(x, y + 60, { steps: 5 });
+      await page.mouse.up();
+      const after = await editor.boundingBox();
+      expect(after.height).toBeGreaterThan(before.height + 50);
+      const panel = page.locator("#bfilter-manager-panel");
+      const bounds = await panel.boundingBox();
+      const footer = await panel
+        .locator(".bfilter-manager-actions")
+        .boundingBox();
+      expect(bounds.height).toBeGreaterThan(650);
+      expect(footer.y).toBeGreaterThan(after.y + after.height);
+      expect(
+        bounds.y + bounds.height - footer.y - footer.height,
+      ).toBeCloseTo(17, 0);
+    });
+  }
+
   test("opens, closes, exposes documented tabs, and remembers the active tab", async ({
     page,
   }) => {

@@ -3537,8 +3537,8 @@
     return `
       #${MANAGER_PANEL_ID} {
         position: fixed; top: 62px; right: 24px; z-index: 999999;
-        box-sizing: border-box;
-        width: 450px; max-width: calc(100vw - 48px); overflow: auto; border: 1px solid rgba(0,0,0,.08);
+        box-sizing: border-box; display: flex; flex-direction: column;
+        width: 450px; min-height: 600px; max-width: calc(100vw - 48px); overflow: auto; border: 1px solid rgba(0,0,0,.08);
         border-radius: 14px; padding: 16px; color: #18191c; background: #fff;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         box-shadow: 0 12px 32px rgba(0,0,0,.22);
@@ -3549,7 +3549,7 @@
       #${MANAGER_PANEL_ID} .bfilter-manager-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
       #${MANAGER_PANEL_ID} .bfilter-manager-title { font-size: 16px; font-weight: 700; }
       #${MANAGER_PANEL_ID} .bfilter-manager-version { margin-left: 2px; color: #9499a0; font-size: 12px; font-weight: 500; }
-      #${MANAGER_PANEL_ID} .bfilter-manager-section { display: grid; grid-template-columns: max-content minmax(0, 1fr); column-gap: 12px; align-items: start; margin-top: 12px; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-section { display: grid; flex: 1; grid-template-columns: max-content minmax(0, 1fr); grid-template-rows: 1fr auto; column-gap: 12px; align-items: start; margin-top: 12px; }
       #${MANAGER_PANEL_ID} .bfilter-manager-section:first-of-type { margin-top: 0; }
       #${MANAGER_PANEL_ID} .bfilter-manager-section + .bfilter-manager-section { padding-top: 4px; }
       #${MANAGER_PANEL_ID} .bfilter-manager-option { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; color: #18191c; font-size: 13px; cursor: pointer; }
@@ -3574,7 +3574,7 @@
       #${MANAGER_PANEL_ID} .bfilter-manager-tab[aria-selected="true"] { border-color: #e3e5e7; color: var(--bfilter-button-color); background: #fff; cursor: default; }
       #${MANAGER_PANEL_ID} .bfilter-manager-tab[data-tab="followed-user-uids"][aria-selected="true"] { color: var(--bfilter-followed-color); }
       #${MANAGER_PANEL_ID} .bfilter-manager-tab[aria-selected="true"]::after { content: ""; position: absolute; top: 0; right: -1px; bottom: 0; width: 1px; background: #fff; }
-      #${MANAGER_PANEL_ID} .bfilter-manager-tab-panel { grid-column: 2; grid-row: 1; min-height: 290px; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-tab-panel { display: flex; flex-direction: column; align-self: stretch; grid-column: 2; grid-row: 1; min-height: 290px; }
       #${MANAGER_PANEL_ID} .bfilter-manager-tab-panel[hidden] { display: none !important; }
       #${MANAGER_PANEL_ID} .bfilter-manager-settings-panel { display: grid; align-content: start; gap: 14px; }
       #${MANAGER_PANEL_ID} .bfilter-manager-settings-section { display: grid; gap: 8px; }
@@ -3589,9 +3589,9 @@
       #${MANAGER_PANEL_ID} .bfilter-manager-statistic[data-statistics-level="high"], #${STATISTICS_OVERLAY_ID} .bfilter-statistics-overlay-list > div[data-statistics-level="high"] { background: #ffc9c9; }
       #${MANAGER_PANEL_ID} .bfilter-manager-statistic output { overflow: hidden; margin: 0; color: #4b4f55; font-size: 13px; font-weight: 400; text-overflow: ellipsis; white-space: nowrap; }
       #${MANAGER_PANEL_ID} .bfilter-manager-statistics-help { color: #61666d; font-size: 12px; line-height: 1.45; }
-      #${MANAGER_PANEL_ID} .bfilter-manager-textarea { box-sizing: border-box; display: block; width: 100%; min-height: 160px; border: 1px solid #c9ccd0; border-radius: 10px; padding: 10px; color: #18191c; background: #f6f7f8; font-size: 14px; line-height: 1.5; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace !important; white-space: pre-wrap; overflow-wrap: anywhere; caret-color: #18191c; resize: vertical; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-textarea { box-sizing: border-box; display: block; flex: 1 0 auto; width: 100%; min-height: 160px; border: 1px solid #c9ccd0; border-radius: 10px; padding: 10px; color: #18191c; background: #f6f7f8; font-size: 14px; line-height: 1.5; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace !important; white-space: pre-wrap; overflow-wrap: anywhere; caret-color: #18191c; resize: vertical; }
       #${MANAGER_PANEL_ID} .bfilter-manager-textarea:disabled { border-color: #e3e5e7; color: #18191c; background: #f1f2f3; cursor: not-allowed; opacity: .65; }
-      #${MANAGER_PANEL_ID} .bfilter-manager-textarea-shell { position: relative; }
+      #${MANAGER_PANEL_ID} .bfilter-manager-textarea-shell { position: relative; display: flex; flex-direction: column; flex: 1; }
       #${MANAGER_PANEL_ID} .bfilter-manager-textarea-shell-disabled { overflow: hidden; border-radius: 10px; }
       #${MANAGER_PANEL_ID} .bfilter-manager-textarea-shell-disabled .bfilter-manager-textarea:disabled { color: transparent; text-shadow: 0 0 6px rgba(97,102,109,.55); }
       #${MANAGER_PANEL_ID} .bfilter-manager-textarea-disabled-label { position: absolute; inset: 0; display: grid; place-items: center; padding: 10px; color: #4b4f55; background: rgba(246,247,248,.35); font-size: 16px; font-weight: 700; letter-spacing: .01em; line-height: 1.35; pointer-events: none; text-align: center; }
