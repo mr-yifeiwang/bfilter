@@ -35,6 +35,7 @@
     "bfilter:hide-danmakus-by-keyword";
   const UNIFIED_KEYWORDS_STORAGE_KEY = "bfilter:unified-keywords";
   const ACTIVE_MANAGER_TAB_STORAGE_KEY = "bfilter:active-manager-tab";
+  const DEFAULT_MANAGER_TAB_NAME = "followed-user-uids";
   const SETTING_KEYS = {
     hideUsersByRegistrationTime: "bfilter:hide-users-by-registration-time",
     hideUsersByRegistrationTimeThreshold:
@@ -2289,8 +2290,8 @@
       </div>
       <section class="bfilter-manager-section">
         <div class="bfilter-manager-tabs" role="tablist">
-          <button class="bfilter-manager-tab" type="button" role="tab" aria-selected="${String(activeTab === "blocked-user-uids")}" data-tab="blocked-user-uids">Users</button>
           <button class="bfilter-manager-tab" type="button" role="tab" aria-selected="${String(activeTab === "followed-user-uids")}" data-tab="followed-user-uids">Following</button>
+          <button class="bfilter-manager-tab" type="button" role="tab" aria-selected="${String(activeTab === "blocked-user-uids")}" data-tab="blocked-user-uids">Users</button>
           <button class="bfilter-manager-tab" type="button" role="tab" aria-selected="${String(activeTab === "hide-videos-by-keyword")}" data-tab="hide-videos-by-keyword">Videos</button>
           <button class="bfilter-manager-tab" type="button" role="tab" aria-selected="${String(activeTab === "hide-comments-by-keyword")}" data-tab="hide-comments-by-keyword">Comments</button>
           <button class="bfilter-manager-tab" type="button" role="tab" aria-selected="${String(activeTab === "hide-danmakus-by-keyword")}" data-tab="hide-danmakus-by-keyword">Danmakus</button>
@@ -2757,18 +2758,18 @@
       "settings",
     ].includes(tabName)
       ? tabName
-      : "blocked-user-uids";
+      : DEFAULT_MANAGER_TAB_NAME;
   }
 
   function readActiveManagerTabName() {
     try {
       const saved =
         typeof GM_getValue === "function"
-          ? GM_getValue(ACTIVE_MANAGER_TAB_STORAGE_KEY, "blocked-user-uids")
+          ? GM_getValue(ACTIVE_MANAGER_TAB_STORAGE_KEY, DEFAULT_MANAGER_TAB_NAME)
           : localStorage.getItem(ACTIVE_MANAGER_TAB_STORAGE_KEY);
       return getValidManagerTabName(saved);
     } catch (_error) {
-      return "blocked-user-uids";
+      return DEFAULT_MANAGER_TAB_NAME;
     }
   }
 
@@ -2993,7 +2994,9 @@
     const activeTab = panel.querySelector(
       '.bfilter-manager-tab[data-tab][aria-selected="true"]',
     );
-    return activeTab ? activeTab.getAttribute("data-tab") : "blocked-user-uids";
+    return activeTab
+      ? activeTab.getAttribute("data-tab")
+      : DEFAULT_MANAGER_TAB_NAME;
   }
 
   function getActiveManagerTextarea(panel) {
@@ -3019,7 +3022,7 @@
       getActiveManagerTabName(panel) === "unified-keywords" &&
       !settings.unifiedKeywordsMode
     )
-      saveActiveManagerTabName("blocked-user-uids");
+      saveActiveManagerTabName(DEFAULT_MANAGER_TAB_NAME);
     panel.remove();
     renderBfilterManager();
     const nextPanel = document.getElementById(MANAGER_PANEL_ID);

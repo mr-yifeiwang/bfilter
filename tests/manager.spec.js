@@ -20,6 +20,15 @@ test.describe("manager and persistence contracts", () => {
         const panel = page.locator("#bfilter-manager-panel");
         const tabs = page.locator(".bfilter-manager-tab");
         await expect(tabs).toHaveCount(unifiedMode ? 7 : 6);
+        await expect(tabs).toHaveText([
+          "Following",
+          "Users",
+          "Videos",
+          "Comments",
+          "Danmakus",
+          ...(unifiedMode ? ["Keywords"] : []),
+          "Settings",
+        ]);
         for (let index = 0; index < (await tabs.count()); index += 1) {
           await tabs.nth(index).click();
           const bounds = await panel.boundingBox();
@@ -58,6 +67,7 @@ test.describe("manager and persistence contracts", () => {
   }) => {
     await loadBfilter(page);
     await openManager(page);
+    await page.locator('[data-tab="blocked-user-uids"]').click();
     await page
       .locator("#bfilter-manager-blocked-user-uids-textarea")
       .evaluate((textarea) => {
@@ -90,6 +100,7 @@ test.describe("manager and persistence contracts", () => {
       await page.setViewportSize({ width: viewportWidth, height: 1000 });
       await loadBfilter(page);
       await openManager(page);
+      await page.locator('[data-tab="blocked-user-uids"]').click();
       const editor = page.locator(
         "#bfilter-manager-blocked-user-uids-textarea",
       );
@@ -123,7 +134,7 @@ test.describe("manager and persistence contracts", () => {
     await openManager(page);
     await expect(page.locator(".bfilter-manager-tab")).toHaveCount(6);
     await expect(
-      page.locator('[data-tab="blocked-user-uids"]'),
+      page.locator('[data-tab="followed-user-uids"]'),
     ).toHaveAttribute("aria-selected", "true");
     await page.locator('[data-tab="settings"]').click();
     await expect(page.locator('[data-tab="settings"]')).toHaveAttribute(
@@ -135,7 +146,78 @@ test.describe("manager and persistence contracts", () => {
     ).resolves.toBe("settings");
     await page.locator(".bfilter-manager-close").click();
     await expect(page.locator("#bfilter-manager-panel")).toBeHidden();
+    await loadBfilter(page);
+    await openManager(page);
+    await expect(page.locator('[data-tab="settings"]')).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
   });
+
+  for (const gm of [false, true]) {
+    for (const saved of [
+      { name: "missing", value: null, expected: "followed-user-uids" },
+      { name: "invalid", value: "unknown", expected: "followed-user-uids" },
+      {
+        name: "unavailable Keywords",
+        value: "unified-keywords",
+        expected: "followed-user-uids",
+      },
+      {
+        name: "Users",
+        value: "blocked-user-uids",
+        expected: "blocked-user-uids",
+      },
+      { name: "Settings", value: "settings", expected: "settings" },
+      {
+        name: "enabled Keywords",
+        value: "unified-keywords",
+        unified: true,
+        expected: "unified-keywords",
+      },
+    ]) {
+      test(`restores ${saved.name} tab or falls back to Following with GM storage ${gm}`, async ({
+        page,
+      }) => {
+        await loadBfilter(page, {
+          gm,
+          storage: {
+            ...(saved.value === null
+              ? {}
+              : { "bfilter:active-manager-tab": saved.value }),
+            [keys.unifiedMode]: String(Boolean(saved.unified)),
+          },
+        });
+        await openManager(page);
+        await expect(
+          page.locator('.bfilter-manager-tab[aria-selected="true"]'),
+        ).toHaveCount(1);
+        await expect(
+          page.locator('.bfilter-manager-tab[aria-selected="true"]'),
+        ).toHaveAttribute("data-tab", saved.expected);
+        await expect(
+          page.locator("[data-tab-panel]:not([hidden])"),
+        ).toHaveAttribute("data-tab-panel", saved.expected);
+        if (saved.unified) {
+          await page.evaluate((key) => {
+            if (typeof GM_setValue === "function") GM_setValue(key, false);
+            else {
+              localStorage.setItem(key, "false");
+              window.dispatchEvent(
+                new StorageEvent("storage", { key, newValue: "false" }),
+              );
+            }
+          }, keys.unifiedMode);
+          await expect(
+            page.locator('[data-tab="unified-keywords"]'),
+          ).toHaveCount(0);
+          await expect(
+            page.locator('[data-tab="followed-user-uids"]'),
+          ).toHaveAttribute("aria-selected", "true");
+        }
+      });
+    }
+  }
 
   test("saves normalized lists and immediately rescans matching cards", async ({
     page,
@@ -200,6 +282,7 @@ test.describe("manager and persistence contracts", () => {
   }) => {
     await loadBfilter(page);
     await openManager(page);
+    await page.locator('[data-tab="blocked-user-uids"]').click();
     const area = page.locator("#bfilter-manager-blocked-user-uids-textarea");
     await area.fill("20 # second\n\n10 # first\n10 # duplicate");
     await page.evaluate(() => {
@@ -225,6 +308,8 @@ test.describe("manager and persistence contracts", () => {
       await loadBfilter(page, { storage: { [keys.followed]: entry } });
       await openManager(page);
       const search = page.locator('[data-action="search-followed-username"]');
+      await expect(search).toBeVisible();
+      await page.locator('[data-tab="blocked-user-uids"]').click();
       await expect(search).toBeHidden();
       await page.locator('[data-tab="followed-user-uids"]').click();
       await expect(search).toBeVisible();

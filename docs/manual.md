@@ -79,11 +79,11 @@ User-space pages deliberately do not run the normal card/comment scanner. They o
 
 ## Manager panel
 
-The floating **Open Bfilter** button creates a panel with a vertical left-side tab list: **Users**, **Following**, **Videos**, **Comments**, **Danmakus**, and **Settings**. Unified keywords mode also shows a **Keywords** tab. The panel includes a global **Preview** toggle, a **Sort** button, and a **Save** button.
+The floating **Open Bfilter** button creates a panel with a vertical left-side tab list: **Following**, **Users**, **Videos**, **Comments**, **Danmakus**, and **Settings**. Unified keywords mode also shows a **Keywords** tab. The panel includes a global **Preview** toggle, a **Sort** button, and a **Save** button.
 
 The Save button is enabled only when one or more textareas differ from their last loaded value. Changing checkboxes or dropdowns is saved immediately.
 
-The manager remembers the last selected tab and opens that tab the next time the panel is created. For new users with no saved tab yet, the panel opens the **Users** tab.
+The manager remembers the last selected tab and opens that tab the next time the panel is created. If there is no saved selection, or the saved tab is invalid or unavailable, the panel opens the **Following** tab.
 
 Click **Sort** and confirm the warning to sort all available Manager list textareas (including the unified list when its mode is enabled) and remove duplicate, comment-only, and empty-line entries. Duplicate matching uses the entry text after removing inline comments. Inline comments stay attached to the kept original line, and the sorted lists are saved immediately.
 
@@ -184,7 +184,7 @@ Use the **Migration** section in this tab to import or export Bfilter data and s
 - **Import** opens a JSON file picker. After a file is selected, Bfilter shows a warning that the imported data will overwrite the existing data and settings. Confirming replaces all Manager lists and saved settings with the imported values.
 - **Export** downloads a JSON backup containing all Manager lists and settings.
 
-Use the **Reset** section to clear all six Manager lists and return every filter setting to its default. Bfilter shows a destructive confirmation first; canceling leaves data and settings unchanged. Resetting preserves the active Manager tab unless it disables unified mode while **Keywords** is active, in which case the panel falls back to **Users**.
+Use the **Reset** section to clear all six Manager lists and return every filter setting to its default. Bfilter shows a destructive confirmation first; canceling leaves data and settings unchanged. Resetting preserves the active Manager tab unless it disables unified mode while **Keywords** is active, in which case the panel falls back to **Following**.
 
 ### Preview mode
 
