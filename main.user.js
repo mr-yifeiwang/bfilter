@@ -2404,7 +2404,7 @@
             <span>Preview</span>
           </label>
           <div class="bfilter-manager-action-buttons">
-            <button class="bfilter-manager-action bfilter-manager-action-primary" type="button" data-action="go-followed-user-uids" title="Open selected user space" hidden>Go</button>
+            <button class="bfilter-manager-action bfilter-manager-action-primary" type="button" data-action="go-followed-user-uids" title="Search selected username" hidden>Go</button>
             <button class="bfilter-manager-action bfilter-manager-action-primary" type="button" data-action="sort" title="Sort all Manager lists">Sort</button>
             <button class="bfilter-manager-action bfilter-manager-action-primary" type="button" data-action="save" disabled>Save</button>
           </div>
@@ -2421,7 +2421,7 @@
         setActiveManagerTab(panel, target.getAttribute("data-tab"));
       }
       if (target.getAttribute("data-action") === "go-followed-user-uids") {
-        openSelectedFollowedUserUidsDynamic(panel);
+        searchSelectedFollowedUsername(panel);
       }
       if (target.getAttribute("data-action") === "sort") {
         if (
@@ -3033,27 +3033,28 @@
     nextPanel.hidden = hidden;
   }
 
-  function openSelectedFollowedUserUidsDynamic(panel) {
+  function searchSelectedFollowedUsername(panel) {
     const textarea = panel.querySelector(
       `#${MANAGER_FOLLOWED_USER_UIDS_TEXTAREA_ID}`,
     );
-    const uid = getSelectedFollowedUserUids(textarea);
-    if (!uid) {
+    const username = getSelectedFollowedUsername(textarea);
+    if (!username) {
       alert(
-        "1. Select one numeric UID in the Following list. Do not include spaces, comments, or multiple lines in the selection.\n2. Click Go to visit the user space.",
+        "Select a username in the Following list, then click Go to search Bilibili.",
       );
       return;
     }
-    window.open(`https://space.bilibili.com/${uid}/upload`, "_blank");
+    window.open(
+      `https://search.bilibili.com/all?keyword=${encodeURIComponent(username)}`,
+      "_blank",
+    );
   }
 
-  function getSelectedFollowedUserUids(textarea) {
+  function getSelectedFollowedUsername(textarea) {
     if (!textarea) return "";
-    const selectedText = textarea.value.slice(
-      textarea.selectionStart,
-      textarea.selectionEnd,
-    );
-    return normalizeUid(selectedText);
+    return textarea.value
+      .slice(textarea.selectionStart, textarea.selectionEnd)
+      .trim();
   }
 
   function sortManagerTextareas(panel) {

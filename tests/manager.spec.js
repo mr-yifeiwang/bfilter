@@ -214,26 +214,74 @@ test.describe("manager and persistence contracts", () => {
     ).resolves.toBe("10 # first\n20 # second");
   });
 
-  test("Following Go opens the selected UID upload page", async ({ page }) => {
-    await loadBfilter(page, { storage: { [keys.followed]: "123 # user" } });
-    await openManager(page);
-    await page.locator('[data-tab="followed-user-uids"]').click();
-    await page
-      .locator("#bfilter-manager-followed-user-uids-textarea")
-      .evaluate((textarea) => {
-        textarea.focus();
-        textarea.setSelectionRange(0, 3);
+  for (const username of ["xxx", "用户 名&?+#/%❤️", "  username  "]) {
+    test(`Following Go searches the selected username ${JSON.stringify(username)}`, async ({
+      page,
+    }) => {
+      const entry = `123 # ${username}`;
+      await loadBfilter(page, { storage: { [keys.followed]: entry } });
+      await openManager(page);
+      const go = page.locator('[data-action="go-followed-user-uids"]');
+      await expect(go).toBeHidden();
+      await page.locator('[data-tab="followed-user-uids"]').click();
+      await expect(go).toBeVisible();
+      await expect(go).toHaveAttribute("title", "Search selected username");
+      await page
+        .locator("#bfilter-manager-followed-user-uids-textarea")
+        .evaluate((textarea) => {
+          textarea.focus();
+          textarea.setSelectionRange("123 # ".length, textarea.value.length);
+        });
+      await page.evaluate(() => {
+        window.open = (url, target) => {
+          window.__opened = { url, target };
+        };
       });
-    await page.evaluate(() => {
-      window.open = (url) => {
-        window.__opened = url;
-      };
+      await go.click();
+      await expect(page.evaluate(() => window.__opened)).resolves.toEqual({
+        url: `https://search.bilibili.com/all?keyword=${encodeURIComponent(username.trim())}`,
+        target: "_blank",
+      });
+      await expect(
+        page.evaluate(() => localStorage.getItem("bfilter:followed-user-uids")),
+      ).resolves.toBe(entry);
+      await page.locator('[data-tab="settings"]').click();
+      await expect(go).toBeHidden();
     });
-    await page.locator('[data-action="go-followed-user-uids"]').click();
-    await expect(page.evaluate(() => window.__opened)).resolves.toBe(
-      "https://space.bilibili.com/123/upload",
-    );
-  });
+  }
+
+  for (const selection of ["", "   "]) {
+    test(`Following Go rejects an empty username selection ${JSON.stringify(selection)}`, async ({
+      page,
+    }) => {
+      await loadBfilter(page, {
+        storage: { [keys.followed]: `123 # ${selection}` },
+      });
+      await openManager(page);
+      await page.locator('[data-tab="followed-user-uids"]').click();
+      await page
+        .locator("#bfilter-manager-followed-user-uids-textarea")
+        .evaluate((textarea) => {
+          textarea.focus();
+          textarea.setSelectionRange("123 # ".length, textarea.value.length);
+        });
+      await page.evaluate(() => {
+        window.open = () => {
+          window.__opened = true;
+        };
+        window.alert = (message) => {
+          window.__alert = message;
+        };
+      });
+      await page.locator('[data-action="go-followed-user-uids"]').click();
+      await expect(
+        page.evaluate(() => window.__opened),
+      ).resolves.toBeUndefined();
+      await expect(page.evaluate(() => window.__alert)).resolves.toContain(
+        "Select a username",
+      );
+    });
+  }
 
   test("statistics count unique observed and filtered items and reset after setting changes", async ({
     page,
