@@ -115,7 +115,7 @@ Use this tab to maintain UIDs that should be highlighted instead of hidden.
 
 - Each line should contain one numeric UID.
 - A followed UID takes priority over blocked-user and content-hide rules for matching cards/comments.
-- Select a username (for example, the name after `#` in `12345678 # username`) and click **Go** to open `https://search.bilibili.com/all?keyword=<username>` in a new tab.
+- Select a username (for example, the name after `#` in `12345678 # username`) and click **Search** to open `https://search.bilibili.com/all?keyword=<username>` in a new tab.
 - The user-space follow button can automatically append usernames as comments, for example `12345678 # username`.
 
 The **Add usernames by default** option (`addUsernamesToFollowedUserUids`) controls whether the user-space follow action stores the current profile username after `#`. It defaults to enabled.

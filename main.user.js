@@ -2404,7 +2404,7 @@
             <span>Preview</span>
           </label>
           <div class="bfilter-manager-action-buttons">
-            <button class="bfilter-manager-action bfilter-manager-action-primary" type="button" data-action="go-followed-user-uids" title="Search selected username" hidden>Go</button>
+            <button class="bfilter-manager-action bfilter-manager-action-primary" type="button" data-action="search-followed-username" title="Search selected username" hidden>Search</button>
             <button class="bfilter-manager-action bfilter-manager-action-primary" type="button" data-action="sort" title="Sort all Manager lists">Sort</button>
             <button class="bfilter-manager-action bfilter-manager-action-primary" type="button" data-action="save" disabled>Save</button>
           </div>
@@ -2420,7 +2420,7 @@
       if (target.matches(".bfilter-manager-tab[data-tab]")) {
         setActiveManagerTab(panel, target.getAttribute("data-tab"));
       }
-      if (target.getAttribute("data-action") === "go-followed-user-uids") {
+      if (target.getAttribute("data-action") === "search-followed-username") {
         searchSelectedFollowedUsername(panel);
       }
       if (target.getAttribute("data-action") === "sort") {
@@ -2654,7 +2654,7 @@
         "Enter one keyword per line to hide videos, comments, and danmakus containing it.";
     refreshBooleanControls(panel);
     refreshStatisticsOverlayToggle(panel);
-    refreshManagerGoButton(panel);
+    refreshManagerSearchButton(panel);
     updateManagerSaveButtonState(panel);
     refreshStatisticsDisplays(panel);
   }
@@ -2742,7 +2742,7 @@
     for (const tabPanel of panel.querySelectorAll("[data-tab-panel]")) {
       tabPanel.hidden = tabPanel.getAttribute("data-tab-panel") !== nextTab;
     }
-    refreshManagerGoButton(panel);
+    refreshManagerSearchButton(panel);
     getActiveManagerTextarea(panel)?.focus();
   }
 
@@ -2980,12 +2980,13 @@
     renderUserPageActionButtons();
   }
 
-  function refreshManagerGoButton(panel) {
-    const goButton = panel.querySelector(
-      '[data-action="go-followed-user-uids"]',
+  function refreshManagerSearchButton(panel) {
+    const searchButton = panel.querySelector(
+      '[data-action="search-followed-username"]',
     );
-    if (!goButton) return;
-    goButton.hidden = getActiveManagerTabName(panel) !== "followed-user-uids";
+    if (!searchButton) return;
+    searchButton.hidden =
+      getActiveManagerTabName(panel) !== "followed-user-uids";
   }
 
   function getActiveManagerTabName(panel) {
@@ -3040,7 +3041,7 @@
     const username = getSelectedFollowedUsername(textarea);
     if (!username) {
       alert(
-        "Select a username in the Following list, then click Go to search Bilibili.",
+        "Select a username in the Following list, then click Search to search Bilibili.",
       );
       return;
     }

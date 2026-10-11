@@ -42,9 +42,10 @@ test.describe("manager and persistence contracts", () => {
               .locator("[data-tab-panel]:not([hidden]) .bfilter-manager-help")
               .boundingBox();
             expect(editorBounds.height).toBeGreaterThan(160);
-            expect(
-              help.y - editorBounds.y - editorBounds.height,
-            ).toBeCloseTo(8, 0);
+            expect(help.y - editorBounds.y - editorBounds.height).toBeCloseTo(
+              8,
+              0,
+            );
             expect(footer.y - help.y - help.height).toBeCloseTo(12, 0);
           }
         }
@@ -69,9 +70,10 @@ test.describe("manager and persistence contracts", () => {
     const footer = await panel
       .locator(".bfilter-manager-actions")
       .boundingBox();
-    expect(
-      bounds.y + bounds.height - footer.y - footer.height,
-    ).toBeCloseTo(17, 0);
+    expect(bounds.y + bounds.height - footer.y - footer.height).toBeCloseTo(
+      17,
+      0,
+    );
     await expect(panel).toHaveCSS("min-height", "600px");
     await page
       .locator("#bfilter-manager-blocked-user-uids-textarea")
@@ -107,9 +109,10 @@ test.describe("manager and persistence contracts", () => {
         .boundingBox();
       expect(bounds.height).toBeGreaterThan(650);
       expect(footer.y).toBeGreaterThan(after.y + after.height);
-      expect(
-        bounds.y + bounds.height - footer.y - footer.height,
-      ).toBeCloseTo(17, 0);
+      expect(bounds.y + bounds.height - footer.y - footer.height).toBeCloseTo(
+        17,
+        0,
+      );
     });
   }
 
@@ -215,17 +218,18 @@ test.describe("manager and persistence contracts", () => {
   });
 
   for (const username of ["xxx", "用户 名&?+#/%❤️", "  username  "]) {
-    test(`Following Go searches the selected username ${JSON.stringify(username)}`, async ({
+    test(`Following Search searches the selected username ${JSON.stringify(username)}`, async ({
       page,
     }) => {
       const entry = `123 # ${username}`;
       await loadBfilter(page, { storage: { [keys.followed]: entry } });
       await openManager(page);
-      const go = page.locator('[data-action="go-followed-user-uids"]');
-      await expect(go).toBeHidden();
+      const search = page.locator('[data-action="search-followed-username"]');
+      await expect(search).toBeHidden();
       await page.locator('[data-tab="followed-user-uids"]').click();
-      await expect(go).toBeVisible();
-      await expect(go).toHaveAttribute("title", "Search selected username");
+      await expect(search).toBeVisible();
+      await expect(search).toHaveText("Search");
+      await expect(search).toHaveAttribute("title", "Search selected username");
       await page
         .locator("#bfilter-manager-followed-user-uids-textarea")
         .evaluate((textarea) => {
@@ -237,7 +241,7 @@ test.describe("manager and persistence contracts", () => {
           window.__opened = { url, target };
         };
       });
-      await go.click();
+      await search.click();
       await expect(page.evaluate(() => window.__opened)).resolves.toEqual({
         url: `https://search.bilibili.com/all?keyword=${encodeURIComponent(username.trim())}`,
         target: "_blank",
@@ -246,12 +250,12 @@ test.describe("manager and persistence contracts", () => {
         page.evaluate(() => localStorage.getItem("bfilter:followed-user-uids")),
       ).resolves.toBe(entry);
       await page.locator('[data-tab="settings"]').click();
-      await expect(go).toBeHidden();
+      await expect(search).toBeHidden();
     });
   }
 
   for (const selection of ["", "   "]) {
-    test(`Following Go rejects an empty username selection ${JSON.stringify(selection)}`, async ({
+    test(`Following Search rejects an empty username selection ${JSON.stringify(selection)}`, async ({
       page,
     }) => {
       await loadBfilter(page, {
@@ -273,12 +277,12 @@ test.describe("manager and persistence contracts", () => {
           window.__alert = message;
         };
       });
-      await page.locator('[data-action="go-followed-user-uids"]').click();
+      await page.locator('[data-action="search-followed-username"]').click();
       await expect(
         page.evaluate(() => window.__opened),
       ).resolves.toBeUndefined();
-      await expect(page.evaluate(() => window.__alert)).resolves.toContain(
-        "Select a username",
+      await expect(page.evaluate(() => window.__alert)).resolves.toBe(
+        "Select a username in the Following list, then click Search to search Bilibili.",
       );
     });
   }
