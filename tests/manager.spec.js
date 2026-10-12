@@ -154,6 +154,56 @@ test.describe("manager and persistence contracts", () => {
     );
   });
 
+  test("Settings shows a GitHub button below Reset that opens the project page", async ({
+    page,
+  }) => {
+    await loadBfilter(page);
+    await openManager(page);
+    await page.locator('[data-tab="settings"]').click();
+    const settingsPanel = page.locator('[data-tab-panel="settings"]');
+    await expect(
+      settingsPanel.locator(".bfilter-manager-settings-heading"),
+    ).toHaveText([
+      "Statistics",
+      "Keyword Unification",
+      "Migration",
+      "Reset",
+      "About",
+    ]);
+    const about = settingsPanel
+      .locator(".bfilter-manager-settings-section")
+      .filter({ hasText: "About" });
+    await expect(about).toBeVisible();
+    await expect(about.locator("ul, li")).toHaveCount(0);
+    const button = about.getByRole("button", { name: "GitHub", exact: true });
+    await expect(button).toBeVisible();
+    await page.evaluate(() => {
+      window.__openedProjectPages = [];
+      window.open = (url, target, features) => {
+        window.__openedProjectPages.push({ url, target, features });
+        return null;
+      };
+    });
+    await button.click();
+    await expect(
+      page.evaluate(() => window.__openedProjectPages),
+    ).resolves.toEqual([
+      {
+        url: "https://github.com/mr-yifeiwang/bfilter",
+        target: "_blank",
+        features: "noopener,noreferrer",
+      },
+    ]);
+    const resetBounds = await settingsPanel
+      .locator(".bfilter-manager-settings-section")
+      .filter({ has: page.locator('[data-action="reset"]') })
+      .boundingBox();
+    const aboutBounds = await about.boundingBox();
+    expect(aboutBounds.y).toBeGreaterThanOrEqual(
+      resetBounds.y + resetBounds.height,
+    );
+  });
+
   for (const gm of [false, true]) {
     for (const saved of [
       { name: "missing", value: null, expected: "followed-user-uids" },

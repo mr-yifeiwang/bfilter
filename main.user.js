@@ -2396,6 +2396,12 @@
               <button class="bfilter-manager-action bfilter-manager-action-primary" type="button" data-action="reset" title="Clear all Bfilter data and reset default settings">Reset</button>
             </div>
           </div>
+          <div class="bfilter-manager-settings-section">
+            <div class="bfilter-manager-settings-heading">About</div>
+            <div class="bfilter-manager-settings-actions">
+              <button class="bfilter-manager-action bfilter-manager-action-primary" type="button" data-action="github" title="Open the Bfilter project on GitHub">GitHub</button>
+            </div>
+          </div>
           <input class="bfilter-manager-import-input" type="file" accept="application/json,.json" hidden>
         </div>
         <div class="bfilter-manager-actions">
@@ -2444,6 +2450,13 @@
       }
       if (target.getAttribute("data-action") === "reset") {
         resetManagerData(panel);
+      }
+      if (target.getAttribute("data-action") === "github") {
+        window.open(
+          "https://github.com/mr-yifeiwang/bfilter",
+          "_blank",
+          "noopener,noreferrer",
+        );
       }
     });
 
@@ -2765,7 +2778,10 @@
     try {
       const saved =
         typeof GM_getValue === "function"
-          ? GM_getValue(ACTIVE_MANAGER_TAB_STORAGE_KEY, DEFAULT_MANAGER_TAB_NAME)
+          ? GM_getValue(
+              ACTIVE_MANAGER_TAB_STORAGE_KEY,
+              DEFAULT_MANAGER_TAB_NAME,
+            )
           : localStorage.getItem(ACTIVE_MANAGER_TAB_STORAGE_KEY);
       return getValidManagerTabName(saved);
     } catch (_error) {

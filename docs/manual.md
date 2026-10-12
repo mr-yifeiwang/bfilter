@@ -186,6 +186,8 @@ Use the **Migration** section in this tab to import or export Bfilter data and s
 
 Use the **Reset** section to clear all six Manager lists and return every filter setting to its default. Bfilter shows a destructive confirmation first; canceling leaves data and settings unchanged. Resetting preserves the active Manager tab unless it disables unified mode while **Keywords** is active, in which case the panel falls back to **Following**.
 
+The **About** section appears below Reset and contains a **GitHub** button. Clicking it opens the [Bfilter project page](https://github.com/mr-yifeiwang/bfilter) in a new tab.
+
 ### Preview mode
 
 Preview mode changes the consequence of a content match from hiding it to marking it visibly. Previewed matches count as filtered in Settings statistics.
