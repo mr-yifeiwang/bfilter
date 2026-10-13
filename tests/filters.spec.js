@@ -5,6 +5,7 @@ const {
   danmaku,
   keys,
   loadBfilter,
+  setStorage,
   settle,
 } = require("./helpers");
 
@@ -271,6 +272,60 @@ test.describe("filtering contracts", () => {
       "data-bfilter-hidden",
     );
   });
+
+  for (const preview of [false, true]) {
+    test(`evaluates each resolved danmaku once per scan with preview ${preview}`, async ({
+      page,
+    }) => {
+      await loadBfilter(page, {
+        url: "https://www.bilibili.com/video/BV1",
+        storage: { [keys.preview]: String(preview) },
+        html: `<main>${danmaku({ id: "dm", text: "spoiler" })}${danmaku({ id: "dm-kept", text: "ordinary" })}
+          <div class="bpx-player-dm"><ul><li class="bui-long-list-item" id="dm-list"><span class="dm-info-dm">spoiler</span></li></ul></div>
+        </main>`,
+      });
+      await page.evaluate(() => {
+        window.__danmakuTextReads = { dm: 0, "dm-kept": 0, "dm-list": 0 };
+        window.__originalQuerySelector = Element.prototype.querySelector;
+        Element.prototype.querySelector = function (selector) {
+          if (
+            selector === ".dm-info-dm" &&
+            Object.prototype.hasOwnProperty.call(
+              window.__danmakuTextReads,
+              this.id,
+            )
+          )
+            window.__danmakuTextReads[this.id] += 1;
+          return window.__originalQuerySelector.call(this, selector);
+        };
+      });
+      await setStorage(page, { [keys.danmakus]: "spoiler" });
+      const reads = await page.evaluate(() => {
+        Element.prototype.querySelector = window.__originalQuerySelector;
+        return window.__danmakuTextReads;
+      });
+      expect(reads).toEqual({ dm: 1, "dm-kept": 1, "dm-list": 1 });
+
+      const attribute = preview
+        ? "data-bfilter-previewed"
+        : "data-bfilter-hidden";
+      for (const id of ["dm", "dm-list"])
+        await expect(page.locator(`#${id}`)).toHaveAttribute(attribute, "true");
+      await expect(page.locator("#dm-kept")).not.toHaveAttribute(attribute);
+
+      // Text-only mutations still discover the row, and later scans reevaluate it.
+      await page.locator("#dm .dm-info-dm").evaluate((text) => {
+        text.firstChild.nodeValue = "ordinary";
+      });
+      await settle(page);
+      await expect(page.locator("#dm")).not.toHaveAttribute(attribute);
+      await page.locator("#dm .dm-info-dm").evaluate((text) => {
+        text.firstChild.nodeValue = "spoiler again";
+      });
+      await settle(page);
+      await expect(page.locator("#dm")).toHaveAttribute(attribute, "true");
+    });
+  }
 
   test("unified keywords replace the three separate keyword lists", async ({
     page,

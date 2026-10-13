@@ -1260,6 +1260,7 @@
     if (!isContentScanningPage() || !isElement(root) || !root.isConnected)
       return;
 
+    const processedDanmakus = new WeakSet();
     for (const candidate of collectCandidates(root)) {
       const comment = resolveCommentItem(candidate);
       if (comment) {
@@ -1276,6 +1277,8 @@
 
       const danmaku = resolveDanmaku(candidate);
       if (danmaku) {
+        if (processedDanmakus.has(danmaku)) continue;
+        processedDanmakus.add(danmaku);
         observeStatistic("danmakus", danmaku);
         const reason = evaluateDanmaku(danmaku);
         if (reason) applyConsequence(danmaku, reason, "danmakus", danmaku);
