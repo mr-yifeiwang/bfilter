@@ -459,7 +459,7 @@ At load time, Bfilter:
 
 ### Scanning flow
 
-The scanner is driven by a `MutationObserver`. DOM mutations schedule a batched scan via `requestAnimationFrame`. Within one batch, Bfilter combines overlapping changed areas and scans only their outermost parent regions. This avoids repeatedly scanning the same cards or comments when one Bilibili update produces several related DOM changes. Comment controls and statistics are refreshed once after the batch. Comment Block/Unblock button text is updated only when its label changes, preventing unchanged labels from triggering another mutation scan.
+The scanner is driven by a `MutationObserver`. DOM mutations schedule a batched scan via `requestAnimationFrame`. Within one batch, Bfilter combines overlapping changed areas and scans only their outermost parent regions. This avoids repeatedly scanning the same cards or comments when one Bilibili update produces several related DOM changes. After each mutation batch, comment controls are refreshed only for comments owning changed nodes and comments in newly added subtrees. Updates outside comments do not refresh existing comment controls. Initial loading, navigation, and list/filter-setting changes retain a full comment-control refresh. The bulk commenter button and statistics are refreshed once after the batch. Comment Block/Unblock button text is updated only when its label changes, preventing unchanged labels from triggering another mutation scan.
 
 For each scan root, Bfilter collects candidates matching known selectors for:
 

@@ -10,6 +10,36 @@ const {
   setStorage,
 } = require("./helpers");
 
+async function watchCommentButtonRefreshes(page, ids) {
+  await page.evaluate((ids) => {
+    window.__commentButtonRefreshes = Object.fromEntries(
+      ids.map((id) => [id, 0]),
+    );
+    const original = Element.prototype.querySelectorAll;
+    Element.prototype.querySelectorAll = function (selector) {
+      if (
+        selector === ".bfilter-comment-block-button" &&
+        Object.prototype.hasOwnProperty.call(
+          window.__commentButtonRefreshes,
+          this.id,
+        )
+      )
+        window.__commentButtonRefreshes[this.id] += 1;
+      return original.call(this, selector);
+    };
+  }, ids);
+}
+
+async function readCommentButtonRefreshes(page, reset = false) {
+  return page.evaluate((reset) => {
+    const counts = { ...window.__commentButtonRefreshes };
+    if (reset)
+      for (const id of Object.keys(window.__commentButtonRefreshes))
+        window.__commentButtonRefreshes[id] = 0;
+    return counts;
+  }, reset);
+}
+
 test.describe("actions, guards, and lifecycle contracts", () => {
   test("user-space actions toggle follow and block, preserve username comments, and disable conflicting block", async ({
     page,
@@ -169,6 +199,159 @@ test.describe("actions, guards, and lifecycle contracts", () => {
       );
     });
   }
+
+  for (const url of [
+    "https://www.bilibili.com/video/BV1",
+    "https://www.bilibili.com/opus/1",
+    "https://t.bilibili.com/1",
+  ]) {
+    test(`scopes comment button refreshes to changed comments on ${new URL(url).hostname}${new URL(url).pathname}`, async ({
+      page,
+    }) => {
+      await loadBfilter(page, {
+        url,
+        storage: { [keys.danmakus]: "hide" },
+        html: `<main id="comments">${comment({ id: "old-one", uid: "111" })}${comment({ id: "old-two", uid: "222" })}</main>`,
+      });
+      await settle(page);
+      await watchCommentButtonRefreshes(page, [
+        "old-one",
+        "old-two",
+        "new-one",
+      ]);
+
+      // Lazy loading shares the existing container with unchanged comments.
+      await page.locator("#comments").evaluate(
+        (container, markup) => {
+          container.insertAdjacentHTML("beforeend", markup);
+        },
+        `<section>${comment({ id: "new-one", uid: "333" })}</section>`,
+      );
+      await settle(page);
+      let counts = await readCommentButtonRefreshes(page);
+      expect(counts["old-one"]).toBe(0);
+      expect(counts["old-two"]).toBe(0);
+      expect(counts["new-one"]).toBeGreaterThan(0);
+      await expect(
+        page.locator("#new-one .bfilter-comment-block-button"),
+      ).toHaveAttribute("data-uid", "333");
+
+      await readCommentButtonRefreshes(page, true);
+      await append(page, danmaku({ id: "new-dm", text: "hide" }));
+      counts = await readCommentButtonRefreshes(page);
+      expect(Object.values(counts)).toEqual([0, 0, 0]);
+      if (url.includes("/video/"))
+        await expect(page.locator("#new-dm")).toHaveAttribute(
+          "data-bfilter-hidden",
+          "true",
+        );
+
+      await readCommentButtonRefreshes(page, true);
+      await page.locator("#old-two .user-name").evaluate((link) => {
+        link.href = "https://space.bilibili.com/444";
+      });
+      await settle(page);
+      counts = await readCommentButtonRefreshes(page);
+      expect(counts["old-one"]).toBe(0);
+      expect(counts["new-one"]).toBe(0);
+      expect(counts["old-two"]).toBeGreaterThan(0);
+      await expect(
+        page.locator("#old-two .bfilter-comment-block-button"),
+      ).toHaveAttribute("data-uid", "444");
+
+      await readCommentButtonRefreshes(page, true);
+      await page.locator("#old-two .user-name").evaluate((link) => {
+        link.firstChild.nodeValue = "renamed author";
+      });
+      await settle(page);
+      counts = await readCommentButtonRefreshes(page);
+      expect(counts["old-one"]).toBe(0);
+      expect(counts["new-one"]).toBe(0);
+      expect(counts["old-two"]).toBeGreaterThan(0);
+
+      await readCommentButtonRefreshes(page, true);
+      await page
+        .locator("#old-two .bfilter-comment-block-button")
+        .evaluate((button) => {
+          button.remove();
+        });
+      await settle(page);
+      counts = await readCommentButtonRefreshes(page);
+      expect(counts["old-one"]).toBe(0);
+      expect(counts["new-one"]).toBe(0);
+      expect(counts["old-two"]).toBeGreaterThan(0);
+      await expect(
+        page.locator("#old-two .bfilter-comment-block-button"),
+      ).toHaveCount(1);
+
+      // Settings and list changes must still refresh every loaded control.
+      await readCommentButtonRefreshes(page, true);
+      await setStorage(page, { [keys.preview]: "true" });
+      counts = await readCommentButtonRefreshes(page);
+      expect(Object.values(counts).every((count) => count > 0)).toBe(true);
+      await readCommentButtonRefreshes(page, true);
+      await setStorage(page, { [keys.blocked]: "111\n444\n333" });
+      counts = await readCommentButtonRefreshes(page);
+      expect(Object.values(counts).every((count) => count > 0)).toBe(true);
+      for (const id of ["old-one", "old-two", "new-one"])
+        await expect(
+          page.locator(`#${id} .bfilter-comment-block-button`),
+        ).toHaveText("Unblock");
+    });
+  }
+
+  test("scoped comment button refreshes handle nested additions without touching sibling replies", async ({
+    page,
+  }) => {
+    const reply = (id, uid) =>
+      comment({ id, uid })
+        .replace('class="reply-item"', 'class="sub-reply-item"')
+        .replace('class="user-info"', 'class="sub-user-info"')
+        .replace('class="user-name"', 'class="sub-user-name"');
+    await loadBfilter(page, {
+      url: "https://www.bilibili.com/video/BV1",
+      html: `<main>${comment({ id: "parent", uid: "111", extra: `<section id="replies">${reply("old-reply", "222")}</section>` })}</main>`,
+    });
+    await settle(page);
+    await watchCommentButtonRefreshes(page, [
+      "parent",
+      "old-reply",
+      "new-reply",
+    ]);
+    await page.locator("#replies").evaluate(
+      (container, markup) => {
+        container.insertAdjacentHTML("beforeend", markup);
+      },
+      reply("new-reply", "333"),
+    );
+    await settle(page);
+    const counts = await readCommentButtonRefreshes(page);
+    expect(counts["old-reply"]).toBe(0);
+    expect(counts["new-reply"]).toBeGreaterThan(0);
+    await expect(
+      page.locator("#new-reply .bfilter-comment-block-button"),
+    ).toHaveAttribute("data-uid", "333");
+  });
+
+  test("scoped comment button refreshes skip comments detached before the batch runs", async ({
+    page,
+  }) => {
+    await loadBfilter(page, {
+      url: "https://www.bilibili.com/video/BV1",
+      html: `<main>${comment({ id: "removed", uid: "111" })}${comment({ id: "kept", uid: "222" })}</main>`,
+    });
+    await settle(page);
+    await watchCommentButtonRefreshes(page, ["removed", "kept"]);
+    await page.locator("#removed").evaluate((item) => {
+      item.querySelector(".user-name").href = "https://space.bilibili.com/333";
+      item.remove();
+    });
+    await settle(page);
+    expect(await readCommentButtonRefreshes(page)).toEqual({
+      removed: 0,
+      kept: 0,
+    });
+  });
 
   test("unchanged comment Block and Unblock labels do not generate DOM mutations", async ({
     page,

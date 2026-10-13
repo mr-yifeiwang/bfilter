@@ -376,6 +376,8 @@
   let scanEpoch = 0;
   let observerStarted = false;
   const pendingRoots = new Set();
+  const pendingCommentItems = new Set();
+  let pendingFullCommentRefresh = false;
   let statistics = createStatistics();
 
   addStyle();
@@ -451,7 +453,7 @@
           // Queue the shared parent once, rather than every added descendant.
           // A single render can add many nested nodes which all resolve to the
           // same card or comment.
-          scheduleScan(mutation.target);
+          scheduleScan(mutation.target, { addedNodes: mutation.addedNodes });
         } else if (mutation.type === "characterData") {
           scheduleScan(mutation.target.parentElement);
         } else {
@@ -1209,6 +1211,7 @@
   function scheduleScan(root, options = {}) {
     if (!isContentScanningPage() || !isElement(root)) return;
     if (isInsideBfilterUi(root)) return;
+    queueCommentButtonRefresh(root, options);
     queueScanRoot(options.force ? document.documentElement : root);
     if (scheduled) return;
 
@@ -1218,13 +1221,36 @@
       if (epoch !== scanEpoch) return;
       scheduled = false;
       const roots = [...pendingRoots];
+      const commentItems = pendingFullCommentRefresh
+        ? undefined
+        : [...pendingCommentItems];
       pendingRoots.clear();
+      pendingCommentItems.clear();
+      pendingFullCommentRefresh = false;
       for (const pendingRoot of roots) {
         if (!pendingRoot.isConnected) continue;
         scan(pendingRoot, false);
       }
-      finishScan();
+      finishScan(commentItems);
     });
+  }
+
+  function queueCommentButtonRefresh(root, options) {
+    if (options.force) {
+      pendingFullCommentRefresh = true;
+      pendingCommentItems.clear();
+      return;
+    }
+    if (pendingFullCommentRefresh) return;
+
+    const comment = resolveCommentItem(root);
+    if (comment) pendingCommentItems.add(comment);
+    for (const node of options.addedNodes || []) {
+      if (!isElement(node) || isInsideBfilterUi(node)) continue;
+      if (matches(node, COMMENT_ITEM_SELECTOR)) pendingCommentItems.add(node);
+      for (const item of node.querySelectorAll(COMMENT_ITEM_SELECTOR))
+        pendingCommentItems.add(item);
+    }
   }
 
   function queueScanRoot(root) {
@@ -1243,6 +1269,8 @@
   function resetScanQueue() {
     scanEpoch += 1;
     pendingRoots.clear();
+    pendingCommentItems.clear();
+    pendingFullCommentRefresh = false;
     scheduled = false;
   }
 
@@ -1320,8 +1348,8 @@
     if (finish) finishScan();
   }
 
-  function finishScan() {
-    renderCommentBlockButtons();
+  function finishScan(commentItems) {
+    renderCommentBlockButtons(commentItems);
     renderBlockAllCommentersButton();
     refreshStatisticsDisplays();
   }
@@ -3412,10 +3440,17 @@
     refreshBfilterManagerPanel();
   }
 
-  function renderCommentBlockButtons() {
+  function renderCommentBlockButtons(commentItems) {
     if (!isOpusPage() && !isDirectVideoPage() && !isTPage()) return;
-    for (const item of document.querySelectorAll(COMMENT_ITEM_SELECTOR)) {
-      if (item.hasAttribute(HIDDEN_ATTR)) continue;
+    const items =
+      commentItems || document.querySelectorAll(COMMENT_ITEM_SELECTOR);
+    for (const item of items) {
+      if (
+        !item.isConnected ||
+        !matches(item, COMMENT_ITEM_SELECTOR) ||
+        item.hasAttribute(HIDDEN_ATTR)
+      )
+        continue;
       const userLink = [
         ...item.querySelectorAll(COMMENT_USER_LINK_SELECTOR),
       ].find((link) => link.closest(COMMENT_ITEM_SELECTOR) === item);
