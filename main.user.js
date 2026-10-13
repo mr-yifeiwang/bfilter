@@ -1178,7 +1178,7 @@
       const key = normalizeKeywordSearchText(keyword);
       if (seen.has(key)) continue;
       seen.add(key);
-      values.push(keyword);
+      values.push(key);
     }
     return values;
   }
@@ -2034,10 +2034,10 @@
     if (!keywords.size) return "";
     const haystack = normalizeKeywordSearchText(text);
     if (!haystack) return "";
-    return [...keywords].find((keyword) => {
-      const needle = normalizeKeywordSearchText(keyword);
-      return needle && haystack.includes(needle);
-    });
+    for (const keyword of keywords) {
+      if (keyword && haystack.includes(keyword)) return keyword;
+    }
+    return "";
   }
 
   function normalizeKeywordSearchText(value) {

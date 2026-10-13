@@ -471,6 +471,8 @@ For each scan root, Bfilter collects candidates matching known selectors for:
 - video links,
 - live/manga/course links.
 
+Keyword lists are normalized when loaded or changed and stored in runtime sets. During matching, only the candidate text is normalized. The prepared keyword sets are reused directly without normalizing each keyword again. This applies to video, comment, danmaku, and unified keywords and preserves case-insensitive substring and emoji matching.
+
 It then resolves each candidate to a comment, danmaku, or video card and applies the first relevant consequence. Both danmaku rows and their text elements remain candidates, but each resolved danmaku is evaluated only once per scan root. Later scans can evaluate it again when its text changes. Candidates in known Bilibili card-internal info branches resolve to their enclosing card so sibling metadata is evaluated together. Resolved items are counted once per category for the current-page Settings statistics; an item first seen before its lazy-loaded metadata matches can later be counted as filtered once the consequence is applied.
 
 ### Safety guards

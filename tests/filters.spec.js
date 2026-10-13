@@ -140,6 +140,77 @@ test.describe("filtering contracts", () => {
     );
   });
 
+  for (const list of ["videos", "comments", "danmakus", "unified"]) {
+    test(`reuses normalized ${list} keywords and refreshes them on list changes`, async ({
+      page,
+    }) => {
+      const needle = "NEEDLE-Cafe\u0301❤️";
+      const fixture = (text) =>
+        `${card({ id: "keyword-card", title: text })}${comment({ id: "keyword-comment", text })}${danmaku({ id: "keyword-dm", text })}`;
+      await loadBfilter(page, {
+        url: "https://www.bilibili.com/video/BV1",
+        storage: {
+          [keys[list]]: `${needle} # Keep Original Comment`,
+          [keys.unifiedMode]: String(list === "unified"),
+        },
+        html: `<main>${fixture("ordinary")}</main>`,
+      });
+      await page.evaluate(() => {
+        window.__normalizationCalls = { keywords: 0, messages: 0 };
+        window.__originalNormalize = String.prototype.normalize;
+        String.prototype.normalize = function (...args) {
+          const value = String(this);
+          if (value.toLowerCase().startsWith("needle-"))
+            window.__normalizationCalls.keywords += 1;
+          if (value.includes("ordinary"))
+            window.__normalizationCalls.messages += 1;
+          return window.__originalNormalize.apply(this, args);
+        };
+        document.querySelector("main").setAttribute("title", "rescan");
+      });
+      await settle(page);
+      const calls = await page.evaluate(() => {
+        String.prototype.normalize = window.__originalNormalize;
+        return window.__normalizationCalls;
+      });
+      expect(calls.messages).toBeGreaterThan(0);
+      expect(calls.keywords).toBe(0);
+
+      const targetByList = {
+        videos: "keyword-card",
+        comments: "keyword-comment",
+        danmakus: "keyword-dm",
+      };
+      const targets =
+        list === "unified" ? Object.values(targetByList) : [targetByList[list]];
+      await setStorage(page, { [keys[list]]: "ORDINARY # Updated Comment" });
+      for (const id of targets)
+        await expect(page.locator(`#${id}`)).toHaveAttribute(
+          "data-bfilter-hidden",
+          "true",
+        );
+      await setStorage(page, { [keys[list]]: needle });
+      for (const id of targets)
+        await expect(page.locator(`#${id}`)).not.toHaveAttribute(
+          "data-bfilter-hidden",
+        );
+      await page.locator("main").evaluate((main, html) => {
+        main.innerHTML = html;
+      }, fixture("Needle-Café❤"));
+      await settle(page);
+      for (const id of targets)
+        await expect(page.locator(`#${id}`)).toHaveAttribute(
+          "data-bfilter-hidden",
+          "true",
+        );
+      await setStorage(page, { [keys[list]]: "" });
+      for (const id of targets)
+        await expect(page.locator(`#${id}`)).not.toHaveAttribute(
+          "data-bfilter-hidden",
+        );
+    });
+  }
+
   test("duration filter is strict, accepts long durations, and ignores zero or malformed values", async ({
     page,
   }) => {
