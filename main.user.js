@@ -3435,7 +3435,8 @@
         userLink.insertAdjacentElement("afterend", btn);
       }
       const blocked = BLOCKED_USER_UIDS.has(uid);
-      btn.textContent = blocked ? "Unblock" : "Block";
+      const label = blocked ? "Unblock" : "Block";
+      if (btn.textContent !== label) btn.textContent = label;
       btn.dataset.blocked = String(blocked);
       btn.dataset.uid = uid;
     }

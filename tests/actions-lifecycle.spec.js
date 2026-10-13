@@ -170,6 +170,48 @@ test.describe("actions, guards, and lifecycle contracts", () => {
     });
   }
 
+  test("unchanged comment Block and Unblock labels do not generate DOM mutations", async ({
+    page,
+  }) => {
+    await loadBfilter(page, {
+      url: "https://www.bilibili.com/video/BV1",
+      storage: { [keys.preview]: "true" },
+      html: `<main>${comment({ id: "comment", uid: "123" })}</main>`,
+    });
+
+    for (const blocked of [false, true]) {
+      await setStorage(page, { [keys.blocked]: blocked ? "123" : "" });
+      const result = await page.evaluate(async () => {
+        const button = document.querySelector(
+          "#comment .bfilter-comment-block-button",
+        );
+        const textNode = button.firstChild;
+        let mutations = 0;
+        const observer = new MutationObserver((records) => {
+          mutations += records.length;
+        });
+        observer.observe(button, {
+          childList: true,
+          characterData: true,
+          subtree: true,
+        });
+        // Trigger a scan, then allow any self-triggered scans to run too.
+        document.body.appendChild(document.createElement("div"));
+        for (let frame = 0; frame < 3; frame += 1)
+          await new Promise(requestAnimationFrame);
+        observer.disconnect();
+        return {
+          mutations,
+          sameTextNode: button.firstChild === textNode,
+          label: button.textContent,
+        };
+      });
+      expect(result.label).toBe(blocked ? "Unblock" : "Block");
+      expect(result.mutations).toBe(0);
+      expect(result.sameTextNode).toBe(true);
+    }
+  });
+
   test("comment controls use their own author even when a nested reply appears first", async ({
     page,
   }) => {
