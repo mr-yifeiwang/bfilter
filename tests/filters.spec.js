@@ -398,6 +398,103 @@ test.describe("filtering contracts", () => {
     });
   }
 
+  for (const preview of [false, true]) {
+    test(`evaluates each resolved video and comment once per scan with preview ${preview}`, async ({
+      page,
+    }) => {
+      const nested = comment({ id: "nested-comment", text: "spoiler" })
+        .replace('class="reply-item"', 'class="sub-reply-item"')
+        .replace('class="user-info"', 'class="sub-user-info"')
+        .replace('class="user-name"', 'class="sub-user-name"');
+      await loadBfilter(page, {
+        url: "https://www.bilibili.com/video/BV1",
+        storage: {
+          [keys.videos]: "spoiler",
+          [keys.comments]: "spoiler",
+          [keys.preview]: String(preview),
+        },
+        html: `<main>${card({ id: "matched-card", title: "spoiler" })}${card({ id: "kept-card" })}${comment({ id: "matched-comment", text: "spoiler" })}${comment({ id: "kept-comment", extra: nested })}</main>`,
+      });
+      await page.evaluate(() => {
+        window.__keywordTextReads = {
+          "matched-card": 0,
+          "kept-card": 0,
+          "matched-comment": 0,
+          "kept-comment": 0,
+          "nested-comment": 0,
+        };
+        window.__originalQuerySelector = Element.prototype.querySelector;
+        window.__originalQuerySelectorAll = Element.prototype.querySelectorAll;
+        Element.prototype.querySelector = function (selector) {
+          if (
+            selector === ".reply-content, .reply-text, .sub-reply-content" &&
+            Object.prototype.hasOwnProperty.call(
+              window.__keywordTextReads,
+              this.id,
+            )
+          )
+            window.__keywordTextReads[this.id] += 1;
+          return window.__originalQuerySelector.call(this, selector);
+        };
+        Element.prototype.querySelectorAll = function (selector) {
+          if (
+            selector.includes(".bili-video-card__info--tit") &&
+            Object.prototype.hasOwnProperty.call(
+              window.__keywordTextReads,
+              this.id,
+            )
+          )
+            window.__keywordTextReads[this.id] += 1;
+          return window.__originalQuerySelectorAll.call(this, selector);
+        };
+      });
+      // One storage update forces one full scan containing cards and comments.
+      await setStorage(page, { [keys.videos]: "spoiler" });
+      const reads = await page.evaluate(() => {
+        Element.prototype.querySelector = window.__originalQuerySelector;
+        Element.prototype.querySelectorAll = window.__originalQuerySelectorAll;
+        return window.__keywordTextReads;
+      });
+      expect(reads).toEqual({
+        "matched-card": 1,
+        "kept-card": 1,
+        "matched-comment": 1,
+        "kept-comment": 1,
+        "nested-comment": 1,
+      });
+
+      const attribute = preview
+        ? "data-bfilter-previewed"
+        : "data-bfilter-hidden";
+      for (const id of ["matched-card", "matched-comment", "nested-comment"])
+        await expect(page.locator(`#${id}`)).toHaveAttribute(attribute, "true");
+      for (const id of ["kept-card", "kept-comment"])
+        await expect(page.locator(`#${id}`)).not.toHaveAttribute(attribute);
+      await page.locator("#bfilter-manager-button").click();
+      await page.locator('[data-tab="settings"]').click();
+      await expect(
+        page.locator('[data-statistic="videos"] [data-statistic-value]'),
+      ).toHaveText("1 (50%)");
+      await expect(
+        page.locator('[data-statistic="comments"] [data-statistic-value]'),
+      ).toHaveText("2 (67%)");
+
+      // Deduplication is local to the scan, so later mutations still reevaluate items.
+      await page
+        .locator("#kept-card .bili-video-card__info--tit")
+        .evaluate((title) => {
+          title.textContent = "spoiler";
+        });
+      await page.locator("#kept-comment").evaluate((item) => {
+        item.querySelector(".reply-content").textContent = "spoiler";
+        item.setAttribute("title", "changed");
+      });
+      await settle(page);
+      for (const id of ["kept-card", "kept-comment"])
+        await expect(page.locator(`#${id}`)).toHaveAttribute(attribute, "true");
+    });
+  }
+
   test("unified keywords replace the three separate keyword lists", async ({
     page,
   }) => {

@@ -1260,10 +1260,12 @@
     if (!isContentScanningPage() || !isElement(root) || !root.isConnected)
       return;
 
-    const processedDanmakus = new WeakSet();
+    const processedItems = new WeakSet();
     for (const candidate of collectCandidates(root)) {
       const comment = resolveCommentItem(candidate);
       if (comment) {
+        if (processedItems.has(comment)) continue;
+        processedItems.add(comment);
         observeStatistic("comments", comment);
         if (followedCommentAuthorUidReason(comment)) {
           applyFollowedUserUids(comment);
@@ -1277,8 +1279,8 @@
 
       const danmaku = resolveDanmaku(candidate);
       if (danmaku) {
-        if (processedDanmakus.has(danmaku)) continue;
-        processedDanmakus.add(danmaku);
+        if (processedItems.has(danmaku)) continue;
+        processedItems.add(danmaku);
         observeStatistic("danmakus", danmaku);
         const reason = evaluateDanmaku(danmaku);
         if (reason) applyConsequence(danmaku, reason, "danmakus", danmaku);
@@ -1287,7 +1289,8 @@
       }
 
       const card = resolveVideoCard(candidate);
-      if (!card) continue;
+      if (!card || processedItems.has(card)) continue;
+      processedItems.add(card);
       observeStatistic("videos", card);
 
       const followedUserUid = followedUserUidReason(card);
