@@ -377,6 +377,27 @@ test("filters home feed videos by uploader", async ({ page }) => {
   await expect(page.getByText("Later home video")).toBeVisible();
 });
 
+// Keep visible home cards aligned when filtering shifts later cards into earlier rows
+test("aligns home feed cards after filtering", async ({ page }) => {
+  const card = (id) => `<div class="feed-card"><div class="bili-feed-card"><div class="bili-video-card"><a href="https://www.bilibili.com/video/BV${id}">Video ${id}</a><a class="bili-video-card__info--owner" href="//space.bilibili.com/${id}">Uploader</a></div></div></div>`;
+  await openVideo(page, `
+    <style>
+      .recommended-container_floor-aside .container { display: grid; grid-template-columns: repeat(5, 100px); gap: 20px; }
+      .recommended-swipe { grid-area: 1 / 1 / 3 / 3; }
+      .recommended-container_floor-aside .container > :nth-of-type(n+8) { margin-top: 40px; }
+    </style>
+    <nav><a href="https://www.bilibili.com/">首页</a></nav>
+    <div class="recommended-container_floor-aside"><div class="container">
+      <div class="recommended-swipe">Carousel</div>${[1, 2, 3, 4, 5, 6, 7].map(card).join("")}
+    </div></div>`, "/");
+  await page.addScriptTag({ path: path.join(__dirname, "..", "main.user.js") });
+  await page.getByRole("button", { name: "Bfilter", exact: true }).click();
+  await page.getByRole("textbox", { name: /uid/i }).fill("4");
+  const left = await page.getByText("Video 5").boundingBox();
+  const right = await page.getByText("Video 7").boundingBox();
+  expect(right.y).toBe(left.y);
+});
+
 // Filter video durations on each supported page and preserve the threshold
 for (const kind of ["home", "search", "ranking", "video"]) {
   test(`filters ${kind} videos shorter than the configured duration`, async ({

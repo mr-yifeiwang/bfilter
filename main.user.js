@@ -51,6 +51,7 @@
     .bfilter-types input { appearance: auto; margin-right: 6px; }
     .bfilter-preview { margin-top: 12px; padding: 6px 12px; border: 1px solid #d9e2e8; border-radius: 6px; background: #fff; color: #18191c; font: inherit; cursor: pointer; }
     .bfilter-preview[aria-pressed="true"] { background: #ffc0cb; border-color: #e58a9a; }
+    .recommended-container_floor-aside .container > :is(.feed-card, .bili-feed-card, .floor-single-card) { margin-top: 0 !important; }
   `;
   document.head.append(style);
 
