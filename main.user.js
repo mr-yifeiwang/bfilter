@@ -2,7 +2,7 @@
 // @name         Bfilter
 // @namespace    https://github.com/mr-yifeiwang/bfilter
 // @version      0.1.0
-// @description  Filter Bilibili comments and video recommendations by user UID
+// @description  Filter Bilibili comments and videos by user UID
 // @match        https://bilibili.com/*
 // @match        https://*.bilibili.com/*
 // @run-at       document-idle
@@ -64,8 +64,10 @@
   let blockedUsers = new Set();
   const comments = new Set();
   const hiddenDisplays = new WeakMap();
-  const recommendationSelector =
-    ".rec-list .video-page-card-small, .rec-list .video-page-operator-card-small, .next-play .video-page-card-small";
+  const rankingPage = location.pathname.startsWith("/v/popular/rank/");
+  const recommendationSelector = rankingPage
+    ? ".rank-list .rank-item"
+    : ".rec-list .video-page-card-small, .rec-list .video-page-operator-card-small, .next-play .video-page-card-small";
 
   // Preserve an element's original display while it is filtered
   function setFiltered(element, filtered) {
@@ -87,7 +89,10 @@
 
   // Filter a recommendation using the uploader's profile link
   function updateRecommendation(card) {
-    const href = card.querySelector(".upname a")?.getAttribute("href") || "";
+    const href =
+      card
+        .querySelector(rankingPage ? ".detail a" : ".upname a")
+        ?.getAttribute("href") || "";
     const uid = href.match(
       /^(?:https?:)?\/\/space\.bilibili\.com\/(\d+)(?:[/?#]|$)/,
     )?.[1];
@@ -96,7 +101,10 @@
 
   // Find recommendation cards in a changed part of the page
   function scanRecommendations(root) {
-    if (!location.pathname.startsWith("/video/") || !(root instanceof Element))
+    if (
+      (!rankingPage && !location.pathname.startsWith("/video/")) ||
+      !(root instanceof Element)
+    )
       return;
     const card = root.closest(recommendationSelector);
     if (card) updateRecommendation(card);
@@ -188,6 +196,17 @@
     for (const name of selector.split(", ")) {
       customElements.whenDefined(name).then(() => scan(document.body));
     }
+  }
+  if (rankingPage) {
+    new MutationObserver((mutations) => {
+      for (const mutation of mutations) scanRecommendations(mutation.target);
+    }).observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["href"],
+    });
+    scanRecommendations(document.body);
   }
 
   const button = document.createElement("button");

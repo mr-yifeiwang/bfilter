@@ -2,7 +2,7 @@ const { test, expect } = require("@playwright/test");
 const path = require("node:path");
 
 // Serve a synthetic video page with a real origin for persistent settings
-async function openVideo(page, body) {
+async function openVideo(page, body, pathname = "/video/BVsynthetic") {
   await page.addInitScript(() => {
     window.GM_getValue = (key, fallback) =>
       localStorage.getItem(key) ?? fallback;
@@ -12,7 +12,7 @@ async function openVideo(page, body) {
   await page.route("https://www.bilibili.com/**", (route) =>
     route.fulfill({ contentType: "text/html; charset=utf-8", body }),
   );
-  await page.goto("https://www.bilibili.com/video/BVsynthetic");
+  await page.goto(`https://www.bilibili.com${pathname}`);
 }
 
 // Add synthetic comments using Bilibili's nested shadow DOM structure
@@ -167,4 +167,37 @@ test("filters recommendations from blocked users", async ({ page }) => {
   await expect(page.getByText("Blocked operator recommendation")).toBeVisible();
   await expect(page.getByText("Blocked next video")).toBeVisible();
   await expect(page.getByText("Later recommendation")).toBeVisible();
+});
+
+// Hide ranked videos by listed uploaders and restore them when removed
+test("filters ranked videos by user UID", async ({ page }) => {
+  await openVideo(
+    page,
+    `
+    <nav><a href="https://www.bilibili.com/">首页</a></nav>
+    <ul class="rank-list">
+      <li class="rank-item"><div class="info"><a class="title">Blocked ranked video</a><div class="detail"><a href="//space.bilibili.com/1001">Uploader</a></div></div></li>
+      <li class="rank-item"><div class="info"><a class="title">Visible ranked video</a><div class="detail"><a href="//space.bilibili.com/1002">Uploader</a></div></div></li>
+    </ul>
+  `,
+    "/v/popular/rank/all",
+  );
+  await page.addScriptTag({ path: path.join(__dirname, "..", "main.user.js") });
+  await page.getByRole("button", { name: "Bfilter", exact: true }).click();
+  const users = page.getByRole("textbox", { name: /uid/i });
+  await users.fill("1001");
+  await expect(page.getByText("Blocked ranked video")).toBeHidden();
+  await expect(page.getByText("Visible ranked video")).toBeVisible();
+  await page.evaluate(() => {
+    document
+      .querySelector(".rank-list")
+      .insertAdjacentHTML(
+        "beforeend",
+        '<li class="rank-item"><div class="detail"><a href="//space.bilibili.com/1001">Later ranked video</a></div></li>',
+      );
+  });
+  await expect(page.getByText("Later ranked video")).toBeHidden();
+  await users.fill("");
+  await expect(page.getByText("Blocked ranked video")).toBeVisible();
+  await expect(page.getByText("Later ranked video")).toBeVisible();
 });
