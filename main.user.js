@@ -28,10 +28,10 @@
       --bfilter-shadow: #21121630; --bfilter-font: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
     .bfilter-entry {
-      position: fixed; display: flex; align-items: center; z-index: 10000; left: 0; top: 25vh; min-height: 28px;
+      position: fixed; display: flex; align-items: center; z-index: 10000; left: 0; top: 5.4vh; min-height: 28px;
       padding: 0 12px; border: 1px solid #a10425; border-radius: 0 6px 6px 0;
       background: #a10425 !important; color: var(--bfilter-white);
-      font: 600 14px/1 var(--bfilter-font); cursor: pointer;
+      font: 600 14px/1 var(--bfilter-font); cursor: pointer; touch-action: none;
       box-shadow: 0 3px 10px var(--bfilter-shadow);
     }
     .bfilter-entry svg { width: 22px; height: 20px; flex: none; margin-right: 6px; transform: translateY(-1px); }
@@ -648,7 +648,34 @@
   </svg>Bfilter`;
   button.setAttribute("aria-haspopup", "dialog");
   button.setAttribute("aria-expanded", "false");
-  button.addEventListener("click", () => {
+  let dragStart = null;
+  let dragged = false;
+  button.addEventListener("pointerdown", (event) => {
+    if (event.button !== 0) return;
+    dragStart = { y: event.clientY, top: button.getBoundingClientRect().top };
+    dragged = false;
+    button.setPointerCapture(event.pointerId);
+  });
+  button.addEventListener("pointermove", (event) => {
+    if (!dragStart) return;
+    const distance = event.clientY - dragStart.y;
+    if (!dragged && Math.abs(distance) < 4) return;
+    dragged = true;
+    button.style.top = `${Math.max(0, Math.min(window.innerHeight - button.offsetHeight, dragStart.top + distance))}px`;
+    placeButton();
+  });
+  button.addEventListener("pointerup", () => {
+    dragStart = null;
+  });
+  button.addEventListener("pointercancel", () => {
+    dragStart = null;
+    dragged = false;
+  });
+  button.addEventListener("click", (event) => {
+    if (dragged && event.detail !== 0) {
+      dragged = false;
+      return;
+    }
     if (dashboard.open) dashboard.close();
     else {
       dashboard.show();

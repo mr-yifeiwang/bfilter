@@ -52,9 +52,7 @@ async function addComments(page) {
 }
 
 // Verify the independent entry opens a dismissible dashboard
-test("opens and closes the dashboard from the launcher", async ({
-  page,
-}) => {
+test("opens and closes the dashboard from the launcher", async ({ page }) => {
   await openVideo(
     page,
     '<style>dialog { display: block; }</style><nav><div class="home-page-entry"><a href="https://www.bilibili.com/">首页</a></div></nav>',
@@ -63,7 +61,10 @@ test("opens and closes the dashboard from the launcher", async ({
 
   const button = page.getByRole("button", { name: "Bfilter", exact: true });
   await expect(button).toBeVisible();
-  expect((await button.boundingBox()).y).toBeCloseTo(page.viewportSize().height * 0.25, 0);
+  expect((await button.boundingBox()).y).toBeCloseTo(
+    page.viewportSize().height * 0.054,
+    0,
+  );
   expect((await button.boundingBox()).height).toBeLessThan(40);
   await button.click();
   const dashboard = page.getByRole("dialog", { name: "Bfilter" });
@@ -78,14 +79,22 @@ test("shows user and video sections together", async ({ page }) => {
     page,
     '<nav><a href="https://www.bilibili.com/">首页</a></nav>',
   );
-  await page.evaluate(() => { window.GM_info = { script: { version: "7.8.9" } }; });
+  await page.evaluate(() => {
+    window.GM_info = { script: { version: "7.8.9" } };
+  });
   await page.addScriptTag({ path: path.join(__dirname, "..", "main.user.js") });
   await page.getByRole("button", { name: "Bfilter", exact: true }).click();
   const popup = page.getByRole("dialog", { name: "Bfilter" });
   await expect(popup.getByText("7.8.9")).toBeVisible();
-  await expect(popup.getByRole("heading", { name: "Hide Users" })).toBeVisible();
-  await expect(popup.getByRole("heading", { name: "Hide Videos" })).toBeVisible();
-  await expect(popup.getByRole("textbox", { name: "User UIDs, one per line" })).toHaveAttribute("placeholder", "User UIDs, one per line");
+  await expect(
+    popup.getByRole("heading", { name: "Hide Users" }),
+  ).toBeVisible();
+  await expect(
+    popup.getByRole("heading", { name: "Hide Videos" }),
+  ).toBeVisible();
+  await expect(
+    popup.getByRole("textbox", { name: "User UIDs, one per line" }),
+  ).toHaveAttribute("placeholder", "User UIDs, one per line");
   await expect(
     popup.getByRole("spinbutton", { name: /duration/i }),
   ).toBeVisible();
@@ -94,7 +103,10 @@ test("shows user and video sections together", async ({ page }) => {
 
 // Keep multiple type selections when the dropdown is closed and reopened
 test("selects multiple video types from the dropdown", async ({ page }) => {
-  await openVideo(page, '<nav><a href="https://www.bilibili.com/">首页</a></nav>');
+  await openVideo(
+    page,
+    '<nav><a href="https://www.bilibili.com/">首页</a></nav>',
+  );
   await page.addScriptTag({ path: path.join(__dirname, "..", "main.user.js") });
   await page.getByRole("button", { name: "Bfilter", exact: true }).click();
   await expect(page.getByRole("button", { name: "Types" })).toHaveText(/0/);
@@ -124,7 +136,7 @@ test("anchors the popup to the left-edge launcher", async ({ page }) => {
   const button = page.getByRole("button", { name: "Bfilter", exact: true });
   const launcher = await button.boundingBox();
   expect(launcher.x).toBe(0);
-  expect(launcher.y).toBeCloseTo(page.viewportSize().height * 0.25, 0);
+  expect(launcher.y).toBeCloseTo(page.viewportSize().height * 0.054, 0);
   await page.evaluate(() => window.scrollTo(0, 500));
   expect((await button.boundingBox()).y).toBeCloseTo(launcher.y, 0);
   await button.click();
@@ -136,6 +148,31 @@ test("anchors the popup to the left-edge launcher", async ({ page }) => {
   await expect(page.locator("#site-button")).toBeEnabled();
   await button.click();
   await expect(popup).not.toBeVisible();
+});
+
+// Drag the launcher vertically without triggering its popup
+test("moves the launcher vertically and keeps click behavior", async ({
+  page,
+}) => {
+  await openVideo(page, "");
+  await page.addScriptTag({ path: path.join(__dirname, "..", "main.user.js") });
+  const button = page.getByRole("button", { name: "Bfilter", exact: true });
+  const start = await button.boundingBox();
+  await page.mouse.move(start.x + 15, start.y + 10);
+  await page.mouse.down();
+  await page.mouse.move(start.x + 80, start.y + 130, { steps: 5 });
+  await page.mouse.up();
+  const moved = await button.boundingBox();
+  expect(moved.x).toBe(0);
+  expect(moved.y).toBeCloseTo(start.y + 120, 0);
+  await expect(page.getByRole("dialog", { name: "Bfilter" })).not.toBeVisible();
+  await button.click();
+  const popup = page.getByRole("dialog", { name: "Bfilter" });
+  await expect(popup).toBeVisible();
+  expect((await popup.boundingBox()).y).toBeCloseTo(
+    moved.y + moved.height + 4,
+    0,
+  );
 });
 
 // Preserve the site's navigation when it is rendered after the userscript starts
@@ -266,9 +303,7 @@ test("filters the 2025 registration threshold", async ({ page }) => {
   );
   await page.addScriptTag({ path: path.join(__dirname, "..", "main.user.js") });
   await page.getByRole("button", { name: "Bfilter", exact: true }).click();
-  await page
-    .getByRole("checkbox", { name: /registered in & after/i })
-    .check();
+  await page.getByRole("checkbox", { name: /registered in & after/i }).check();
   const threshold = page.getByRole("combobox", { name: /registration time/i });
   await threshold.selectOption({ label: "2025" });
   await expect(page.getByText(`UID ${uids[0]}`, { exact: true })).toBeVisible();
@@ -301,9 +336,7 @@ test("uses the registration threshold boundaries", async ({ page }) => {
   );
   await page.addScriptTag({ path: path.join(__dirname, "..", "main.user.js") });
   await page.getByRole("button", { name: "Bfilter", exact: true }).click();
-  await page
-    .getByRole("checkbox", { name: /registered in & after/i })
-    .check();
+  await page.getByRole("checkbox", { name: /registered in & after/i }).check();
   const threshold = page.getByRole("combobox", { name: /registration time/i });
   for (const digits of [8, 9, 10, 15]) {
     await threshold.selectOption(String(digits));
