@@ -75,14 +75,19 @@
     .bfilter-section h3 { margin: 0 0 8px; color: var(--bfilter-ink); font-size: 15px; font-weight: 650; }
     .bfilter-registration { display: flex; align-items: center; gap: 8px; }
     .bfilter-registration label { flex: 1; min-width: 0; }
-    .bfilter-registration input, .bfilter-types input { appearance: auto; }
+    .bfilter-registration input, .bfilter-section input[type="checkbox"] { appearance: auto; }
+    .bfilter-filter-name { position: relative; }
+    .bfilter-filter-name::after { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: currentColor; transform: scaleX(0); transform-origin: left; transition: transform 180ms ease; pointer-events: none; }
+    input:not(:checked) + .bfilter-filter-name::after { transform: scaleX(1); }
+    @media (prefers-reduced-motion: reduce) { .bfilter-filter-name::after { transition: none; } }
+    .bfilter-dashboard :is(select, input[type="number"], .bfilter-types-toggle):disabled { opacity: 0.5; cursor: default; }
     .bfilter-registration select { flex: none; width: 60px; min-height: 28px; padding: 2px; border: 1px solid var(--bfilter-border); border-radius: 5px; background: var(--bfilter-paper); color: var(--bfilter-ink); font: inherit; appearance: auto; }
     .bfilter-users { display: block; margin-top: 10px; font-weight: 600; }
     .bfilter-users textarea { display: block; box-sizing: border-box; width: 100%; min-height: 96px; margin-top: 4px; padding: 8px; border: 1px solid var(--bfilter-border); border-radius: 5px; background: var(--bfilter-paper); color: var(--bfilter-ink); font: 400 14px/1.4 var(--bfilter-font); resize: vertical; }
     .bfilter-users-count { margin: 4px 0 0; color: #666; font-size: 11px; font-weight: 400; }
     .bfilter-duration, .bfilter-views { display: flex; align-items: center; justify-content: space-between; gap: 4px; margin-bottom: 8px; }
     .bfilter-value { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
-    .bfilter-duration input, .bfilter-views input { box-sizing: border-box; width: 50px; min-height: 28px; padding: 2px 4px; border: 1px solid var(--bfilter-border); border-radius: 5px; background: var(--bfilter-paper); color: var(--bfilter-ink); font: inherit; text-align: center; appearance: textfield; }
+    .bfilter-duration input[type="number"], .bfilter-views input[type="number"] { box-sizing: border-box; width: 50px; min-height: 28px; padding: 2px 4px; border: 1px solid var(--bfilter-border); border-radius: 5px; background: var(--bfilter-paper); color: var(--bfilter-ink); font: inherit; text-align: center; appearance: textfield; }
     .bfilter-dashboard input[type="number"]::-webkit-inner-spin-button, .bfilter-dashboard input[type="number"]::-webkit-outer-spin-button { appearance: none; margin: 0; }
     .bfilter-types { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; }
     .bfilter-types-toggle { min-height: 28px; min-width: 50px; padding: 2px 8px; border: 1px solid var(--bfilter-border); border-radius: 5px; background: var(--bfilter-paper); color: var(--bfilter-ink); font: inherit; cursor: pointer; }
@@ -107,15 +112,15 @@
     <div class="bfilter-heading"><div class="bfilter-brand"><h2 id="bfilter-title"><a href="https://github.com/mr-yifeiwang/bfilter" target="_blank" rel="noopener noreferrer">Bfilter</a></h2><span class="bfilter-version"></span></div><div class="bfilter-actions"><button class="bfilter-preview" type="button" aria-pressed="false">Preview</button><button class="bfilter-close" type="button" aria-label="Close">×</button></div></div>
     <section class="bfilter-section" aria-labelledby="bfilter-users-heading">
       <h3 id="bfilter-users-heading">Hide Users</h3>
-      <div class="bfilter-registration"><label><input type="checkbox"> Registered in &amp; after</label><select aria-label="Registration time threshold"><option value="8">2015</option><option value="9">2017</option><option value="10">2020</option><option value="15">2022</option><option value="2025">2025</option></select></div>
+      <div class="bfilter-registration"><label><input type="checkbox"> <span class="bfilter-filter-name">Registered in &amp; after</span></label><select aria-label="Registration time threshold"><option value="8">2015</option><option value="9">2017</option><option value="10">2020</option><option value="15">2022</option><option value="2025">2025</option></select></div>
       <label class="bfilter-users"><textarea aria-label="UIDs, one per line" placeholder="UIDs, one per line" spellcheck="false"></textarea></label>
       <p class="bfilter-users-count" aria-live="polite"></p>
     </section>
     <section class="bfilter-section" aria-labelledby="bfilter-videos-heading">
       <h3 id="bfilter-videos-heading">Hide Videos</h3>
-      <label class="bfilter-duration"><span>Duration (min.)</span><span class="bfilter-value">&lt; <input type="number" min="0" step="any"></span></label>
-      <label class="bfilter-views"><span>Views</span><span class="bfilter-value">&lt; <input type="number" min="0" step="1"></span></label>
-      <div class="bfilter-types"><span>Types</span><button class="bfilter-types-toggle" type="button" popovertarget="bfilter-types-menu" aria-label="Types"><span class="bfilter-types-count">0</span> ▾</button><div id="bfilter-types-menu" class="bfilter-types-menu" popover><label><input type="checkbox" value="promotional">Promo</label><label><input type="checkbox" value="live">Live</label><label><input type="checkbox" value="bangumi">Bangumi</label><label><input type="checkbox" value="classroom">Classroom</label><label><input type="checkbox" value="manga">Manga</label></div></div>
+      <div class="bfilter-duration"><label><input type="checkbox"> <span class="bfilter-filter-name">Duration (min.)</span></label><span class="bfilter-value">&lt; <input type="number" aria-label="Duration (min.)" min="0" step="any"></span></div>
+      <div class="bfilter-views"><label><input type="checkbox"> <span class="bfilter-filter-name">Views</span></label><span class="bfilter-value">&lt; <input type="number" aria-label="Views" min="0" step="1"></span></div>
+      <div class="bfilter-types"><label><input type="checkbox"> <span class="bfilter-filter-name">Types</span></label><button class="bfilter-types-toggle" type="button" popovertarget="bfilter-types-menu" aria-label="Types"><span class="bfilter-types-count">0</span> ▾</button><div id="bfilter-types-menu" class="bfilter-types-menu" popover><label><input type="checkbox" value="promotional">Promo</label><label><input type="checkbox" value="live">Live</label><label><input type="checkbox" value="bangumi">Bangumi</label><label><input type="checkbox" value="classroom">Classroom</label><label><input type="checkbox" value="manga">Manga</label></div></div>
     </section>`;
   document.body.append(dashboard);
   dashboard.querySelector(".bfilter-version").textContent =
@@ -156,13 +161,61 @@
   const registrationKey = "bfilter.registration";
   const registrationThresholdKey = "bfilter.registrationThreshold";
   registrationInput.checked = GM_getValue(registrationKey, "0") === "1";
-  registrationThreshold.value = GM_getValue(registrationThresholdKey, "15");
-  const durationInput = dashboard.querySelector(".bfilter-duration input");
+  registrationThreshold.value = GM_getValue(registrationThresholdKey, "2025");
+  registrationThreshold.disabled = !registrationInput.checked;
+  const durationInput = dashboard.querySelector(
+    '.bfilter-duration input[type="number"]',
+  );
   const durationKey = "bfilter.duration";
   durationInput.value = GM_getValue(durationKey, "3");
-  const viewsInput = dashboard.querySelector(".bfilter-views input");
+  const viewsInput = dashboard.querySelector(
+    '.bfilter-views input[type="number"]',
+  );
   const viewsKey = "bfilter.views";
   viewsInput.value = GM_getValue(viewsKey, "5000");
+  const durationEnabled = dashboard.querySelector(
+    '.bfilter-duration input[type="checkbox"]',
+  );
+  const viewsEnabled = dashboard.querySelector(
+    '.bfilter-views input[type="checkbox"]',
+  );
+  const typesEnabled = dashboard.querySelector(
+    '.bfilter-types > label input[type="checkbox"]',
+  );
+  for (const [input, key, control] of [
+    [durationEnabled, "bfilter.durationEnabled", durationInput],
+    [viewsEnabled, "bfilter.viewsEnabled", viewsInput],
+    [
+      typesEnabled,
+      "bfilter.typesEnabled",
+      dashboard.querySelector(".bfilter-types-toggle"),
+    ],
+  ]) {
+    const syncControl = () => {
+      control.disabled = !input.checked;
+      if (
+        input === typesEnabled &&
+        control.disabled &&
+        typesMenu.matches(":popover-open")
+      ) {
+        typesMenu.hidePopover();
+      }
+    };
+    input.checked = GM_getValue(key, "0") === "1";
+    syncControl();
+    input.addEventListener("change", () => {
+      syncControl();
+      GM_setValue(key, input.checked ? "1" : "0");
+      scanRecommendations(document.body);
+    });
+    GM_addValueChangeListener(key, (_key, _oldValue, value, remote) => {
+      if (remote) {
+        input.checked = value === "1";
+        syncControl();
+        scanRecommendations(document.body);
+      }
+    });
+  }
   const promotionalInput = dashboard.querySelector(
     '.bfilter-types input[value="promotional"]',
   );
@@ -297,6 +350,7 @@
           'a[data-target-url^="https://www.bilibili.com/video/"]',
         ));
     const shortVideo =
+      durationEnabled.checked &&
       durationVideo &&
       durationInput.value !== "" &&
       Number.isFinite(minutes) &&
@@ -326,6 +380,7 @@
     const minimumViews = Number(viewsInput.value);
     const fewViews =
       durationVideo &&
+      viewsEnabled.checked &&
       viewsInput.value !== "" &&
       Number.isFinite(minimumViews) &&
       minimumViews > 0 &&
@@ -364,11 +419,8 @@
       (video && matchesUser(uid)) ||
       shortVideo ||
       fewViews ||
-      promotional ||
-      live ||
-      bangumi ||
-      classroom ||
-      manga;
+      (typesEnabled.checked &&
+        (promotional || live || bangumi || classroom || manga));
     setFiltered(card, filtered);
     if (searchPage || homePage) {
       const wrapper = card.querySelector(
@@ -557,6 +609,7 @@
   );
 
   registrationInput.addEventListener("change", () => {
+    registrationThreshold.disabled = !registrationInput.checked;
     GM_setValue(registrationKey, registrationInput.checked ? "1" : "0");
     updateUsers();
   });
@@ -569,6 +622,7 @@
     (_key, _oldValue, newValue, remote) => {
       if (remote) {
         registrationInput.checked = newValue === "1";
+        registrationThreshold.disabled = !registrationInput.checked;
         updateUsers();
       }
     },
@@ -577,7 +631,7 @@
     registrationThresholdKey,
     (_key, _oldValue, newValue, remote) => {
       if (remote) {
-        registrationThreshold.value = newValue ?? "15";
+        registrationThreshold.value = newValue ?? "2025";
         updateUsers();
       }
     },

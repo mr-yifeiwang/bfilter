@@ -254,6 +254,7 @@ test("selects multiple video types from the dropdown", async ({ page }) => {
   );
   await page.addScriptTag({ path: path.join(__dirname, "..", "main.user.js") });
   await page.getByRole("button", { name: "Bfilter", exact: true }).click();
+  await page.getByRole("checkbox", { name: "Types", exact: true }).check();
   await expect(page.getByRole("button", { name: "Types" })).toHaveText(/0/);
   const types = page.getByRole("button", { name: "Types" });
   const popup = page.getByRole("dialog", { name: "Bfilter" });
@@ -374,6 +375,79 @@ test("filters saved users in current and later comments", async ({ page }) => {
   await expect(page.getByText("Visible comment")).toBeVisible();
 });
 
+// Leave videos visible until a filter is explicitly enabled
+test("does not block videos on a fresh installation", async ({ page }) => {
+  await openVideo(
+    page,
+    `<div class="feed">
+      <div class="feed-card"><div class="bili-video-card"><a href="//www.bilibili.com/video/BVsynthetic">Short unpopular video</a><span class="bili-video-card__stats__duration">00:01</span><div class="bili-video-card__stats--left"><span class="bili-video-card__stats--item">1</span></div><a class="bili-video-card__info--owner" href="//space.bilibili.com/3546800000000000">Uploader</a></div></div>
+      <div class="feed-card"><div class="bili-video-card"><a href="//cm.bilibili.com/cm/api/fees" data-target-url="https://www.bilibili.com/video/BVsynthetic">Promoted video</a></div></div>
+    </div>`,
+    "/",
+  );
+  await page.addScriptTag({ path: path.join(__dirname, "..", "main.user.js") });
+  await expect(page.getByText("Short unpopular video")).toBeVisible();
+  await expect(page.getByText("Promoted video")).toBeVisible();
+  await page.getByRole("button", { name: "Bfilter", exact: true }).click();
+  await expect(page.getByRole("spinbutton", { name: /duration/i })).toHaveValue(
+    "3",
+  );
+  await expect(page.getByRole("spinbutton", { name: /views/i })).toHaveValue(
+    "5000",
+  );
+  for (const name of ["Duration (min.)", "Views", "Types"])
+    await expect(
+      page.getByRole("checkbox", { name, exact: true }),
+    ).not.toBeChecked();
+  await expect(
+    page.getByRole("spinbutton", { name: /duration/i }),
+  ).toBeDisabled();
+  await expect(page.getByRole("spinbutton", { name: /views/i })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Types" })).toBeDisabled();
+  await expect(
+    page.getByRole("combobox", { name: /registration time/i }),
+  ).toBeDisabled();
+  await expect(
+    page.getByRole("combobox", { name: /registration time/i }),
+  ).toHaveValue("2025");
+  await expect(page.getByRole("textbox", { name: /uid/i })).toBeEmpty();
+  await expect(
+    page.getByRole("checkbox", { name: /registered in & after/i }),
+  ).not.toBeChecked();
+  await page.getByRole("checkbox", { name: "Types", exact: true }).check();
+  await page.getByRole("button", { name: "Types" }).click();
+  for (const name of ["Promo", "Live", "Bangumi", "Classroom", "Manga"])
+    await expect(
+      page.getByRole("checkbox", { name, exact: true }),
+    ).not.toBeChecked();
+  await page.getByRole("checkbox", { name: "Promo", exact: true }).check();
+  await expect(page.getByText("Promoted video")).toBeHidden();
+  await page.getByRole("checkbox", { name: "Types", exact: true }).uncheck();
+  await expect(page.getByRole("button", { name: "Types" })).toBeDisabled();
+  await expect(page.getByText("Promoted video")).toBeVisible();
+  await page.getByRole("checkbox", { name: "Types", exact: true }).check();
+  await expect(page.getByText("Promoted video")).toBeHidden();
+  await page.getByRole("checkbox", { name: "Types", exact: true }).uncheck();
+  await expect(page.getByText("Promoted video")).toBeVisible();
+  for (const name of ["Duration (min.)", "Views"]) {
+    const enabled = page.getByRole("checkbox", { name, exact: true });
+    await enabled.check();
+    await expect(
+      page.getByRole("spinbutton", { name, exact: true }),
+    ).toBeEnabled();
+    await expect(page.getByText("Short unpopular video")).toBeHidden();
+    await enabled.uncheck();
+    await expect(
+      page.getByRole("spinbutton", { name, exact: true }),
+    ).toBeDisabled();
+    await expect(page.getByText("Short unpopular video")).toBeVisible();
+  }
+  await page.getByRole("checkbox", { name: "Views", exact: true }).check();
+  await page.reload();
+  await page.addScriptTag({ path: path.join(__dirname, "..", "main.user.js") });
+  await expect(page.getByText("Short unpopular video")).toBeHidden();
+});
+
 // Apply the registration heuristic to video uploaders and comment authors
 test("filters users by registration threshold", async ({ page }) => {
   await openVideo(
@@ -408,9 +482,12 @@ test("filters users by registration threshold", async ({ page }) => {
   });
   const threshold = page.getByRole("combobox", { name: /registration time/i });
   await expect(filter).not.toBeChecked();
-  await expect(threshold).toHaveValue("15");
+  await expect(threshold).toBeDisabled();
+  await expect(threshold).toHaveValue("2025");
   await expect(page.getByText("Recent video")).toBeVisible();
   await filter.check();
+  await expect(threshold).toBeEnabled();
+  await threshold.selectOption("15");
   await expect(page.getByText("Recent video")).toBeHidden();
   await expect(page.getByText("Recent comment")).toBeHidden();
   await expect(page.getByText("Older video")).toBeVisible();
@@ -425,6 +502,7 @@ test("filters users by registration threshold", async ({ page }) => {
   await expect(filter).toBeChecked();
   await expect(threshold).toHaveValue("8");
   await filter.uncheck();
+  await expect(threshold).toBeDisabled();
   await expect(page.getByText("Recent video")).toBeVisible();
 });
 
@@ -788,6 +866,10 @@ for (const kind of ["home", "search", "ranking", "video"]) {
           },
         };
       });
+    await page.evaluate(() => localStorage.setItem("bfilter.duration", "3"));
+    await page.evaluate(() =>
+      localStorage.setItem("bfilter.durationEnabled", "1"),
+    );
     await page.addScriptTag({
       path: path.join(__dirname, "..", "main.user.js"),
     });
@@ -860,6 +942,10 @@ for (const kind of ["home", "search", "ranking", "video"]) {
             : "/video/BVsynthetic",
       );
     }
+    await page.evaluate(() => localStorage.setItem("bfilter.views", "5000"));
+    await page.evaluate(() =>
+      localStorage.setItem("bfilter.viewsEnabled", "1"),
+    );
     await page.addScriptTag({
       path: path.join(__dirname, "..", "main.user.js"),
     });
@@ -899,6 +985,7 @@ test("filters promotional videos when selected", async ({ page }) => {
   );
   await page.addScriptTag({ path: path.join(__dirname, "..", "main.user.js") });
   await page.getByRole("button", { name: "Bfilter", exact: true }).click();
+  await page.getByRole("checkbox", { name: "Types", exact: true }).check();
   await page.getByRole("button", { name: "Types" }).click();
   const option = page.getByRole("checkbox", { name: "Promo" });
   await expect(option).not.toBeChecked();
@@ -925,6 +1012,7 @@ test("filters promotional videos when selected", async ({ page }) => {
   await page.addScriptTag({ path: path.join(__dirname, "..", "main.user.js") });
   await expect(page.getByText("Promoted video", { exact: true })).toBeHidden();
   await page.getByRole("button", { name: "Bfilter", exact: true }).click();
+  await page.getByRole("checkbox", { name: "Types", exact: true }).check();
   await page.getByRole("button", { name: "Types" }).click();
   await page.getByRole("checkbox", { name: "Promo" }).uncheck();
   await expect(page.getByText("Promoted video", { exact: true })).toBeVisible();
@@ -941,6 +1029,7 @@ test("filters promoted videos in bili-feed-card", async ({ page }) => {
   );
   await page.addScriptTag({ path: path.join(__dirname, "..", "main.user.js") });
   await page.getByRole("button", { name: "Bfilter", exact: true }).click();
+  await page.getByRole("checkbox", { name: "Types", exact: true }).check();
   await page.getByRole("button", { name: "Types" }).click();
   const option = page.getByRole("checkbox", { name: "Promo" });
   await option.check();
@@ -956,6 +1045,7 @@ test("filters promoted videos in bili-feed-card", async ({ page }) => {
   await page.getByRole("button", { name: "Preview" }).click();
   await expect(slot).toBeVisible();
   await page.getByRole("button", { name: "Preview" }).click();
+  await page.getByRole("checkbox", { name: "Types", exact: true }).check();
   await page.getByRole("button", { name: "Types" }).click();
   await option.uncheck();
   await expect(slot).toBeVisible();
@@ -987,6 +1077,7 @@ for (const kind of ["home", "search"]) {
       path: path.join(__dirname, "..", "main.user.js"),
     });
     await page.getByRole("button", { name: "Bfilter", exact: true }).click();
+    await page.getByRole("checkbox", { name: "Types", exact: true }).check();
     await page.getByRole("button", { name: "Types" }).click();
     const option = page.getByRole("checkbox", { name: "Live" });
     await expect(option).not.toBeChecked();
@@ -1008,6 +1099,7 @@ for (const kind of ["home", "search"]) {
     });
     await expect(page.getByText("Live stream")).toBeHidden();
     await page.getByRole("button", { name: "Bfilter", exact: true }).click();
+    await page.getByRole("checkbox", { name: "Types", exact: true }).check();
     await page.getByRole("button", { name: "Types" }).click();
     await page.getByRole("checkbox", { name: "Live" }).uncheck();
     await expect(page.getByText("Live stream")).toBeVisible();
@@ -1025,6 +1117,7 @@ test("filters home live recommendation cards", async ({ page }) => {
   );
   await page.addScriptTag({ path: path.join(__dirname, "..", "main.user.js") });
   await page.getByRole("button", { name: "Bfilter", exact: true }).click();
+  await page.getByRole("checkbox", { name: "Types", exact: true }).check();
   await page.getByRole("button", { name: "Types" }).click();
   const option = page.getByRole("checkbox", { name: "Live" });
   await option.check();
@@ -1040,6 +1133,7 @@ test("filters home live recommendation cards", async ({ page }) => {
   await page.getByRole("button", { name: "Preview" }).click();
   await expect(liveCard).toBeVisible();
   await page.getByRole("button", { name: "Preview" }).click();
+  await page.getByRole("checkbox", { name: "Types", exact: true }).check();
   await page.getByRole("button", { name: "Types" }).click();
   await option.uncheck();
   await expect(liveCard).toBeVisible();
@@ -1059,6 +1153,7 @@ test("filters live-room search results", async ({ page }) => {
   await page.goto("https://search.bilibili.com/live?keyword=synthetic");
   await page.addScriptTag({ path: path.join(__dirname, "..", "main.user.js") });
   await page.getByRole("button", { name: "Bfilter", exact: true }).click();
+  await page.getByRole("checkbox", { name: "Types", exact: true }).check();
   await page.getByRole("button", { name: "Types" }).click();
   const option = page.getByRole("checkbox", { name: "Live" });
   await option.check();
@@ -1067,6 +1162,7 @@ test("filters live-room search results", async ({ page }) => {
   await page.getByRole("button", { name: "Preview" }).click();
   await expect(page.getByText("Live room")).toBeVisible();
   await page.getByRole("button", { name: "Preview" }).click();
+  await page.getByRole("checkbox", { name: "Types", exact: true }).check();
   await page.getByRole("button", { name: "Types" }).click();
   await option.uncheck();
   await expect(page.getByText("Live room")).toBeVisible();
@@ -1093,6 +1189,7 @@ for (const kind of ["all", "bangumi"]) {
       path: path.join(__dirname, "..", "main.user.js"),
     });
     await page.getByRole("button", { name: "Bfilter", exact: true }).click();
+    await page.getByRole("checkbox", { name: "Types", exact: true }).check();
     await page.getByRole("button", { name: "Types" }).click();
     const option = page.getByRole("checkbox", { name: "Bangumi" });
     await expect(option).not.toBeChecked();
@@ -1114,6 +1211,7 @@ for (const kind of ["all", "bangumi"]) {
     });
     await expect(page.getByText("Anime result", { exact: true })).toBeHidden();
     await page.getByRole("button", { name: "Bfilter", exact: true }).click();
+    await page.getByRole("checkbox", { name: "Types", exact: true }).check();
     await page.getByRole("button", { name: "Types" }).click();
     await page.getByRole("checkbox", { name: "Bangumi" }).uncheck();
     await expect(page.getByText("Anime result", { exact: true })).toBeVisible();
@@ -1131,6 +1229,7 @@ test("filters bangumi home recommendations", async ({ page }) => {
   );
   await page.addScriptTag({ path: path.join(__dirname, "..", "main.user.js") });
   await page.getByRole("button", { name: "Bfilter", exact: true }).click();
+  await page.getByRole("checkbox", { name: "Types", exact: true }).check();
   await page.getByRole("button", { name: "Types" }).click();
   const option = page.getByRole("checkbox", { name: "Bangumi" });
   await option.check();
@@ -1149,6 +1248,7 @@ test("filters bangumi home recommendations", async ({ page }) => {
     page.getByText("Anime recommendation", { exact: true }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Preview" }).click();
+  await page.getByRole("checkbox", { name: "Types", exact: true }).check();
   await page.getByRole("button", { name: "Types" }).click();
   await option.uncheck();
   await expect(
@@ -1178,6 +1278,7 @@ for (const kind of ["home", "search"]) {
       path: path.join(__dirname, "..", "main.user.js"),
     });
     await page.getByRole("button", { name: "Bfilter", exact: true }).click();
+    await page.getByRole("checkbox", { name: "Types", exact: true }).check();
     await page.getByRole("button", { name: "Types" }).click();
     const option = page.getByRole("checkbox", { name: "Classroom" });
     await expect(option).not.toBeChecked();
@@ -1209,6 +1310,7 @@ for (const kind of ["home", "search"]) {
       page.getByText("Classroom result", { exact: true }),
     ).toBeHidden();
     await page.getByRole("button", { name: "Bfilter", exact: true }).click();
+    await page.getByRole("checkbox", { name: "Types", exact: true }).check();
     await page.getByRole("button", { name: "Types" }).click();
     await page.getByRole("checkbox", { name: "Classroom" }).uncheck();
     await expect(
@@ -1240,6 +1342,7 @@ for (const kind of ["home", "search"]) {
       path: path.join(__dirname, "..", "main.user.js"),
     });
     await page.getByRole("button", { name: "Bfilter", exact: true }).click();
+    await page.getByRole("checkbox", { name: "Types", exact: true }).check();
     await page.getByRole("button", { name: "Types" }).click();
     const option = page.getByRole("checkbox", { name: "Manga" });
     await expect(option).not.toBeChecked();
@@ -1261,6 +1364,7 @@ for (const kind of ["home", "search"]) {
     });
     await expect(page.getByText("Manga result")).toBeHidden();
     await page.getByRole("button", { name: "Bfilter", exact: true }).click();
+    await page.getByRole("checkbox", { name: "Types", exact: true }).check();
     await page.getByRole("button", { name: "Types" }).click();
     await option.uncheck();
     await expect(page.getByText("Manga result")).toBeVisible();
