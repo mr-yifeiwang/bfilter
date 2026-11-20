@@ -74,6 +74,28 @@ test("opens and closes the dashboard from the home navigation", async ({
   await expect(page.locator("dialog.bfilter-dashboard")).not.toBeVisible();
 });
 
+// Switch between dashboard tabs without losing the UID list
+test("switches between Users and Videos tabs", async ({ page }) => {
+  await openVideo(
+    page,
+    '<nav><a href="https://www.bilibili.com/">首页</a></nav>',
+  );
+  await page.addScriptTag({ path: path.join(__dirname, "..", "main.user.js") });
+  await page.getByRole("button", { name: "Bfilter", exact: true }).click();
+  const dashboard = page.getByRole("dialog", { name: "Bfilter" });
+  const users = dashboard.getByRole("tab", { name: "Users" });
+  const videos = dashboard.getByRole("tab", { name: "Videos" });
+  const uidList = dashboard.getByRole("textbox");
+  await uidList.fill("1001");
+  await videos.click();
+  await expect(videos).toHaveAttribute("aria-selected", "true");
+  await expect(users).toHaveAttribute("aria-selected", "false");
+  await expect(uidList).not.toBeVisible();
+  await users.click();
+  await expect(uidList).toBeVisible();
+  await expect(uidList).toHaveValue("1001");
+});
+
 // Keep the modal centered when the host page resets element margins
 test("centers the dashboard despite a page-wide margin reset", async ({
   page,
@@ -354,3 +376,91 @@ test("filters home feed videos by uploader", async ({ page }) => {
   );
   await expect(page.getByText("Later home video")).toBeVisible();
 });
+
+// Filter video durations on each supported page and preserve the threshold
+for (const kind of ["home", "search", "ranking", "video"]) {
+  test(`filters ${kind} videos shorter than the configured duration`, async ({
+    page,
+  }) => {
+    const rank = kind === "ranking";
+    const video = kind === "video";
+    const card = (title, duration, id) =>
+      rank
+        ? `<li class="rank-item" data-id="${id}"><a href="/video/BV${id}">${title}</a></li>`
+        : video
+          ? `<div class="video-page-card-small">${title}<span class="duration">${duration}</span></div>`
+          : `<div class="${kind === "home" ? "feed-card" : "col_3"}"><div class="bili-video-card"><div class="bili-video-card__wrap"><a href="//www.bilibili.com/video/BV${id}">${title}</a><span class="bili-video-card__stats__duration">${duration}</span></div></div></div>`;
+    const wrapper = rank ? "ul" : "div";
+    const cls = rank ? "rank-list" : video ? "rec-list" : "results";
+    const body = `<nav><a href="https://www.bilibili.com/">首页</a></nav><${wrapper} class="${cls}">${card("Short video", "02:59", 1)}${card("Boundary video", "03:00", 2)}${card("Long video", "01:03:00", 3)}</${wrapper}>`;
+    const pathname =
+      kind === "home"
+        ? "/"
+        : rank
+          ? "/v/popular/rank/all"
+          : "/video/BVsynthetic";
+    if (kind === "search") {
+      await page.route("https://search.bilibili.com/**", (route) =>
+        route.fulfill({ contentType: "text/html; charset=utf-8", body }),
+      );
+      await page.addInitScript(() => {
+        window.GM_getValue = (key, fallback) =>
+          localStorage.getItem(key) ?? fallback;
+        window.GM_setValue = (key, value) => localStorage.setItem(key, value);
+        window.GM_addValueChangeListener = () => {};
+      });
+      await page.goto("https://search.bilibili.com/all?keyword=synthetic");
+    } else {
+      await openVideo(page, body, pathname);
+    }
+    if (rank)
+      await page.evaluate(() => {
+        document.querySelector(".rank-list").parentElement.__vue__ = {
+          $props: {
+            list: [
+              { aid: 1, duration: 179 },
+              { aid: 2, duration: 180 },
+              { aid: 3, duration: 3780 },
+            ],
+          },
+        };
+      });
+    await page.addScriptTag({
+      path: path.join(__dirname, "..", "main.user.js"),
+    });
+    await expect(page.getByText("Short video")).toBeHidden();
+    await expect(page.getByText("Boundary video")).toBeVisible();
+    await expect(page.getByText("Long video")).toBeVisible();
+    await page.getByRole("button", { name: "Bfilter", exact: true }).click();
+    await page.getByRole("tab", { name: "Videos" }).click();
+    const threshold = page.getByRole("spinbutton", {
+      name: /hide videos by duration/i,
+    });
+    await expect(threshold).toHaveValue("3");
+    await threshold.fill("2");
+    await expect(page.getByText("Short video")).toBeVisible();
+    await threshold.fill("4");
+    await expect(page.getByText("Boundary video")).toBeHidden();
+    await page.getByRole("tab", { name: "Users" }).click();
+    await page.getByRole("button", { name: "Preview" }).click();
+    await expect(page.getByText("Boundary video")).toBeVisible();
+    await page.getByRole("button", { name: "Preview" }).click();
+    await page.reload();
+    if (rank)
+      await page.evaluate(() => {
+        document.querySelector(".rank-list").parentElement.__vue__ = {
+          $props: {
+            list: [
+              { aid: 1, duration: 179 },
+              { aid: 2, duration: 180 },
+              { aid: 3, duration: 3780 },
+            ],
+          },
+        };
+      });
+    await page.addScriptTag({
+      path: path.join(__dirname, "..", "main.user.js"),
+    });
+    await expect(page.getByText("Boundary video")).toBeHidden();
+  });
+}

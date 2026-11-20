@@ -2,13 +2,14 @@
 // @name         Bfilter
 // @namespace    https://github.com/mr-yifeiwang/bfilter
 // @version      0.1.0
-// @description  Filter Bilibili comments and videos by user UID
+// @description  Filter Bilibili comments and videos by user UID and video duration
 // @match        https://bilibili.com/*
 // @match        https://*.bilibili.com/*
 // @run-at       document-idle
 // @grant        GM_getValue
 // @grant        GM_setValue
 // @grant        GM_addValueChangeListener
+// @grant        unsafeWindow
 // ==/UserScript==
 
 (function () {
@@ -37,9 +38,13 @@
     .bfilter-heading h2 { margin: 0; font-size: 20px; }
     .bfilter-close { border: 0; background: transparent; color: #61666d; font: inherit; cursor: pointer; }
     .bfilter-tabs { display: flex; margin-top: 16px; border-bottom: 1px solid #d9e2e8; }
-    .bfilter-tab { padding: 8px 12px; border: 0; border-bottom: 2px solid #00aeec; background: transparent; color: #00aeec; font: inherit; cursor: pointer; }
+    .bfilter-tab { padding: 8px 12px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: #61666d; font: inherit; cursor: pointer; }
+    .bfilter-tab[aria-selected="true"] { border-bottom-color: #00aeec; color: #00aeec; }
+    .bfilter-dashboard [role="tabpanel"][hidden] { display: none; }
     .bfilter-users { display: block; margin-top: 16px; }
     .bfilter-users textarea { box-sizing: border-box; width: 100%; min-height: 150px; margin-top: 8px; padding: 8px; border: 1px solid #d9e2e8; border-radius: 6px; font: inherit; resize: vertical; }
+    .bfilter-duration { display: block; margin-top: 16px; }
+    .bfilter-duration input { box-sizing: border-box; width: 4em; padding: 4px; border: 1px solid #d9e2e8; border-radius: 6px; background: #fff; color: #18191c; font: inherit; }
     .bfilter-preview { margin-top: 12px; padding: 6px 12px; border: 1px solid #d9e2e8; border-radius: 6px; background: #fff; color: #18191c; font: inherit; cursor: pointer; }
     .bfilter-preview[aria-pressed="true"] { background: #ffc0cb; border-color: #e58a9a; }
   `;
@@ -52,19 +57,38 @@
     <div class="bfilter-heading"><h2 id="bfilter-title">Bfilter</h2><button class="bfilter-close" type="button" aria-label="Close">×</button></div>
     <div class="bfilter-tabs" role="tablist" aria-label="Dashboard">
       <button class="bfilter-tab" type="button" role="tab" aria-selected="true" aria-controls="bfilter-users-panel" id="bfilter-users-tab">Users</button>
+      <button class="bfilter-tab" type="button" role="tab" aria-selected="false" aria-controls="bfilter-videos-panel" id="bfilter-videos-tab">Videos</button>
     </div>
     <div id="bfilter-users-panel" role="tabpanel" aria-labelledby="bfilter-users-tab">
       <label class="bfilter-users">User UIDs, one per line<textarea spellcheck="false"></textarea></label>
       <button class="bfilter-preview" type="button" aria-pressed="false">Preview</button>
+    </div>
+    <div id="bfilter-videos-panel" role="tabpanel" aria-labelledby="bfilter-videos-tab" hidden>
+      <label class="bfilter-duration">Hide videos by duration: &lt; <input type="number" min="0" step="any"> minutes</label>
     </div>`;
   document.body.append(dashboard);
   dashboard
     .querySelector(".bfilter-close")
     .addEventListener("click", () => dashboard.close());
 
+  for (const tab of dashboard.querySelectorAll('[role="tab"]')) {
+    tab.addEventListener("click", () => {
+      for (const item of dashboard.querySelectorAll('[role="tab"]')) {
+        const selected = item === tab;
+        item.setAttribute("aria-selected", String(selected));
+        dashboard.querySelector(
+          `#${item.getAttribute("aria-controls")}`,
+        ).hidden = !selected;
+      }
+    });
+  }
+
   const users = dashboard.querySelector("textarea");
   const storageKey = "bfilter.users";
   users.value = GM_getValue(storageKey, "");
+  const durationInput = dashboard.querySelector(".bfilter-duration input");
+  const durationKey = "bfilter.duration";
+  durationInput.value = GM_getValue(durationKey, "3");
   let blockedUsers = new Set();
   let previewing = false;
   const comments = new Set();
@@ -140,7 +164,44 @@
       !!card.querySelector(
         'a[href^="//www.bilibili.com/video/"], a[href^="https://www.bilibili.com/video/"]',
       );
-    const filtered = video && blockedUsers.has(uid);
+    const durationText = card
+      .querySelector(
+        searchPage || homePage
+          ? ".bili-video-card__stats__duration"
+          : ".duration",
+      )
+      ?.textContent.trim();
+    let duration;
+    if (rankingPage) {
+      const pageDocument =
+        typeof unsafeWindow === "undefined" ? document : unsafeWindow.document;
+      const list =
+        pageDocument.querySelector(".rank-list-wrap")?.__vue__?.$props?.list ??
+        pageDocument.querySelector(".rank-list")?.parentElement?.__vue__?.$props
+          ?.list;
+      duration = list?.find(
+        (item) => String(item.aid) === card.getAttribute("data-id"),
+      )?.duration;
+    } else if (/^\d+:\d{2}(?::\d{2})?$/.test(durationText || "")) {
+      duration = durationText
+        .split(":")
+        .reduce((seconds, part) => seconds * 60 + Number(part), 0);
+    }
+    const minutes = Number(durationInput.value);
+    const durationVideo =
+      video ||
+      (homePage &&
+        !!card.querySelector(
+          'a[data-target-url^="https://www.bilibili.com/video/"]',
+        ));
+    const shortVideo =
+      durationVideo &&
+      durationInput.value !== "" &&
+      Number.isFinite(minutes) &&
+      minutes > 0 &&
+      Number.isFinite(duration) &&
+      duration < minutes * 60;
+    const filtered = (video && blockedUsers.has(uid)) || shortVideo;
     setFiltered(card, filtered);
     if (searchPage || homePage) {
       const wrapper = card.querySelector(".bili-video-card__wrap");
@@ -208,6 +269,20 @@
       updateUsers();
     });
 
+  durationInput.addEventListener("input", () => {
+    GM_setValue(durationKey, durationInput.value);
+    scanRecommendations(document.body);
+  });
+  GM_addValueChangeListener(
+    durationKey,
+    (_key, _oldValue, newValue, remote) => {
+      if (remote) {
+        durationInput.value = newValue ?? "3";
+        scanRecommendations(document.body);
+      }
+    },
+  );
+
   users.addEventListener("input", () => {
     GM_setValue(storageKey, users.value);
     updateUsers();
@@ -226,8 +301,14 @@
     const observed = new WeakSet();
     const observer = new MutationObserver((mutations) => {
       for (const mutation of mutations) {
-        scan(mutation.target);
-        scanRecommendations(mutation.target);
+        const target =
+          mutation.target instanceof Element ||
+          mutation.target instanceof ShadowRoot
+            ? mutation.target
+            : mutation.target.parentElement;
+        if (!target) continue;
+        scan(target);
+        scanRecommendations(target);
       }
     });
 
@@ -254,6 +335,7 @@
 
     observer.observe(document.body, {
       childList: true,
+      characterData: true,
       subtree: true,
       attributes: true,
       attributeFilter: ["href"],
@@ -266,9 +348,15 @@
   }
   if (rankingPage || searchPage || homePage) {
     new MutationObserver((mutations) => {
-      for (const mutation of mutations) scanRecommendations(mutation.target);
+      for (const mutation of mutations)
+        scanRecommendations(
+          mutation.target instanceof Element
+            ? mutation.target
+            : mutation.target.parentElement,
+        );
     }).observe(document.body, {
       childList: true,
+      characterData: true,
       subtree: true,
       attributes: true,
       attributeFilter: ["href"],
