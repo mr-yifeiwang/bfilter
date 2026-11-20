@@ -129,6 +129,52 @@ test("filters saved users in current and later comments", async ({ page }) => {
   await expect(page.getByText("Visible comment")).toBeVisible();
 });
 
+// Preview filtered comments and videos without changing the saved UID list
+test("previews filtered items and restores filtering", async ({ page }) => {
+  await openVideo(
+    page,
+    `
+    <nav><a href="https://www.bilibili.com/">首页</a></nav>
+    <div class="rec-list">
+      <div class="video-page-card-small" style="background-color: rgb(1, 2, 3)"><div class="upname"><a href="//space.bilibili.com/1001">Filtered video</a></div></div>
+      <div class="video-page-card-small"><div class="upname"><a href="//space.bilibili.com/1002">Other video</a></div></div>
+    </div>
+  `,
+  );
+  await page.addScriptTag({ path: path.join(__dirname, "..", "main.user.js") });
+  await addComments(page);
+  await page.getByRole("button", { name: "Bfilter", exact: true }).click();
+  const users = page.getByRole("textbox", { name: /uid/i });
+  const preview = page.getByRole("button", { name: "Preview" });
+  await users.fill("1001");
+  await expect(page.getByText("Blocked comment")).toBeHidden();
+  await preview.click({ timeout: 1500 });
+  await expect(preview).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByText("Blocked comment")).toBeVisible();
+  await expect(page.getByText("Blocked reply")).toBeVisible();
+  await expect(page.getByText("Reply under blocked parent")).toBeVisible();
+  await expect(page.getByText("Filtered video")).toBeVisible();
+  const card = page.locator(".video-page-card-small").first();
+  const thread = page.locator("bili-comment-thread-renderer").first();
+  await expect(card).toHaveCSS("background-color", "rgb(255, 192, 203)");
+  await expect(thread).toHaveCSS("background-color", "rgb(255, 192, 203)");
+  await expect(thread).toHaveCSS("display", "block");
+  await expect(page.locator("bili-comment-reply-renderer").last()).toHaveCSS(
+    "display",
+    "block",
+  );
+  await users.fill("");
+  await expect(card).toHaveCSS("background-color", "rgb(1, 2, 3)");
+  await users.fill("1001");
+  await expect(page.getByText("Filtered video")).toBeVisible();
+  await preview.click();
+  await expect(preview).toHaveAttribute("aria-pressed", "false");
+  await expect(page.getByText("Filtered video")).toBeHidden();
+  await expect(page.getByText("Blocked comment")).toBeHidden();
+  await users.fill("");
+  await expect(card).toHaveCSS("background-color", "rgb(1, 2, 3)");
+});
+
 // Filter recommendations by uploader and restore them when the UID is removed
 test("filters recommendations from blocked users", async ({ page }) => {
   await openVideo(

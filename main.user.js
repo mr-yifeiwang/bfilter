@@ -39,6 +39,8 @@
     .bfilter-tab { padding: 8px 12px; border: 0; border-bottom: 2px solid #00aeec; background: transparent; color: #00aeec; font: inherit; cursor: pointer; }
     .bfilter-users { display: block; margin-top: 16px; }
     .bfilter-users textarea { box-sizing: border-box; width: 100%; min-height: 150px; margin-top: 8px; padding: 8px; border: 1px solid #d9e2e8; border-radius: 6px; font: inherit; resize: vertical; }
+    .bfilter-preview { margin-top: 12px; padding: 6px 12px; border: 1px solid #d9e2e8; border-radius: 6px; background: #fff; color: #18191c; font: inherit; cursor: pointer; }
+    .bfilter-preview[aria-pressed="true"] { background: #ffc0cb; border-color: #e58a9a; }
   `;
   document.head.append(style);
 
@@ -52,6 +54,7 @@
     </div>
     <div id="bfilter-users-panel" role="tabpanel" aria-labelledby="bfilter-users-tab">
       <label class="bfilter-users">User UIDs, one per line<textarea spellcheck="false"></textarea></label>
+      <button class="bfilter-preview" type="button" aria-pressed="false">Preview</button>
     </div>`;
   document.body.append(dashboard);
   dashboard
@@ -62,6 +65,7 @@
   const storageKey = "bfilter.users";
   users.value = GM_getValue(storageKey, "");
   let blockedUsers = new Set();
+  let previewing = false;
   const comments = new Set();
   const hiddenDisplays = new WeakMap();
   const rankingPage = location.pathname.startsWith("/v/popular/rank/");
@@ -69,22 +73,40 @@
     ? ".rank-list .rank-item"
     : ".rec-list .video-page-card-small, .rec-list .video-page-operator-card-small, .next-play .video-page-card-small";
 
-  // Preserve an element's original display while it is filtered
+  // Preserve original styles while hiding or previewing a filtered element
   function setFiltered(element, filtered) {
-    if (filtered) {
-      if (!hiddenDisplays.has(element)) {
-        hiddenDisplays.set(element, [
-          element.style.getPropertyValue("display"),
-          element.style.getPropertyPriority("display"),
-        ]);
-      }
-      element.style.setProperty("display", "none", "important");
-    } else if (hiddenDisplays.has(element)) {
-      const [value, priority] = hiddenDisplays.get(element);
-      if (value) element.style.setProperty("display", value, priority);
-      else element.style.removeProperty("display");
-      hiddenDisplays.delete(element);
+    if (filtered && !hiddenDisplays.has(element)) {
+      hiddenDisplays.set(
+        element,
+        ["display", "background-color"].map((property) => [
+          element.style.getPropertyValue(property),
+          element.style.getPropertyPriority(property),
+        ]),
+      );
     }
+    const original = hiddenDisplays.get(element);
+    if (!original) return;
+    for (const [index, property] of ["display", "background-color"].entries()) {
+      const [value, priority] = original[index];
+      if (filtered && !previewing && property === "display") {
+        element.style.setProperty(property, "none", "important");
+      } else if (
+        filtered &&
+        previewing &&
+        property === "display" &&
+        (element.localName === "bili-comment-thread-renderer" ||
+          element.localName === "bili-comment-reply-renderer")
+      ) {
+        element.style.setProperty(property, "block", "important");
+      } else if (filtered && previewing && property === "background-color") {
+        element.style.setProperty(property, "#ffc0cb", "important");
+      } else if (value) {
+        element.style.setProperty(property, value, priority);
+      } else {
+        element.style.removeProperty(property);
+      }
+    }
+    if (!filtered) hiddenDisplays.delete(element);
   }
 
   // Filter a recommendation using the uploader's profile link
@@ -140,6 +162,14 @@
     }
     scanRecommendations(document.body);
   }
+
+  dashboard
+    .querySelector(".bfilter-preview")
+    .addEventListener("click", (event) => {
+      previewing = !previewing;
+      event.currentTarget.setAttribute("aria-pressed", String(previewing));
+      updateUsers();
+    });
 
   users.addEventListener("input", () => {
     GM_setValue(storageKey, users.value);
