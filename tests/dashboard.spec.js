@@ -64,13 +64,14 @@ test("shows the launcher only on supported pages", async ({ page }) => {
     window.GM_setValue = () => {};
     window.GM_addValueChangeListener = () => {};
   });
+  let launcherSize;
   for (const [url, supported] of [
     ["https://www.bilibili.com/", true],
     ["https://www.bilibili.com/video/BVsynthetic", true],
     ["https://www.bilibili.com/v/popular/rank/all", true],
     ["https://search.bilibili.com/all?keyword=example", true],
     ["https://www.bilibili.com/v/popular/all", false],
-    ["https://space.bilibili.com/123456", false],
+    ["https://space.bilibili.com/123456", true],
     ["https://live.bilibili.com/123456", false],
   ]) {
     await page.goto(url);
@@ -80,7 +81,79 @@ test("shows the launcher only on supported pages", async ({ page }) => {
     await expect(
       page.getByRole("button", { name: "Bfilter", exact: true }),
     ).toHaveCount(supported ? 1 : 0);
+    if (url === "https://www.bilibili.com/") {
+      const { width, height } = await page
+        .getByRole("button", { name: "Bfilter", exact: true })
+        .boundingBox();
+      launcherSize = { width, height };
+    }
+    if (url === "https://space.bilibili.com/123456") {
+      const { width, height } = await page
+        .getByRole("button", { name: "Bfilter", exact: true })
+        .boundingBox();
+      expect({ width, height }).toEqual(launcherSize);
+    }
   }
+});
+
+// Toggle a profile UID and keep the control attached to the launcher
+test("toggles a space profile UID below the launcher", async ({ page }) => {
+  await page.addInitScript(() => {
+    window.GM_getValue = (key, fallback) =>
+      localStorage.getItem(key) ?? fallback;
+    window.GM_setValue = (key, value) => localStorage.setItem(key, value);
+    window.GM_addValueChangeListener = () => {};
+  });
+  await page.route("https://space.bilibili.com/**", (route) =>
+    route.fulfill({
+      contentType: "text/html",
+      body: "<html><body></body></html>",
+    }),
+  );
+  await page.goto("https://space.bilibili.com/987654321");
+  await page.evaluate(() => localStorage.setItem("bfilter.users", "1001"));
+  await page.addScriptTag({ path: path.join(__dirname, "..", "main.user.js") });
+  const launcher = page.getByRole("button", { name: "Bfilter", exact: true });
+  const block = page.getByRole("button", { name: "Block User", exact: true });
+  await expect(block).toBeVisible();
+  await expect(block).toHaveCSS("background-color", "rgb(161, 4, 37)");
+  expect(
+    await block.evaluate((button) => button.scrollWidth <= button.clientWidth),
+  ).toBe(true);
+  let launcherBox = await launcher.boundingBox();
+  let blockBox = await block.boundingBox();
+  expect(blockBox.x).toBe(launcherBox.x);
+  expect(blockBox.width).toBeCloseTo(launcherBox.width, 1);
+  expect(blockBox.y).toBeCloseTo(launcherBox.y + launcherBox.height, 0);
+  await page.mouse.move(launcherBox.x + 20, launcherBox.y + 10);
+  await page.mouse.down();
+  await page.mouse.move(launcherBox.x + 20, launcherBox.y + 90);
+  await page.mouse.up();
+  launcherBox = await launcher.boundingBox();
+  blockBox = await block.boundingBox();
+  expect(blockBox.y).toBeCloseTo(launcherBox.y + launcherBox.height, 0);
+  await block.click();
+  const unblock = page.getByRole("button", {
+    name: "Unblock User",
+    exact: true,
+  });
+  await expect(unblock).toBeEnabled();
+  await expect(unblock).toHaveCSS("background-color", "rgb(102, 102, 102)");
+  expect(
+    await unblock.evaluate(
+      (button) => button.scrollWidth <= button.clientWidth,
+    ),
+  ).toBe(true);
+  await launcher.click();
+  const users = page.getByRole("textbox", { name: "User UIDs, one per line" });
+  await expect(users).toHaveValue("1001\n987654321");
+  await page.reload();
+  await page.addScriptTag({ path: path.join(__dirname, "..", "main.user.js") });
+  await expect(unblock).toBeVisible();
+  await unblock.click();
+  await expect(block).toBeEnabled();
+  await launcher.click();
+  await expect(users).toHaveValue("1001");
 });
 
 // Verify the independent entry opens a dismissible dashboard

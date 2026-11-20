@@ -25,7 +25,11 @@
       location.hostname === "bilibili.com") &&
     location.pathname === "/";
   const videoPage = location.pathname.startsWith("/video/");
-  if (!(homePage || searchPage || rankingPage || videoPage)) return;
+  const spaceUid =
+    location.hostname === "space.bilibili.com"
+      ? location.pathname.match(/^\/(\d+)(?:\/|$)/)?.[1]
+      : null;
+  if (!(homePage || searchPage || rankingPage || videoPage || spaceUid)) return;
 
   const style = document.createElement("style");
   style.textContent = `
@@ -85,6 +89,10 @@
     .bfilter-preview { min-height: 24px; padding: 0 5px; border: 1px solid var(--bfilter-border); border-radius: 5px; background: var(--bfilter-paper); color: var(--bfilter-ink); font: 12px/1 var(--bfilter-font); cursor: pointer; }
     .bfilter-preview:hover { border-color: var(--bfilter-red); color: var(--bfilter-red); }
     .bfilter-preview[aria-pressed="true"] { background: var(--bfilter-red); border-color: var(--bfilter-red); color: var(--bfilter-white); }
+    .bfilter-entry-space { border-radius: 0 6px 0 0; }
+    .bfilter-space-block { position: fixed; z-index: 10000; left: 0; box-sizing: border-box; min-height: 28px; padding: 0 2px; border: 1px solid #a10425; border-top: 1px solid #ffffff66; border-radius: 0 0 6px 0; background: #a10425; color: #fff; font: 600 13px/1 sans-serif; white-space: nowrap; cursor: pointer; }
+    .bfilter-space-block[aria-pressed="true"] { background: #666; border-color: #666; border-top-color: #ffffff66; }
+    .bfilter-space-block:focus-visible { outline: 2px solid #a10425; outline-offset: 3px; }
     .recommended-container_floor-aside .container > :is(.feed-card, .bili-feed-card, .floor-single-card) { margin-top: 0 !important; }
   `;
   document.head.append(style);
@@ -185,6 +193,7 @@
   typesMenu.addEventListener("change", updateTypeCount);
   updateTypeCount();
   let blockedUsers = new Set();
+  const spaceButton = spaceUid ? document.createElement("button") : null;
   let previewing = false;
   const comments = new Set();
   const hiddenDisplays = new WeakMap();
@@ -430,6 +439,11 @@
     blockedUsers = new Set(
       users.value.split(/[\s,]+/).filter((uid) => /^\d+$/.test(uid)),
     );
+    if (spaceButton) {
+      const blocked = blockedUsers.has(spaceUid);
+      spaceButton.textContent = blocked ? "Unblock User" : "Block User";
+      spaceButton.setAttribute("aria-pressed", String(blocked));
+    }
     for (const comment of comments) {
       if (comment.isConnected) updateComment(comment);
       else comments.delete(comment);
@@ -575,6 +589,22 @@
   });
   updateUsers();
 
+  if (spaceButton) {
+    spaceButton.type = "button";
+    spaceButton.className = "bfilter-space-block";
+    spaceButton.addEventListener("click", () => {
+      if (blockedUsers.has(spaceUid)) {
+        const uid = new RegExp(`(^|[\\s,])${spaceUid}(?=$|[\\s,])`, "g");
+        users.value = users.value
+          .replace(uid, "$1")
+          .replace(/^[\s,]+|[\s,]+$/g, "");
+      } else {
+        users.value += `${users.value && !users.value.endsWith("\n") ? "\n" : ""}${spaceUid}`;
+      }
+      users.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+  }
+
   if (videoPage) {
     const selector =
       "bili-comments, bili-comment-thread-renderer, bili-comment-replies-renderer, bili-comment-renderer, bili-comment-reply-renderer";
@@ -647,6 +677,7 @@
   const button = document.createElement("button");
   button.type = "button";
   button.className = "bfilter-entry";
+  if (spaceButton) button.classList.add("bfilter-entry-space");
   button.innerHTML = `<svg viewBox="0 0 96 80" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
     <path d="M37 5l11 12L59 5M7 40h82M29 67l-5 8m43-8 5 8"/>
     <rect x="20" y="20" width="56" height="47" rx="6"/>
@@ -666,7 +697,7 @@
     const distance = event.clientY - dragStart.y;
     if (!dragged && Math.abs(distance) < 4) return;
     dragged = true;
-    button.style.top = `${Math.max(0, Math.min(window.innerHeight - button.offsetHeight, dragStart.top + distance))}px`;
+    button.style.top = `${Math.max(0, Math.min(window.innerHeight - button.offsetHeight - (spaceButton?.offsetHeight || 0), dragStart.top + distance))}px`;
     placeButton();
   });
   button.addEventListener("pointerup", () => {
@@ -694,11 +725,16 @@
     if (event.key === "Escape") dashboard.close();
   });
   document.body.append(button);
+  if (spaceButton) document.body.append(spaceButton);
 
-  // Keep the popup below the fixed launcher
+  // Keep the Space action and popup below the fixed launcher
   function placeButton() {
+    if (spaceButton) {
+      spaceButton.style.top = `${button.getBoundingClientRect().bottom}px`;
+      spaceButton.style.width = `${button.getBoundingClientRect().width}px`;
+    }
     const top = Math.min(
-      button.getBoundingClientRect().bottom + 4,
+      (spaceButton || button).getBoundingClientRect().bottom + 4,
       Math.max(8, window.innerHeight - 120),
     );
     dashboard.style.top = `${top}px`;
