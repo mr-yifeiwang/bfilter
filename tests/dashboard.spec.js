@@ -167,6 +167,140 @@ test("filters saved users in current and later comments", async ({ page }) => {
   await expect(page.getByText("Visible comment")).toBeVisible();
 });
 
+// Apply the registration heuristic to video uploaders and comment authors
+test("filters users by registration threshold", async ({ page }) => {
+  await openVideo(
+    page,
+    `
+    <nav><a href="https://www.bilibili.com/">首页</a></nav>
+    <div class="rec-list">
+      <div class="video-page-card-small"><span>Recent video</span><div class="upname"><a href="//space.bilibili.com/123456789012345">Uploader</a></div></div>
+      <div class="video-page-card-small"><span>Older video</span><div class="upname"><a href="//space.bilibili.com/1234567">Uploader</a></div></div>
+    </div>`,
+  );
+  await page.addScriptTag({ path: path.join(__dirname, "..", "main.user.js") });
+  await page.evaluate(() => {
+    const comments = document.createElement("bili-comments");
+    const feed = comments.attachShadow({ mode: "open" });
+    for (const [uid, text] of [
+      ["123456789012345", "Recent comment"],
+      ["1234567", "Older comment"],
+    ]) {
+      const thread = document.createElement("bili-comment-thread-renderer");
+      const comment = document.createElement("bili-comment-renderer");
+      comment.attachShadow({ mode: "open" }).innerHTML =
+        `<a id="user-avatar" data-user-profile-id="${uid}"></a><span>${text}</span>`;
+      thread.attachShadow({ mode: "open" }).append(comment);
+      feed.append(thread);
+    }
+    document.body.append(comments);
+  });
+  await page.getByRole("button", { name: "Bfilter", exact: true }).click();
+  const filter = page.getByRole("checkbox", {
+    name: /hide users registered in and after/i,
+  });
+  const threshold = page.getByRole("combobox", { name: /registration time/i });
+  await expect(filter).not.toBeChecked();
+  await expect(threshold).toHaveValue("15");
+  await expect(page.getByText("Recent video")).toBeVisible();
+  await filter.check();
+  await expect(page.getByText("Recent video")).toBeHidden();
+  await expect(page.getByText("Recent comment")).toBeHidden();
+  await expect(page.getByText("Older video")).toBeVisible();
+  await expect(page.getByText("Older comment")).toBeVisible();
+  await page.getByRole("button", { name: "Preview" }).click();
+  await expect(page.getByText("Recent comment")).toBeVisible();
+  await page.getByRole("button", { name: "Preview" }).click();
+  await threshold.selectOption("8");
+  await page.reload();
+  await page.addScriptTag({ path: path.join(__dirname, "..", "main.user.js") });
+  await page.getByRole("button", { name: "Bfilter", exact: true }).click();
+  await expect(filter).toBeChecked();
+  await expect(threshold).toHaveValue("8");
+  await filter.uncheck();
+  await expect(page.getByText("Recent video")).toBeVisible();
+});
+
+// Match the 2025 heuristic only for numeric UIDs with the required prefix and length
+test("filters the 2025 registration threshold", async ({ page }) => {
+  const uids = [
+    "354680000000000",
+    "3546800000000000",
+    "35468000000000000",
+    "3546900000000000",
+  ];
+  const cards = uids
+    .map(
+      (uid) =>
+        `<div class="video-page-card-small"><span>UID ${uid}</span><div class="upname"><a href="//space.bilibili.com/${uid}">Uploader</a></div></div>`,
+    )
+    .join("");
+  await openVideo(
+    page,
+    `<nav><a href="https://www.bilibili.com/">首页</a></nav><div class="rec-list">${cards}</div>`,
+  );
+  await page.addScriptTag({ path: path.join(__dirname, "..", "main.user.js") });
+  await page.getByRole("button", { name: "Bfilter", exact: true }).click();
+  await page
+    .getByRole("checkbox", { name: /hide users registered in and after/i })
+    .check();
+  const threshold = page.getByRole("combobox", { name: /registration time/i });
+  await threshold.selectOption({ label: "2025" });
+  await expect(page.getByText(`UID ${uids[0]}`, { exact: true })).toBeVisible();
+  await expect(page.getByText(`UID ${uids[1]}`, { exact: true })).toBeHidden();
+  await expect(page.getByText(`UID ${uids[2]}`, { exact: true })).toBeHidden();
+  await expect(page.getByText(`UID ${uids[3]}`, { exact: true })).toBeVisible();
+  await page.reload();
+  await page.addScriptTag({ path: path.join(__dirname, "..", "main.user.js") });
+  await expect(page.getByText(`UID ${uids[1]}`, { exact: true })).toBeHidden();
+  await expect(page.getByText(`UID ${uids[3]}`, { exact: true })).toBeVisible();
+});
+
+// Respect each legacy UID-length boundary
+test("uses the registration threshold boundaries", async ({ page }) => {
+  const cards = [
+    "1234567",
+    "12345678",
+    "123456789",
+    "1234567890",
+    "123456789012345",
+  ]
+    .map(
+      (uid) =>
+        `<div class="video-page-card-small"><span>UID ${uid}</span><div class="upname"><a href="//space.bilibili.com/${uid}">Uploader</a></div></div>`,
+    )
+    .join("");
+  await openVideo(
+    page,
+    `<nav><a href="https://www.bilibili.com/">首页</a></nav><div class="rec-list">${cards}</div>`,
+  );
+  await page.addScriptTag({ path: path.join(__dirname, "..", "main.user.js") });
+  await page.getByRole("button", { name: "Bfilter", exact: true }).click();
+  await page
+    .getByRole("checkbox", { name: /hide users registered in and after/i })
+    .check();
+  const threshold = page.getByRole("combobox", { name: /registration time/i });
+  for (const digits of [8, 9, 10, 15]) {
+    await threshold.selectOption(String(digits));
+    for (const uid of [
+      "1234567",
+      "12345678",
+      "123456789",
+      "1234567890",
+      "123456789012345",
+    ]) {
+      if (uid.length >= digits)
+        await expect(
+          page.getByText(`UID ${uid}`, { exact: true }),
+        ).toBeHidden();
+      else
+        await expect(
+          page.getByText(`UID ${uid}`, { exact: true }),
+        ).toBeVisible();
+    }
+  }
+});
+
 // Preview filtered comments and videos without changing the saved UID list
 test("previews filtered items and restores filtering", async ({ page }) => {
   await openVideo(
@@ -379,8 +513,11 @@ test("filters home feed videos by uploader", async ({ page }) => {
 
 // Keep visible home cards aligned when filtering shifts later cards into earlier rows
 test("aligns home feed cards after filtering", async ({ page }) => {
-  const card = (id) => `<div class="feed-card"><div class="bili-feed-card"><div class="bili-video-card"><a href="https://www.bilibili.com/video/BV${id}">Video ${id}</a><a class="bili-video-card__info--owner" href="//space.bilibili.com/${id}">Uploader</a></div></div></div>`;
-  await openVideo(page, `
+  const card = (id) =>
+    `<div class="feed-card"><div class="bili-feed-card"><div class="bili-video-card"><a href="https://www.bilibili.com/video/BV${id}">Video ${id}</a><a class="bili-video-card__info--owner" href="//space.bilibili.com/${id}">Uploader</a></div></div></div>`;
+  await openVideo(
+    page,
+    `
     <style>
       .recommended-container_floor-aside .container { display: grid; grid-template-columns: repeat(5, 100px); gap: 20px; }
       .recommended-swipe { grid-area: 1 / 1 / 3 / 3; }
@@ -389,7 +526,9 @@ test("aligns home feed cards after filtering", async ({ page }) => {
     <nav><a href="https://www.bilibili.com/">首页</a></nav>
     <div class="recommended-container_floor-aside"><div class="container">
       <div class="recommended-swipe">Carousel</div>${[1, 2, 3, 4, 5, 6, 7].map(card).join("")}
-    </div></div>`, "/");
+    </div></div>`,
+    "/",
+  );
   await page.addScriptTag({ path: path.join(__dirname, "..", "main.user.js") });
   await page.getByRole("button", { name: "Bfilter", exact: true }).click();
   await page.getByRole("textbox", { name: /uid/i }).fill("4");
@@ -595,7 +734,8 @@ test("filters promotional videos when selected", async ({ page }) => {
 
 // Filter promotional videos in the current home feed layout
 test("filters promoted videos in bili-feed-card", async ({ page }) => {
-  const promoted = (title) => `<div class="bili-feed-card"><div class="bili-video-card is-rcmd"><div class="bili-video-card__wrap"><a href="https://cm.bilibili.com/cm/api/fees" data-target-url="https://www.bilibili.com/video/BVsynthetic">${title}</a></div></div></div>`;
+  const promoted = (title) =>
+    `<div class="bili-feed-card"><div class="bili-video-card is-rcmd"><div class="bili-video-card__wrap"><a href="https://cm.bilibili.com/cm/api/fees" data-target-url="https://www.bilibili.com/video/BVsynthetic">${title}</a></div></div></div>`;
   await openVideo(
     page,
     `<nav><a href="https://www.bilibili.com/">首页</a></nav><div class="feed">${promoted("Promoted video")}<div class="bili-feed-card"><div class="bili-video-card is-rcmd"><a href="https://www.bilibili.com/video/BVordinary">Ordinary video</a></div></div></div>`,
@@ -610,7 +750,8 @@ test("filters promoted videos in bili-feed-card", async ({ page }) => {
   await expect(slot).toBeHidden();
   await expect(page.getByText("Ordinary video")).toBeVisible();
   await page.evaluate(
-    (html) => document.querySelector(".feed").insertAdjacentHTML("beforeend", html),
+    (html) =>
+      document.querySelector(".feed").insertAdjacentHTML("beforeend", html),
     promoted("Later promotion"),
   );
   await expect(page.getByText("Later promotion")).toBeHidden();
@@ -679,8 +820,13 @@ for (const kind of ["home", "search"]) {
 
 // Filter live cards in the current home feed layout
 test("filters home live recommendation cards", async ({ page }) => {
-  const card = (title) => `<div class="bili-feed-card"><div class="bili-live-card is-rcmd"><div class="bili-live-card__wrap"><div class="bili-live-card__info"><h3><a href="https://live.bilibili.com/123">${title}</a></h3></div></div></div></div>`;
-  await openVideo(page, `<nav><a href="https://www.bilibili.com/">首页</a></nav><div class="feed">${card("Live recommendation")}<div class="feed-card"><div class="bili-video-card"><a href="https://www.bilibili.com/video/BVnormal">Ordinary video</a></div></div></div>`, "/");
+  const card = (title) =>
+    `<div class="bili-feed-card"><div class="bili-live-card is-rcmd"><div class="bili-live-card__wrap"><div class="bili-live-card__info"><h3><a href="https://live.bilibili.com/123">${title}</a></h3></div></div></div></div>`;
+  await openVideo(
+    page,
+    `<nav><a href="https://www.bilibili.com/">首页</a></nav><div class="feed">${card("Live recommendation")}<div class="feed-card"><div class="bili-video-card"><a href="https://www.bilibili.com/video/BVnormal">Ordinary video</a></div></div></div>`,
+    "/",
+  );
   await page.addScriptTag({ path: path.join(__dirname, "..", "main.user.js") });
   await page.getByRole("button", { name: "Bfilter", exact: true }).click();
   await page.getByRole("tab", { name: "Videos" }).click();
@@ -689,7 +835,11 @@ test("filters home live recommendation cards", async ({ page }) => {
   const liveCard = page.locator(".bili-feed-card").first();
   await expect(liveCard).toBeHidden();
   await expect(page.getByText("Ordinary video")).toBeVisible();
-  await page.evaluate((html) => document.querySelector(".feed").insertAdjacentHTML("beforeend", html), card("Later recommendation"));
+  await page.evaluate(
+    (html) =>
+      document.querySelector(".feed").insertAdjacentHTML("beforeend", html),
+    card("Later recommendation"),
+  );
   await expect(page.getByText("Later recommendation")).toBeHidden();
   await page.getByRole("tab", { name: "Users" }).click();
   await page.getByRole("button", { name: "Preview" }).click();

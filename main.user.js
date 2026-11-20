@@ -41,6 +41,8 @@
     .bfilter-tab { padding: 8px 12px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: #61666d; font: inherit; cursor: pointer; }
     .bfilter-tab[aria-selected="true"] { border-bottom-color: #00aeec; color: #00aeec; }
     .bfilter-dashboard [role="tabpanel"][hidden] { display: none; }
+    .bfilter-registration { display: flex; align-items: center; gap: 8px; margin-top: 16px; }
+    .bfilter-registration input { appearance: auto; }
     .bfilter-users { display: block; margin-top: 16px; }
     .bfilter-users textarea { box-sizing: border-box; width: 100%; min-height: 150px; margin-top: 8px; padding: 8px; border: 1px solid #d9e2e8; border-radius: 6px; font: inherit; resize: vertical; }
     .bfilter-duration, .bfilter-views { display: block; margin-top: 16px; }
@@ -65,6 +67,7 @@
       <button class="bfilter-tab" type="button" role="tab" aria-selected="false" aria-controls="bfilter-videos-panel" id="bfilter-videos-tab">Videos</button>
     </div>
     <div id="bfilter-users-panel" role="tabpanel" aria-labelledby="bfilter-users-tab">
+      <div class="bfilter-registration"><label><input type="checkbox"> Hide users registered in and after</label><select aria-label="Registration time threshold"><option value="8">2015</option><option value="9">2017</option><option value="10">2020</option><option value="15">2022</option><option value="2025">2025</option></select></div>
       <label class="bfilter-users">User UIDs, one per line<textarea spellcheck="false"></textarea></label>
       <button class="bfilter-preview" type="button" aria-pressed="false">Preview</button>
     </div>
@@ -93,6 +96,16 @@
   const users = dashboard.querySelector("textarea");
   const storageKey = "bfilter.users";
   users.value = GM_getValue(storageKey, "");
+  const registrationInput = dashboard.querySelector(
+    ".bfilter-registration input",
+  );
+  const registrationThreshold = dashboard.querySelector(
+    ".bfilter-registration select",
+  );
+  const registrationKey = "bfilter.registration";
+  const registrationThresholdKey = "bfilter.registrationThreshold";
+  registrationInput.checked = GM_getValue(registrationKey, "0") === "1";
+  registrationThreshold.value = GM_getValue(registrationThresholdKey, "15");
   const durationInput = dashboard.querySelector(".bfilter-duration input");
   const durationKey = "bfilter.duration";
   durationInput.value = GM_getValue(durationKey, "3");
@@ -294,7 +307,7 @@
         'a[href^="//manga.bilibili.com/"], a[href^="https://manga.bilibili.com/"]',
       );
     const filtered =
-      (video && blockedUsers.has(uid)) ||
+      (video && matchesUser(uid)) ||
       shortVideo ||
       fewViews ||
       promotional ||
@@ -345,6 +358,18 @@
     }
   }
 
+  // Match a blocked UID or the selected registration-time heuristic
+  function matchesUser(uid) {
+    return (
+      blockedUsers.has(uid) ||
+      (registrationInput.checked &&
+        /^\d+$/.test(uid || "") &&
+        (registrationThreshold.value === "2025"
+          ? /^35468\d{11,}$/.test(uid)
+          : uid.length >= Number(registrationThreshold.value)))
+    );
+  }
+
   // Hide a blocked parent with its thread, or a blocked reply on its own
   function updateComment(comment) {
     const uid = comment.shadowRoot
@@ -356,7 +381,7 @@
       root.host?.localName === "bili-comment-thread-renderer"
         ? root.host
         : comment;
-    setFiltered(thread, blockedUsers.has(uid));
+    setFiltered(thread, matchesUser(uid));
   }
 
   // Apply the current UID list to already loaded comments
@@ -461,6 +486,33 @@
       if (remote) {
         durationInput.value = newValue ?? "3";
         scanRecommendations(document.body);
+      }
+    },
+  );
+
+  registrationInput.addEventListener("change", () => {
+    GM_setValue(registrationKey, registrationInput.checked ? "1" : "0");
+    updateUsers();
+  });
+  registrationThreshold.addEventListener("change", () => {
+    GM_setValue(registrationThresholdKey, registrationThreshold.value);
+    updateUsers();
+  });
+  GM_addValueChangeListener(
+    registrationKey,
+    (_key, _oldValue, newValue, remote) => {
+      if (remote) {
+        registrationInput.checked = newValue === "1";
+        updateUsers();
+      }
+    },
+  );
+  GM_addValueChangeListener(
+    registrationThresholdKey,
+    (_key, _oldValue, newValue, remote) => {
+      if (remote) {
+        registrationThreshold.value = newValue ?? "15";
+        updateUsers();
       }
     },
   );
