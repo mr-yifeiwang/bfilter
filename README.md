@@ -1,19 +1,18 @@
 # Bfilter
 
-Bfilter is a Bilibili userscript that hides videos and comments from selected user UIDs. The UID list is stored by the userscript manager, independently of a Bilibili account.
+Bfilter is a userscript that filters videos and comments on Bilibili's Home, Search, Ranking, and Video pages.
 
-## Supported Filters
+| Target           | Filters                                     |
+| ---------------- | ------------------------------------------- |
+| Users & contents | UID, registration time                      |
+| Videos           | duration, views, types (e.g. Live, Bangumi) |
 
-Compared with 1.x, Bfilter 2.x rewrites all the code and narrow its scope. The new version currently supports and maintains the following UID-based filters:
+## Limitations
 
-| Page    | Videos | Comments |
-| ------- | ------ | -------- |
-| Home    | ✓      | N/A      |
-| Search  | ✓      | N/A      |
-| Ranking | ✓      | N/A      |
-| Video   | ✓      | ✓        |
+- **Metadata availability:** Filters require metadata exposed by Bilibili. If it is unavailable, the affected filters cannot work. For example, the Duration filter cannot work on the Ranking page because video duration is not exposed there.
+- **Bfilter `1.x` settings:** Settings from Bfilter `1.x` are not supported and migrated automatically.
 
 ## Installation
 
-1. Install a userscript manager such as [Tampermonkey](https://www.tampermonkey.net/).
+1. Install a userscript manager (e.g. [Tampermonkey](https://www.tampermonkey.net/)).
 2. [Click here](https://github.com/mr-yifeiwang/bfilter/raw/refs/heads/master/main.user.js) to install the script from GitHub.
