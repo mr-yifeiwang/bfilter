@@ -107,21 +107,18 @@
     }
   }
 
-  // Hide matching comments and their separators while preserving other replies
+  // Hide a blocked parent with its thread, or a blocked reply on its own
   function updateComment(comment) {
     const uid = comment.shadowRoot
       ?.querySelector("#user-avatar")
       ?.getAttribute("data-user-profile-id");
     const root = comment.getRootNode();
-    const divider =
+    const thread =
       comment.localName === "bili-comment-renderer" &&
       root.host?.localName === "bili-comment-thread-renderer"
-        ? root.querySelector("#div")
-        : null;
-    for (const element of [comment, divider]) {
-      if (!element) continue;
-      setFiltered(element, blockedUsers.has(uid));
-    }
+        ? root.host
+        : comment;
+    setFiltered(thread, blockedUsers.has(uid));
   }
 
   // Apply the current UID list to already loaded comments

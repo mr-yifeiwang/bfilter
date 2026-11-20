@@ -31,6 +31,14 @@ async function addComments(page) {
       comment.attachShadow({ mode: "open" }).innerHTML =
         `<a id="user-avatar" data-user-profile-id="${uid}"></a><span>${text}</span>`;
       root.append(comment);
+      if (tag === "bili-comment-renderer" && uid === "1001") {
+        const replies = document.createElement("bili-comment-replies-renderer");
+        const reply = document.createElement("bili-comment-reply-renderer");
+        reply.attachShadow({ mode: "open" }).innerHTML =
+          '<a id="user-avatar" data-user-profile-id="1002"></a><span>Reply under blocked parent</span>';
+        replies.attachShadow({ mode: "open" }).append(reply);
+        root.append(replies);
+      }
       if (tag === "bili-comment-renderer") {
         const divider = document.createElement("div");
         divider.id = "div";
@@ -101,11 +109,16 @@ test("filters saved users in current and later comments", async ({ page }) => {
   await expect(dividers.nth(0)).toBeHidden();
   await expect(dividers.nth(1)).toBeVisible();
   await expect(page.getByText("Blocked comment")).toBeHidden();
+  await expect(page.getByText("Reply under blocked parent")).toBeHidden();
   await expect(page.getByText("Blocked reply")).toBeHidden();
   await expect(page.getByText("Visible comment")).toBeVisible();
   await users.fill("");
   await expect(dividers.nth(0)).toBeVisible();
   await expect(page.getByText("Blocked comment")).toBeVisible();
+  await expect(page.getByText("Reply under blocked parent")).toBeVisible();
+  await users.fill("1002");
+  await expect(page.getByText("Blocked comment")).toBeVisible();
+  await expect(page.getByText("Reply under blocked parent")).toBeHidden();
   await expect(page.getByText("Blocked reply")).toBeVisible();
   await users.fill("1001");
   await page.reload();
