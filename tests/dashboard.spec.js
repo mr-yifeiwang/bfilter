@@ -247,3 +247,52 @@ test("filters ranked videos by user UID", async ({ page }) => {
   await expect(page.getByText("Blocked ranked video")).toBeVisible();
   await expect(page.getByText("Later ranked video")).toBeVisible();
 });
+
+// Filter video search results without hiding unrelated result types
+test("filters video search results by uploader", async ({ page }) => {
+  await page.addInitScript(() => {
+    window.GM_getValue = (_key, fallback) => fallback;
+    window.GM_setValue = () => {};
+    window.GM_addValueChangeListener = () => {};
+  });
+  await page.route("https://search.bilibili.com/**", (route) =>
+    route.fulfill({
+      contentType: "text/html; charset=utf-8",
+      body: `<nav><a href="https://www.bilibili.com/">首页</a></nav>
+      <div class="results">
+        <div class="col_3"><div class="bili-video-card"><div class="bili-video-card__wrap" style="background-color: white"><a href="//www.bilibili.com/video/BV1">Blocked video</a><a class="bili-video-card__info--owner" href="//space.bilibili.com/1001">Uploader</a></div></div></div>
+        <div class="col_3"><div class="bili-video-card"><a href="//www.bilibili.com/video/BV2">Other video</a><a class="bili-video-card__info--owner" href="//space.bilibili.com/1002">Other uploader</a></div></div>
+        <div class="col_3"><div class="bili-video-card"><a href="https://www.bilibili.com/cheese/play/ss1">Course</a><a class="bili-video-card__info--owner" href="//space.bilibili.com/1001">Course author</a></div></div>
+      </div>`,
+    }),
+  );
+  await page.goto("https://search.bilibili.com/all?keyword=test");
+  await page.addScriptTag({ path: path.join(__dirname, "..", "main.user.js") });
+  await page.getByRole("button", { name: "Bfilter", exact: true }).click();
+  const users = page.getByRole("textbox", { name: /uid/i });
+  await users.fill("1001");
+  await expect(page.getByText("Blocked video")).toBeHidden();
+  await expect(page.getByText("Other video")).toBeVisible();
+  await expect(page.getByText("Course", { exact: true })).toBeVisible();
+  await page.evaluate(() =>
+    document
+      .querySelector(".results")
+      .insertAdjacentHTML(
+        "beforeend",
+        '<div class="col_3"><div class="bili-video-card"><a href="//www.bilibili.com/video/BV3">Later video</a><a class="bili-video-card__info--owner" href="//space.bilibili.com/1001">Uploader</a></div></div>',
+      ),
+  );
+  await expect(page.getByText("Later video")).toBeHidden();
+  await page.getByRole("button", { name: "Preview" }).click();
+  await expect(page.getByText("Blocked video")).toBeVisible();
+  await expect(page.getByText("Blocked video").locator("..")).toHaveCSS(
+    "background-color",
+    "rgb(255, 192, 203)",
+  );
+  await users.fill("");
+  await expect(page.getByText("Blocked video").locator("..")).toHaveCSS(
+    "background-color",
+    "rgb(255, 255, 255)",
+  );
+  await expect(page.getByText("Later video")).toBeVisible();
+});

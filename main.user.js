@@ -69,9 +69,12 @@
   const comments = new Set();
   const hiddenDisplays = new WeakMap();
   const rankingPage = location.pathname.startsWith("/v/popular/rank/");
-  const recommendationSelector = rankingPage
-    ? ".rank-list .rank-item"
-    : ".rec-list .video-page-card-small, .rec-list .video-page-operator-card-small, .next-play .video-page-card-small";
+  const searchPage = location.hostname === "search.bilibili.com";
+  const recommendationSelector = searchPage
+    ? ".bili-video-card"
+    : rankingPage
+      ? ".rank-list .rank-item"
+      : ".rec-list .video-page-card-small, .rec-list .video-page-operator-card-small, .next-play .video-page-card-small";
 
   // Preserve original styles while hiding or previewing a filtered element
   function setFiltered(element, filtered) {
@@ -113,18 +116,39 @@
   function updateRecommendation(card) {
     const href =
       card
-        .querySelector(rankingPage ? ".detail a" : ".upname a")
+        .querySelector(
+          searchPage
+            ? ".bili-video-card__info--owner"
+            : rankingPage
+              ? ".detail a"
+              : ".upname a",
+        )
         ?.getAttribute("href") || "";
     const uid = href.match(
       /^(?:https?:)?\/\/space\.bilibili\.com\/(\d+)(?:[/?#]|$)/,
     )?.[1];
-    setFiltered(card, blockedUsers.has(uid));
+    const video =
+      !searchPage ||
+      !!card.querySelector(
+        'a[href^="//www.bilibili.com/video/"], a[href^="https://www.bilibili.com/video/"]',
+      );
+    const filtered = video && blockedUsers.has(uid);
+    setFiltered(card, filtered);
+    if (searchPage) {
+      const wrapper = card.querySelector(".bili-video-card__wrap");
+      if (wrapper) setFiltered(wrapper, filtered);
+    }
+    if (searchPage && card.parentElement?.classList.contains("col_3")) {
+      setFiltered(card.parentElement, filtered);
+    }
   }
 
   // Find recommendation cards in a changed part of the page
   function scanRecommendations(root) {
     if (
-      (!rankingPage && !location.pathname.startsWith("/video/")) ||
+      (!searchPage &&
+        !rankingPage &&
+        !location.pathname.startsWith("/video/")) ||
       !(root instanceof Element)
     )
       return;
@@ -227,7 +251,7 @@
       customElements.whenDefined(name).then(() => scan(document.body));
     }
   }
-  if (rankingPage) {
+  if (rankingPage || searchPage) {
     new MutationObserver((mutations) => {
       for (const mutation of mutations) scanRecommendations(mutation.target);
     }).observe(document.body, {
