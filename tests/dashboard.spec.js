@@ -312,3 +312,45 @@ test("filters video search results by uploader", async ({ page }) => {
   );
   await expect(page.getByText("Later video")).toBeVisible();
 });
+
+// Filter home feed videos and let the grid fill the removed slots
+test("filters home feed videos by uploader", async ({ page }) => {
+  await openVideo(
+    page,
+    `
+    <nav><a href="https://www.bilibili.com/">首页</a></nav>
+    <div class="container">
+      <div class="feed-card"><div class="bili-feed-card"><div class="bili-video-card"><div class="bili-video-card__wrap" style="background-color: white"><a href="https://www.bilibili.com/video/BV1">Blocked home video</a><a class="bili-video-card__info--owner" href="//space.bilibili.com/1001">Uploader</a></div></div></div></div>
+      <div class="feed-card"><div class="bili-feed-card"><div class="bili-video-card"><a href="https://www.bilibili.com/video/BV2">Visible home video</a><a class="bili-video-card__info--owner" href="//space.bilibili.com/1002">Other uploader</a></div></div></div>
+    </div>`,
+    "/",
+  );
+  await page.addScriptTag({ path: path.join(__dirname, "..", "main.user.js") });
+  await page.getByRole("button", { name: "Bfilter", exact: true }).click();
+  const users = page.getByRole("textbox", { name: /uid/i });
+  await users.fill("1001");
+  await expect(page.getByText("Blocked home video")).toBeHidden();
+  await expect(page.locator(".feed-card").first()).toBeHidden();
+  await expect(page.getByText("Visible home video")).toBeVisible();
+  await page.evaluate(() =>
+    document
+      .querySelector(".container")
+      .insertAdjacentHTML(
+        "beforeend",
+        '<div class="feed-card"><div class="bili-feed-card"><div class="bili-video-card"><a href="https://www.bilibili.com/video/BV3">Later home video</a><a class="bili-video-card__info--owner" href="//space.bilibili.com/1001">Uploader</a></div></div></div>',
+      ),
+  );
+  await expect(page.getByText("Later home video")).toBeHidden();
+  await page.getByRole("button", { name: "Preview" }).click();
+  await expect(page.getByText("Blocked home video")).toBeVisible();
+  await expect(page.getByText("Blocked home video").locator("..")).toHaveCSS(
+    "background-color",
+    "rgb(255, 192, 203)",
+  );
+  await users.fill("");
+  await expect(page.getByText("Blocked home video").locator("..")).toHaveCSS(
+    "background-color",
+    "rgb(255, 255, 255)",
+  );
+  await expect(page.getByText("Later home video")).toBeVisible();
+});

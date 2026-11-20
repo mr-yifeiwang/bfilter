@@ -71,11 +71,18 @@
   const hiddenDisplays = new WeakMap();
   const rankingPage = location.pathname.startsWith("/v/popular/rank/");
   const searchPage = location.hostname === "search.bilibili.com";
-  const recommendationSelector = searchPage
-    ? ".bili-video-card"
-    : rankingPage
-      ? ".rank-list .rank-item"
-      : ".rec-list .video-page-card-small, .rec-list .video-page-operator-card-small, .next-play .video-page-card-small";
+  const homePage =
+    (location.hostname === "www.bilibili.com" ||
+      location.hostname === "bilibili.com") &&
+    location.pathname === "/";
+  const recommendationSelector =
+    searchPage || homePage
+      ? homePage
+        ? ".feed-card .bili-video-card"
+        : ".bili-video-card"
+      : rankingPage
+        ? ".rank-list .rank-item"
+        : ".rec-list .video-page-card-small, .rec-list .video-page-operator-card-small, .next-play .video-page-card-small";
 
   // Preserve original styles while hiding or previewing a filtered element
   function setFiltered(element, filtered) {
@@ -118,7 +125,7 @@
     const href =
       card
         .querySelector(
-          searchPage
+          searchPage || homePage
             ? ".bili-video-card__info--owner"
             : rankingPage
               ? ".detail a"
@@ -129,18 +136,22 @@
       /^(?:https?:)?\/\/space\.bilibili\.com\/(\d+)(?:[/?#]|$)/,
     )?.[1];
     const video =
-      !searchPage ||
+      !(searchPage || homePage) ||
       !!card.querySelector(
         'a[href^="//www.bilibili.com/video/"], a[href^="https://www.bilibili.com/video/"]',
       );
     const filtered = video && blockedUsers.has(uid);
     setFiltered(card, filtered);
-    if (searchPage) {
+    if (searchPage || homePage) {
       const wrapper = card.querySelector(".bili-video-card__wrap");
       if (wrapper) setFiltered(wrapper, filtered);
     }
     if (searchPage && card.parentElement?.classList.contains("col_3")) {
       setFiltered(card.parentElement, filtered);
+    }
+    if (homePage) {
+      const slot = card.closest(".feed-card");
+      if (slot) setFiltered(slot, filtered);
     }
   }
 
@@ -148,6 +159,7 @@
   function scanRecommendations(root) {
     if (
       (!searchPage &&
+        !homePage &&
         !rankingPage &&
         !location.pathname.startsWith("/video/")) ||
       !(root instanceof Element)
@@ -252,7 +264,7 @@
       customElements.whenDefined(name).then(() => scan(document.body));
     }
   }
-  if (rankingPage || searchPage) {
+  if (rankingPage || searchPage || homePage) {
     new MutationObserver((mutations) => {
       for (const mutation of mutations) scanRecommendations(mutation.target);
     }).observe(document.body, {
