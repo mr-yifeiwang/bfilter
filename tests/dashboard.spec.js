@@ -115,3 +115,43 @@ test("filters saved users in current and later comments", async ({ page }) => {
   await expect(page.getByText("Blocked reply")).toBeHidden();
   await expect(page.getByText("Visible comment")).toBeVisible();
 });
+
+// Filter recommendations by uploader and restore them when the UID is removed
+test("filters recommendations from blocked users", async ({ page }) => {
+  await openVideo(
+    page,
+    `
+    <nav><a href="https://www.bilibili.com/">首页</a></nav>
+    <div class="rec-list">
+      <div class="video-page-card-small"><div class="upname"><a href="//space.bilibili.com/1001/">Blocked recommendation</a></div></div>
+      <div class="video-page-operator-card-small"><div class="upname"><a href="//space.bilibili.com/1001/">Blocked operator recommendation</a></div></div>
+      <div class="video-page-card-small"><div class="upname"><a href="//space.bilibili.com/1002/">Visible recommendation</a></div></div>
+    </div>
+    <div class="next-play"><div class="video-page-card-small"><div class="upname"><a href="//space.bilibili.com/1001/">Blocked next video</a></div></div></div>
+    <a href="//space.bilibili.com/1001/">Outside recommendations</a>
+  `,
+  );
+  await page.addScriptTag({ path: path.join(__dirname, "..", "main.user.js") });
+  await page.getByRole("button", { name: "Bfilter", exact: true }).click();
+  const users = page.getByRole("textbox", { name: /uid/i });
+  await users.fill("1001");
+  await expect(page.getByText("Blocked recommendation")).toBeHidden();
+  await expect(page.getByText("Blocked operator recommendation")).toBeHidden();
+  await expect(page.getByText("Blocked next video")).toBeHidden();
+  await expect(page.getByText("Visible recommendation")).toBeVisible();
+  await expect(page.getByText("Outside recommendations")).toBeVisible();
+  await page.evaluate(() => {
+    document
+      .querySelector(".rec-list")
+      .insertAdjacentHTML(
+        "beforeend",
+        '<div class="video-page-card-small"><div class="upname"><a href="//space.bilibili.com/1001/">Later recommendation</a></div></div>',
+      );
+  });
+  await expect(page.getByText("Later recommendation")).toBeHidden();
+  await users.fill("");
+  await expect(page.getByText("Blocked recommendation")).toBeVisible();
+  await expect(page.getByText("Blocked operator recommendation")).toBeVisible();
+  await expect(page.getByText("Blocked next video")).toBeVisible();
+  await expect(page.getByText("Later recommendation")).toBeVisible();
+});

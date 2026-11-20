@@ -2,7 +2,7 @@
 // @name         Bfilter
 // @namespace    https://github.com/mr-yifeiwang/bfilter
 // @version      0.1.0
-// @description  Filter Bilibili comments by user UID
+// @description  Filter Bilibili comments and video recommendations by user UID
 // @match        https://bilibili.com/*
 // @match        https://*.bilibili.com/*
 // @run-at       document-idle
@@ -64,6 +64,48 @@
   let blockedUsers = new Set();
   const comments = new Set();
   const hiddenDisplays = new WeakMap();
+  const recommendationSelector =
+    ".rec-list .video-page-card-small, .rec-list .video-page-operator-card-small, .next-play .video-page-card-small";
+
+  // Preserve an element's original display while it is filtered
+  function setFiltered(element, filtered) {
+    if (filtered) {
+      if (!hiddenDisplays.has(element)) {
+        hiddenDisplays.set(element, [
+          element.style.getPropertyValue("display"),
+          element.style.getPropertyPriority("display"),
+        ]);
+      }
+      element.style.setProperty("display", "none", "important");
+    } else if (hiddenDisplays.has(element)) {
+      const [value, priority] = hiddenDisplays.get(element);
+      if (value) element.style.setProperty("display", value, priority);
+      else element.style.removeProperty("display");
+      hiddenDisplays.delete(element);
+    }
+  }
+
+  // Filter a recommendation using the uploader's profile link
+  function updateRecommendation(card) {
+    const href = card.querySelector(".upname a")?.getAttribute("href") || "";
+    const uid = href.match(
+      /^(?:https?:)?\/\/space\.bilibili\.com\/(\d+)(?:[/?#]|$)/,
+    )?.[1];
+    setFiltered(card, blockedUsers.has(uid));
+  }
+
+  // Find recommendation cards in a changed part of the page
+  function scanRecommendations(root) {
+    if (!location.pathname.startsWith("/video/") || !(root instanceof Element))
+      return;
+    const card = root.closest(recommendationSelector);
+    if (card) updateRecommendation(card);
+    for (const recommendation of root.querySelectorAll(
+      recommendationSelector,
+    )) {
+      updateRecommendation(recommendation);
+    }
+  }
 
   // Hide matching comments and their separators while preserving other replies
   function updateComment(comment) {
@@ -78,20 +120,7 @@
         : null;
     for (const element of [comment, divider]) {
       if (!element) continue;
-      if (blockedUsers.has(uid)) {
-        if (!hiddenDisplays.has(element)) {
-          hiddenDisplays.set(element, [
-            element.style.getPropertyValue("display"),
-            element.style.getPropertyPriority("display"),
-          ]);
-        }
-        element.style.setProperty("display", "none", "important");
-      } else if (hiddenDisplays.has(element)) {
-        const [value, priority] = hiddenDisplays.get(element);
-        if (value) element.style.setProperty("display", value, priority);
-        else element.style.removeProperty("display");
-        hiddenDisplays.delete(element);
-      }
+      setFiltered(element, blockedUsers.has(uid));
     }
   }
 
@@ -104,6 +133,7 @@
       if (comment.isConnected) updateComment(comment);
       else comments.delete(comment);
     }
+    scanRecommendations(document.body);
   }
 
   users.addEventListener("input", () => {
@@ -123,7 +153,10 @@
       "bili-comments, bili-comment-thread-renderer, bili-comment-replies-renderer, bili-comment-renderer, bili-comment-reply-renderer";
     const observed = new WeakSet();
     const observer = new MutationObserver((mutations) => {
-      for (const mutation of mutations) scan(mutation.target);
+      for (const mutation of mutations) {
+        scan(mutation.target);
+        scanRecommendations(mutation.target);
+      }
     });
 
     // Follow the comment component's shadow roots as Bilibili loads content
@@ -147,8 +180,14 @@
       }
     }
 
-    observer.observe(document.body, { childList: true, subtree: true });
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["href"],
+    });
     scan(document.body);
+    scanRecommendations(document.body);
     for (const name of selector.split(", ")) {
       customElements.whenDefined(name).then(() => scan(document.body));
     }
