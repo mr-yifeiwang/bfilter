@@ -70,7 +70,7 @@
     <div id="bfilter-videos-panel" role="tabpanel" aria-labelledby="bfilter-videos-tab" hidden>
       <label class="bfilter-duration">Hide videos by duration: &lt; <input type="number" min="0" step="any"> minutes</label>
       <label class="bfilter-views">Hide videos by views: &lt; <input type="number" min="0" step="1"> views</label>
-      <fieldset class="bfilter-types"><legend>Hide videos by type</legend><label><input type="checkbox" value="promotional">Promotional videos</label><label><input type="checkbox" value="live">Live</label><label><input type="checkbox" value="bangumi">Bangumi</label></fieldset>
+      <fieldset class="bfilter-types"><legend>Hide videos by type</legend><label><input type="checkbox" value="promotional">Promotional videos</label><label><input type="checkbox" value="live">Live</label><label><input type="checkbox" value="bangumi">Bangumi</label><label><input type="checkbox" value="classroom">Classroom</label></fieldset>
     </div>`;
   document.body.append(dashboard);
   dashboard
@@ -113,6 +113,11 @@
   );
   const bangumiKey = "bfilter.bangumi";
   bangumiInput.checked = GM_getValue(bangumiKey, "0") === "1";
+  const classroomInput = dashboard.querySelector(
+    '.bfilter-types input[value="classroom"]',
+  );
+  const classroomKey = "bfilter.classroom";
+  classroomInput.checked = GM_getValue(classroomKey, "0") === "1";
   let blockedUsers = new Set();
   let previewing = false;
   const comments = new Set();
@@ -127,7 +132,7 @@
     searchPage || homePage
       ? homePage
         ? ".feed-card .bili-video-card, .floor-single-card"
-        : ".bili-video-card, .bangumi-pgc-list .media-card, .search-page-bangumi .media-card"
+        : ".bili-video-card, .bangumi-pgc-list .media-card, .search-page-bangumi .media-card, .activity-card"
       : rankingPage
         ? ".rank-list .rank-item"
         : ".rec-list .video-page-card-small, .rec-list .video-page-operator-card-small, .next-play .video-page-card-small";
@@ -272,13 +277,19 @@
           !!card.querySelector(
             'a[href^="//www.bilibili.com/bangumi/"], a[href^="https://www.bilibili.com/bangumi/"]',
           )));
+    const classroom =
+      classroomInput.checked &&
+      !!card.querySelector(
+        'a[href^="//www.bilibili.com/cheese/"], a[href^="https://www.bilibili.com/cheese/"], a[href^="//m.bilibili.com/cheese/"], a[href^="https://m.bilibili.com/cheese/"]',
+      );
     const filtered =
       (video && blockedUsers.has(uid)) ||
       shortVideo ||
       fewViews ||
       promotional ||
       live ||
-      bangumi;
+      bangumi ||
+      classroom;
     setFiltered(card, filtered);
     if (searchPage || homePage) {
       const wrapper = card.querySelector(
@@ -291,7 +302,7 @@
     }
     if (
       searchPage &&
-      card.classList.contains("media-card") &&
+      card.matches(".media-card, .activity-card") &&
       card.parentElement?.classList.contains("col_6")
     ) {
       setFiltered(card.parentElement, filtered);
@@ -390,6 +401,20 @@
       scanRecommendations(document.body);
     }
   });
+
+  classroomInput.addEventListener("change", () => {
+    GM_setValue(classroomKey, classroomInput.checked ? "1" : "0");
+    scanRecommendations(document.body);
+  });
+  GM_addValueChangeListener(
+    classroomKey,
+    (_key, _oldValue, newValue, remote) => {
+      if (remote) {
+        classroomInput.checked = newValue === "1";
+        scanRecommendations(document.body);
+      }
+    },
+  );
 
   viewsInput.addEventListener("input", () => {
     GM_setValue(viewsKey, viewsInput.value);
