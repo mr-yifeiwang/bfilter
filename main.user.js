@@ -319,7 +319,8 @@
       setFiltered(card.parentElement, filtered);
     }
     if (homePage) {
-      const slot = card.closest(".feed-card, .bili-feed-card");
+      const slot =
+        card.closest(".feed-card") || card.closest(".bili-feed-card");
       if (slot) setFiltered(slot, filtered);
     }
   }
