@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Bfilter
 // @namespace    https://github.com/mr-yifeiwang/bfilter
-// @version      2.0.0
+// @version      2.1.0
 // @description  Content filter for Bilibili
 // @icon         https://raw.githubusercontent.com/mr-yifeiwang/bfilter/refs/heads/master/favicons/favicon-96x96.png
 // @downloadURL  https://raw.githubusercontent.com/mr-yifeiwang/bfilter/refs/heads/master/main.user.js
