@@ -2,7 +2,7 @@
 // @name         Bfilter
 // @namespace    https://github.com/mr-yifeiwang/bfilter
 // @version      0.1.0
-// @description  Filter Bilibili comments and videos by user UID and video duration
+// @description  Filter Bilibili comments and videos by user UID, duration, and views
 // @match        https://bilibili.com/*
 // @match        https://*.bilibili.com/*
 // @run-at       document-idle
@@ -43,8 +43,8 @@
     .bfilter-dashboard [role="tabpanel"][hidden] { display: none; }
     .bfilter-users { display: block; margin-top: 16px; }
     .bfilter-users textarea { box-sizing: border-box; width: 100%; min-height: 150px; margin-top: 8px; padding: 8px; border: 1px solid #d9e2e8; border-radius: 6px; font: inherit; resize: vertical; }
-    .bfilter-duration { display: block; margin-top: 16px; }
-    .bfilter-duration input { box-sizing: border-box; width: 4em; padding: 4px; border: 1px solid #d9e2e8; border-radius: 6px; background: #fff; color: #18191c; font: inherit; }
+    .bfilter-duration, .bfilter-views { display: block; margin-top: 16px; }
+    .bfilter-duration input, .bfilter-views input { box-sizing: border-box; width: 5em; padding: 4px; border: 1px solid #d9e2e8; border-radius: 6px; background: #fff; color: #18191c; font: inherit; }
     .bfilter-preview { margin-top: 12px; padding: 6px 12px; border: 1px solid #d9e2e8; border-radius: 6px; background: #fff; color: #18191c; font: inherit; cursor: pointer; }
     .bfilter-preview[aria-pressed="true"] { background: #ffc0cb; border-color: #e58a9a; }
   `;
@@ -65,6 +65,7 @@
     </div>
     <div id="bfilter-videos-panel" role="tabpanel" aria-labelledby="bfilter-videos-tab" hidden>
       <label class="bfilter-duration">Hide videos by duration: &lt; <input type="number" min="0" step="any"> minutes</label>
+      <label class="bfilter-views">Hide videos by views: &lt; <input type="number" min="0" step="1"> views</label>
     </div>`;
   document.body.append(dashboard);
   dashboard
@@ -89,6 +90,9 @@
   const durationInput = dashboard.querySelector(".bfilter-duration input");
   const durationKey = "bfilter.duration";
   durationInput.value = GM_getValue(durationKey, "3");
+  const viewsInput = dashboard.querySelector(".bfilter-views input");
+  const viewsKey = "bfilter.views";
+  viewsInput.value = GM_getValue(viewsKey, "5000");
   let blockedUsers = new Set();
   let previewing = false;
   const comments = new Set();
@@ -201,7 +205,35 @@
       minutes > 0 &&
       Number.isFinite(duration) &&
       duration < minutes * 60;
-    const filtered = (video && blockedUsers.has(uid)) || shortVideo;
+    const viewsText = (
+      searchPage || homePage
+        ? card.querySelector(
+            ".bili-video-card__stats--left .bili-video-card__stats--item",
+          )
+        : rankingPage
+          ? card.querySelector(".detail-state .data-box")
+          : card.querySelector(".playinfo .play")?.nextSibling
+    )?.textContent
+      .trim()
+      .replaceAll(",", "");
+    const viewsMatch = viewsText?.match(/^(\d+(?:\.\d+)?)\s*([万亿])?$/);
+    const views = viewsMatch
+      ? Number(viewsMatch[1]) *
+        (viewsMatch[2] === "万"
+          ? 10000
+          : viewsMatch[2] === "亿"
+            ? 100000000
+            : 1)
+      : NaN;
+    const minimumViews = Number(viewsInput.value);
+    const fewViews =
+      durationVideo &&
+      viewsInput.value !== "" &&
+      Number.isFinite(minimumViews) &&
+      minimumViews > 0 &&
+      Number.isFinite(views) &&
+      views < minimumViews;
+    const filtered = (video && blockedUsers.has(uid)) || shortVideo || fewViews;
     setFiltered(card, filtered);
     if (searchPage || homePage) {
       const wrapper = card.querySelector(".bili-video-card__wrap");
@@ -268,6 +300,17 @@
       event.currentTarget.setAttribute("aria-pressed", String(previewing));
       updateUsers();
     });
+
+  viewsInput.addEventListener("input", () => {
+    GM_setValue(viewsKey, viewsInput.value);
+    scanRecommendations(document.body);
+  });
+  GM_addValueChangeListener(viewsKey, (_key, _oldValue, newValue, remote) => {
+    if (remote) {
+      viewsInput.value = newValue ?? "5000";
+      scanRecommendations(document.body);
+    }
+  });
 
   durationInput.addEventListener("input", () => {
     GM_setValue(durationKey, durationInput.value);

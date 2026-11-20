@@ -464,3 +464,67 @@ for (const kind of ["home", "search", "ranking", "video"]) {
     await expect(page.getByText("Boundary video")).toBeHidden();
   });
 }
+
+// Filter by the displayed view count on each supported page
+for (const kind of ["home", "search", "ranking", "video"]) {
+  test(`filters ${kind} videos by views`, async ({ page }) => {
+    const rank = kind === "ranking";
+    const video = kind === "video";
+    const card = (title, count, id) =>
+      rank
+        ? `<li class="rank-item" data-id="${id}">${title}<div class="detail-state"><span class="data-box">${count}</span></div></li>`
+        : video
+          ? `<div class="video-page-card-small">${title}<div class="playinfo"><svg class="play"></svg>${count}<svg class="dm"></svg>12</div></div>`
+          : `<div class="${kind === "home" ? "feed-card" : "col_3"}"><div class="bili-video-card"><div class="bili-video-card__wrap"><a href="//www.bilibili.com/video/BV${id}">${title}</a><div class="bili-video-card__stats--left"><span class="bili-video-card__stats--item">${count}</span></div></div></div></div>`;
+    const body = `<nav><a href="https://www.bilibili.com/">首页</a></nav><div class="${rank ? "rank-list" : video ? "rec-list" : "results"}">${card("Few views", "4,999", 1)}${card("Boundary views", "5000", 2)}${card("Many views", "1.2万", 3)}${card("Unknown views", "--", 4)}</div>`;
+    if (kind === "search") {
+      await page.route("https://search.bilibili.com/**", (route) =>
+        route.fulfill({ contentType: "text/html; charset=utf-8", body }),
+      );
+      await page.addInitScript(() => {
+        window.GM_getValue = (key, fallback) =>
+          localStorage.getItem(key) ?? fallback;
+        window.GM_setValue = (key, value) => localStorage.setItem(key, value);
+        window.GM_addValueChangeListener = () => {};
+      });
+      await page.goto("https://search.bilibili.com/all?keyword=synthetic");
+    } else {
+      await openVideo(
+        page,
+        body,
+        kind === "home"
+          ? "/"
+          : rank
+            ? "/v/popular/rank/all"
+            : "/video/BVsynthetic",
+      );
+    }
+    await page.addScriptTag({
+      path: path.join(__dirname, "..", "main.user.js"),
+    });
+    await expect(page.getByText("Few views")).toBeHidden();
+    await expect(page.getByText("Boundary views")).toBeVisible();
+    await expect(page.getByText("Many views")).toBeVisible();
+    await expect(page.getByText("Unknown views")).toBeVisible();
+    await page.getByRole("button", { name: "Bfilter", exact: true }).click();
+    await page.getByRole("tab", { name: "Videos" }).click();
+    const threshold = page.getByRole("spinbutton", {
+      name: /hide videos by views/i,
+    });
+    await expect(threshold).toHaveValue("5000");
+    await threshold.fill("10000");
+    await expect(page.getByText("Boundary views")).toBeHidden();
+    await threshold.fill("0");
+    await expect(page.getByText("Few views")).toBeVisible();
+    await threshold.fill("5000");
+    await page.getByRole("tab", { name: "Users" }).click();
+    await page.getByRole("button", { name: "Preview" }).click();
+    await expect(page.getByText("Few views")).toBeVisible();
+    await page.getByRole("button", { name: "Preview" }).click();
+    await page.reload();
+    await page.addScriptTag({
+      path: path.join(__dirname, "..", "main.user.js"),
+    });
+    await expect(page.getByText("Few views")).toBeHidden();
+  });
+}
