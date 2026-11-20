@@ -572,6 +572,36 @@ test("filters promotional videos when selected", async ({ page }) => {
   await expect(page.getByText("Promoted video", { exact: true })).toBeVisible();
 });
 
+// Filter promotional videos in the current home feed layout
+test("filters promoted videos in bili-feed-card", async ({ page }) => {
+  const promoted = (title) => `<div class="bili-feed-card"><div class="bili-video-card is-rcmd"><div class="bili-video-card__wrap"><a href="https://cm.bilibili.com/cm/api/fees" data-target-url="https://www.bilibili.com/video/BVsynthetic">${title}</a></div></div></div>`;
+  await openVideo(
+    page,
+    `<nav><a href="https://www.bilibili.com/">首页</a></nav><div class="feed">${promoted("Promoted video")}<div class="bili-feed-card"><div class="bili-video-card is-rcmd"><a href="https://www.bilibili.com/video/BVordinary">Ordinary video</a></div></div></div>`,
+    "/",
+  );
+  await page.addScriptTag({ path: path.join(__dirname, "..", "main.user.js") });
+  await page.getByRole("button", { name: "Bfilter", exact: true }).click();
+  await page.getByRole("tab", { name: "Videos" }).click();
+  const option = page.getByRole("checkbox", { name: "Promotional videos" });
+  await option.check();
+  const slot = page.locator(".bili-feed-card").first();
+  await expect(slot).toBeHidden();
+  await expect(page.getByText("Ordinary video")).toBeVisible();
+  await page.evaluate(
+    (html) => document.querySelector(".feed").insertAdjacentHTML("beforeend", html),
+    promoted("Later promotion"),
+  );
+  await expect(page.getByText("Later promotion")).toBeHidden();
+  await page.getByRole("tab", { name: "Users" }).click();
+  await page.getByRole("button", { name: "Preview" }).click();
+  await expect(slot).toBeVisible();
+  await page.getByRole("button", { name: "Preview" }).click();
+  await page.getByRole("tab", { name: "Videos" }).click();
+  await option.uncheck();
+  await expect(slot).toBeVisible();
+});
+
 // Filter live stream cards without affecting ordinary videos
 for (const kind of ["home", "search"]) {
   test(`filters live streams on ${kind}`, async ({ page }) => {
@@ -625,6 +655,57 @@ for (const kind of ["home", "search"]) {
     await expect(page.getByText("Live stream")).toBeVisible();
   });
 }
+
+// Filter live cards in the current home feed layout
+test("filters home live recommendation cards", async ({ page }) => {
+  const card = (title) => `<div class="bili-feed-card"><div class="bili-live-card is-rcmd"><div class="bili-live-card__wrap"><div class="bili-live-card__info"><h3><a href="https://live.bilibili.com/123">${title}</a></h3></div></div></div></div>`;
+  await openVideo(page, `<nav><a href="https://www.bilibili.com/">首页</a></nav><div class="feed">${card("Live recommendation")}<div class="feed-card"><div class="bili-video-card"><a href="https://www.bilibili.com/video/BVnormal">Ordinary video</a></div></div></div>`, "/");
+  await page.addScriptTag({ path: path.join(__dirname, "..", "main.user.js") });
+  await page.getByRole("button", { name: "Bfilter", exact: true }).click();
+  await page.getByRole("tab", { name: "Videos" }).click();
+  const option = page.getByRole("checkbox", { name: "Live" });
+  await option.check();
+  const liveCard = page.locator(".bili-feed-card").first();
+  await expect(liveCard).toBeHidden();
+  await expect(page.getByText("Ordinary video")).toBeVisible();
+  await page.evaluate((html) => document.querySelector(".feed").insertAdjacentHTML("beforeend", html), card("Later recommendation"));
+  await expect(page.getByText("Later recommendation")).toBeHidden();
+  await page.getByRole("tab", { name: "Users" }).click();
+  await page.getByRole("button", { name: "Preview" }).click();
+  await expect(liveCard).toBeVisible();
+  await page.getByRole("button", { name: "Preview" }).click();
+  await page.getByRole("tab", { name: "Videos" }).click();
+  await option.uncheck();
+  await expect(liveCard).toBeVisible();
+});
+
+// Filter live-room search cards and restore them when disabled
+test("filters live-room search results", async ({ page }) => {
+  const body = `<nav><a href="https://www.bilibili.com/">首页</a></nav><div class="row"><div class="video-list-item col_3"><div class="bili-live-card"><div class="bili-live-card__wrap"><a href="//live.bilibili.com/123">Live room</a></div></div></div><div class="col_3"><div class="bili-video-card"><a href="//www.bilibili.com/video/BVnormal">Ordinary video</a></div></div></div>`;
+  await page.addInitScript(() => {
+    window.GM_getValue = (_key, fallback) => fallback;
+    window.GM_setValue = () => {};
+    window.GM_addValueChangeListener = () => {};
+  });
+  await page.route("https://search.bilibili.com/**", (route) =>
+    route.fulfill({ contentType: "text/html; charset=utf-8", body }),
+  );
+  await page.goto("https://search.bilibili.com/live?keyword=synthetic");
+  await page.addScriptTag({ path: path.join(__dirname, "..", "main.user.js") });
+  await page.getByRole("button", { name: "Bfilter", exact: true }).click();
+  await page.getByRole("tab", { name: "Videos" }).click();
+  const option = page.getByRole("checkbox", { name: "Live" });
+  await option.check();
+  await expect(page.getByText("Live room")).toBeHidden();
+  await expect(page.getByText("Ordinary video")).toBeVisible();
+  await page.getByRole("tab", { name: "Users" }).click();
+  await page.getByRole("button", { name: "Preview" }).click();
+  await expect(page.getByText("Live room")).toBeVisible();
+  await page.getByRole("button", { name: "Preview" }).click();
+  await page.getByRole("tab", { name: "Videos" }).click();
+  await option.uncheck();
+  await expect(page.getByText("Live room")).toBeVisible();
+});
 
 // Hide bangumi search results without hiding other PGC or ordinary videos
 for (const kind of ["all", "bangumi"]) {

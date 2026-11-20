@@ -136,8 +136,8 @@
   const recommendationSelector =
     searchPage || homePage
       ? homePage
-        ? ".feed-card .bili-video-card, .floor-single-card"
-        : ".bili-video-card, .bangumi-pgc-list .media-card, .search-page-bangumi .media-card, .activity-card"
+        ? ".feed-card .bili-video-card, .floor-single-card, .bili-feed-card > .bili-video-card, .bili-feed-card > .bili-live-card"
+        : ".bili-video-card, .bili-live-card, .bangumi-pgc-list .media-card, .search-page-bangumi .media-card, .activity-card"
       : rankingPage
         ? ".rank-list .rank-item"
         : ".rec-list .video-page-card-small, .rec-list .video-page-operator-card-small, .next-play .video-page-card-small";
@@ -304,7 +304,7 @@
     setFiltered(card, filtered);
     if (searchPage || homePage) {
       const wrapper = card.querySelector(
-        ".bili-video-card__wrap, .floor-card-inner",
+        ".bili-video-card__wrap, .bili-live-card__wrap, .floor-card-inner",
       );
       if (wrapper) setFiltered(wrapper, filtered);
     }
@@ -319,7 +319,7 @@
       setFiltered(card.parentElement, filtered);
     }
     if (homePage) {
-      const slot = card.closest(".feed-card");
+      const slot = card.closest(".feed-card, .bili-feed-card");
       if (slot) setFiltered(slot, filtered);
     }
   }
