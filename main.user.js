@@ -62,12 +62,14 @@
     .bfilter-dashboard:not([open]) { display: none; }
     .bfilter-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 2px 8px 2px 16px; border-bottom: 1px solid var(--bfilter-border); background: var(--bfilter-titlebar); }
     .bfilter-heading h2 { margin: 0; color: var(--bfilter-ink); font-size: 16px; font-weight: 650; line-height: 1.25; }
+    .bfilter-heading h2 a { color: inherit; text-decoration: none; }
+    .bfilter-heading h2 a:hover { text-decoration: underline; }
     .bfilter-brand { display: flex; align-items: baseline; gap: 6px; white-space: nowrap; }
     .bfilter-version { color: var(--bfilter-muted); font-size: 11px; font-weight: 400; }
     .bfilter-actions { display: flex; align-items: center; gap: 8px; }
     .bfilter-close { display: grid; place-items: center; width: 40px; height: 28px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--bfilter-muted); font: 24px/1 var(--bfilter-font); cursor: pointer; }
     .bfilter-close:hover { background: var(--bfilter-soft); color: var(--bfilter-red); }
-    .bfilter-entry:focus-visible, .bfilter-dashboard :is(button, input, select, textarea):focus-visible { outline: 2px solid var(--bfilter-red); outline-offset: 3px; }
+    .bfilter-entry:focus-visible, .bfilter-dashboard :is(a, button, input, select, textarea):focus-visible { outline: 2px solid var(--bfilter-red); outline-offset: 3px; }
     .bfilter-section { padding: 12px 16px; }
     .bfilter-section + .bfilter-section { border-top: 1px solid var(--bfilter-border); }
     .bfilter-section h3 { margin: 0 0 8px; color: var(--bfilter-ink); font-size: 15px; font-weight: 650; }
@@ -102,7 +104,7 @@
   dashboard.className = "bfilter-dashboard";
   dashboard.setAttribute("aria-labelledby", "bfilter-title");
   dashboard.innerHTML = `
-    <div class="bfilter-heading"><div class="bfilter-brand"><h2 id="bfilter-title">Bfilter</h2><span class="bfilter-version"></span></div><div class="bfilter-actions"><button class="bfilter-preview" type="button" aria-pressed="false">Preview</button><button class="bfilter-close" type="button" aria-label="Close">×</button></div></div>
+    <div class="bfilter-heading"><div class="bfilter-brand"><h2 id="bfilter-title"><a href="https://github.com/mr-yifeiwang/bfilter" target="_blank" rel="noopener noreferrer">Bfilter</a></h2><span class="bfilter-version"></span></div><div class="bfilter-actions"><button class="bfilter-preview" type="button" aria-pressed="false">Preview</button><button class="bfilter-close" type="button" aria-label="Close">×</button></div></div>
     <section class="bfilter-section" aria-labelledby="bfilter-users-heading">
       <h3 id="bfilter-users-heading">Hide Users</h3>
       <div class="bfilter-registration"><label><input type="checkbox"> Registered in &amp; after</label><select aria-label="Registration time threshold"><option value="8">2015</option><option value="9">2017</option><option value="10">2020</option><option value="15">2022</option><option value="2025">2025</option></select></div>

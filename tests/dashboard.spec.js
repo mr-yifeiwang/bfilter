@@ -206,6 +206,29 @@ test("shows user and video sections together", async ({ page }) => {
   expect((await popup.boundingBox()).width).toBe(270);
 });
 
+// Open the project page without navigating away from Bilibili
+test("opens the project from the popup title", async ({ page }) => {
+  await openVideo(page, "<body></body>");
+  await page
+    .context()
+    .route("https://github.com/mr-yifeiwang/bfilter", (route) =>
+      route.fulfill({
+        contentType: "text/html",
+        body: "<title>Bfilter project</title>",
+      }),
+    );
+  await page.addScriptTag({ path: path.join(__dirname, "..", "main.user.js") });
+  await page.getByRole("button", { name: "Bfilter", exact: true }).click();
+  const opened = page.waitForEvent("popup");
+  await page
+    .getByRole("dialog", { name: "Bfilter" })
+    .getByRole("link", { name: "Bfilter" })
+    .click();
+  const project = await opened;
+  await expect(project).toHaveURL("https://github.com/mr-yifeiwang/bfilter");
+  await expect(page.getByRole("dialog", { name: "Bfilter" })).toBeVisible();
+});
+
 // Count distinct valid UIDs as the list changes
 test("shows the number of blocked users", async ({ page }) => {
   await openVideo(page, "<body></body>");
