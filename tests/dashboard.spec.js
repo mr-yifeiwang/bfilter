@@ -625,3 +625,89 @@ for (const kind of ["home", "search"]) {
     await expect(page.getByText("Live stream")).toBeVisible();
   });
 }
+
+// Hide bangumi search results without hiding other PGC or ordinary videos
+for (const kind of ["all", "bangumi"]) {
+  test(`filters bangumi on ${kind} search`, async ({ page }) => {
+    const card = (title) =>
+      `<div class="col_6"><div class="media-card"><a href="https://www.bilibili.com/bangumi/play/ss123">${title}</a></div></div>`;
+    const scope = kind === "all" ? "bangumi-pgc-list" : "search-page-bangumi";
+    const body = `<nav><a href="https://www.bilibili.com/">首页</a></nav><div class="${scope}"><div class="row">${card("Anime result")}</div></div><div class="movie-pgc-list"><div class="col_6"><div class="media-card"><a href="https://www.bilibili.com/bangumi/play/ss456">Movie result</a></div></div></div>`;
+    await page.addInitScript(() => {
+      window.GM_getValue = (key, fallback) =>
+        localStorage.getItem(key) ?? fallback;
+      window.GM_setValue = (key, value) => localStorage.setItem(key, value);
+      window.GM_addValueChangeListener = () => {};
+    });
+    await page.route("https://search.bilibili.com/**", (route) =>
+      route.fulfill({ contentType: "text/html; charset=utf-8", body }),
+    );
+    await page.goto(`https://search.bilibili.com/${kind}?keyword=synthetic`);
+    await page.addScriptTag({
+      path: path.join(__dirname, "..", "main.user.js"),
+    });
+    await page.getByRole("button", { name: "Bfilter", exact: true }).click();
+    await page.getByRole("tab", { name: "Videos" }).click();
+    const option = page.getByRole("checkbox", { name: "Bangumi" });
+    await expect(option).not.toBeChecked();
+    await option.check();
+    await expect(page.getByText("Anime result", { exact: true })).toBeHidden();
+    await expect(page.getByText("Movie result")).toBeVisible();
+    await page.evaluate(
+      (html) =>
+        document.querySelector(".row").insertAdjacentHTML("beforeend", html),
+      card("Later anime"),
+    );
+    await expect(page.getByText("Later anime")).toBeHidden();
+    await page.getByRole("tab", { name: "Users" }).click();
+    await page.getByRole("button", { name: "Preview" }).click();
+    await expect(page.getByText("Anime result", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Preview" }).click();
+    await page.reload();
+    await page.addScriptTag({
+      path: path.join(__dirname, "..", "main.user.js"),
+    });
+    await expect(page.getByText("Anime result", { exact: true })).toBeHidden();
+    await page.getByRole("button", { name: "Bfilter", exact: true }).click();
+    await page.getByRole("tab", { name: "Videos" }).click();
+    await page.getByRole("checkbox", { name: "Bangumi" }).uncheck();
+    await expect(page.getByText("Anime result", { exact: true })).toBeVisible();
+  });
+}
+
+// Filter home feed cards linking to Bangumi without affecting ordinary videos
+test("filters bangumi home recommendations", async ({ page }) => {
+  const anime =
+    '<div class="feed-card"><div class="bili-video-card"><div class="bili-video-card__wrap"><a href="https://www.bilibili.com/bangumi/play/ep123">Anime recommendation</a></div></div></div>';
+  await openVideo(
+    page,
+    `<nav><a href="https://www.bilibili.com/">首页</a></nav><div class="feed">${anime}<div class="feed-card"><div class="bili-video-card"><a href="https://www.bilibili.com/video/BVnormal">Ordinary recommendation</a></div></div></div>`,
+    "/",
+  );
+  await page.addScriptTag({ path: path.join(__dirname, "..", "main.user.js") });
+  await page.getByRole("button", { name: "Bfilter", exact: true }).click();
+  await page.getByRole("tab", { name: "Videos" }).click();
+  const option = page.getByRole("checkbox", { name: "Bangumi" });
+  await option.check();
+  await expect(
+    page.getByText("Anime recommendation", { exact: true }),
+  ).toBeHidden();
+  await expect(page.getByText("Ordinary recommendation")).toBeVisible();
+  await page.evaluate(
+    (html) =>
+      document.querySelector(".feed").insertAdjacentHTML("beforeend", html),
+    anime.replace("Anime recommendation", "Later anime"),
+  );
+  await expect(page.getByText("Later anime")).toBeHidden();
+  await page.getByRole("tab", { name: "Users" }).click();
+  await page.getByRole("button", { name: "Preview" }).click();
+  await expect(
+    page.getByText("Anime recommendation", { exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Preview" }).click();
+  await page.getByRole("tab", { name: "Videos" }).click();
+  await option.uncheck();
+  await expect(
+    page.getByText("Anime recommendation", { exact: true }),
+  ).toBeVisible();
+});

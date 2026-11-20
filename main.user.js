@@ -70,7 +70,7 @@
     <div id="bfilter-videos-panel" role="tabpanel" aria-labelledby="bfilter-videos-tab" hidden>
       <label class="bfilter-duration">Hide videos by duration: &lt; <input type="number" min="0" step="any"> minutes</label>
       <label class="bfilter-views">Hide videos by views: &lt; <input type="number" min="0" step="1"> views</label>
-      <fieldset class="bfilter-types"><legend>Hide videos by type</legend><label><input type="checkbox" value="promotional">Promotional videos</label><label><input type="checkbox" value="live">Live</label></fieldset>
+      <fieldset class="bfilter-types"><legend>Hide videos by type</legend><label><input type="checkbox" value="promotional">Promotional videos</label><label><input type="checkbox" value="live">Live</label><label><input type="checkbox" value="bangumi">Bangumi</label></fieldset>
     </div>`;
   document.body.append(dashboard);
   dashboard
@@ -108,6 +108,11 @@
   );
   const liveKey = "bfilter.live";
   liveInput.checked = GM_getValue(liveKey, "0") === "1";
+  const bangumiInput = dashboard.querySelector(
+    '.bfilter-types input[value="bangumi"]',
+  );
+  const bangumiKey = "bfilter.bangumi";
+  bangumiInput.checked = GM_getValue(bangumiKey, "0") === "1";
   let blockedUsers = new Set();
   let previewing = false;
   const comments = new Set();
@@ -122,7 +127,7 @@
     searchPage || homePage
       ? homePage
         ? ".feed-card .bili-video-card, .floor-single-card"
-        : ".bili-video-card"
+        : ".bili-video-card, .bangumi-pgc-list .media-card, .search-page-bangumi .media-card"
       : rankingPage
         ? ".rank-list .rank-item"
         : ".rec-list .video-page-card-small, .rec-list .video-page-operator-card-small, .next-play .video-page-card-small";
@@ -258,12 +263,22 @@
       !!card.querySelector(
         'a[href^="//live.bilibili.com/"], a[href^="https://live.bilibili.com/"]',
       );
+    const bangumi =
+      bangumiInput.checked &&
+      (card.matches(
+        ".bangumi-pgc-list .media-card, .search-page-bangumi .media-card",
+      ) ||
+        (homePage &&
+          !!card.querySelector(
+            'a[href^="//www.bilibili.com/bangumi/"], a[href^="https://www.bilibili.com/bangumi/"]',
+          )));
     const filtered =
       (video && blockedUsers.has(uid)) ||
       shortVideo ||
       fewViews ||
       promotional ||
-      live;
+      live ||
+      bangumi;
     setFiltered(card, filtered);
     if (searchPage || homePage) {
       const wrapper = card.querySelector(
@@ -272,6 +287,13 @@
       if (wrapper) setFiltered(wrapper, filtered);
     }
     if (searchPage && card.parentElement?.classList.contains("col_3")) {
+      setFiltered(card.parentElement, filtered);
+    }
+    if (
+      searchPage &&
+      card.classList.contains("media-card") &&
+      card.parentElement?.classList.contains("col_6")
+    ) {
       setFiltered(card.parentElement, filtered);
     }
     if (homePage) {
@@ -354,6 +376,17 @@
   GM_addValueChangeListener(liveKey, (_key, _oldValue, newValue, remote) => {
     if (remote) {
       liveInput.checked = newValue === "1";
+      scanRecommendations(document.body);
+    }
+  });
+
+  bangumiInput.addEventListener("change", () => {
+    GM_setValue(bangumiKey, bangumiInput.checked ? "1" : "0");
+    scanRecommendations(document.body);
+  });
+  GM_addValueChangeListener(bangumiKey, (_key, _oldValue, newValue, remote) => {
+    if (remote) {
+      bangumiInput.checked = newValue === "1";
       scanRecommendations(document.body);
     }
   });
