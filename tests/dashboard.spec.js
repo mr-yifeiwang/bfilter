@@ -528,3 +528,46 @@ for (const kind of ["home", "search", "ranking", "video"]) {
     await expect(page.getByText("Few views")).toBeHidden();
   });
 }
+
+// Hide tracked promotional videos without hiding ordinary videos or non-video ads
+test("filters promotional videos when selected", async ({ page }) => {
+  const promoted =
+    '<div class="feed-card"><div class="bili-video-card"><div class="bili-video-card__wrap"><a href="//cm.bilibili.com/cm/api/fees" data-target-url="https://www.bilibili.com/video/BVsynthetic">Promoted video</a></div></div></div>';
+  await openVideo(
+    page,
+    `<nav><a href="https://www.bilibili.com/">首页</a></nav><div class="feed">${promoted}<div class="feed-card"><div class="bili-video-card"><a href="https://www.bilibili.com/video/BVordinary">Ordinary video</a></div></div><div class="feed-card"><div class="bili-video-card"><a href="//cm.bilibili.com/cm/api/fees" data-target-url="https://example.test/">Non-video promotion</a></div></div></div>`,
+    "/",
+  );
+  await page.addScriptTag({ path: path.join(__dirname, "..", "main.user.js") });
+  await page.getByRole("button", { name: "Bfilter", exact: true }).click();
+  await page.getByRole("tab", { name: "Videos" }).click();
+  const option = page.getByRole("checkbox", { name: "Promotional videos" });
+  await expect(option).not.toBeChecked();
+  await expect(page.getByText("Promoted video", { exact: true })).toBeVisible();
+  await option.check();
+  await expect(page.getByText("Promoted video", { exact: true })).toBeHidden();
+  await expect(page.getByText("Ordinary video")).toBeVisible();
+  await expect(page.getByText("Non-video promotion")).toBeVisible();
+  await page.evaluate(
+    (html) =>
+      document
+        .querySelector(".feed")
+        .insertAdjacentHTML(
+          "beforeend",
+          html.replace("Promoted video", "Later promotion"),
+        ),
+    promoted,
+  );
+  await expect(page.getByText("Later promotion")).toBeHidden();
+  await page.getByRole("tab", { name: "Users" }).click();
+  await page.getByRole("button", { name: "Preview" }).click();
+  await expect(page.getByText("Promoted video", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Preview" }).click();
+  await page.reload();
+  await page.addScriptTag({ path: path.join(__dirname, "..", "main.user.js") });
+  await expect(page.getByText("Promoted video", { exact: true })).toBeHidden();
+  await page.getByRole("button", { name: "Bfilter", exact: true }).click();
+  await page.getByRole("tab", { name: "Videos" }).click();
+  await page.getByRole("checkbox", { name: "Promotional videos" }).uncheck();
+  await expect(page.getByText("Promoted video", { exact: true })).toBeVisible();
+});

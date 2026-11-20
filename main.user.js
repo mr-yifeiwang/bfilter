@@ -45,6 +45,10 @@
     .bfilter-users textarea { box-sizing: border-box; width: 100%; min-height: 150px; margin-top: 8px; padding: 8px; border: 1px solid #d9e2e8; border-radius: 6px; font: inherit; resize: vertical; }
     .bfilter-duration, .bfilter-views { display: block; margin-top: 16px; }
     .bfilter-duration input, .bfilter-views input { box-sizing: border-box; width: 5em; padding: 4px; border: 1px solid #d9e2e8; border-radius: 6px; background: #fff; color: #18191c; font: inherit; }
+    .bfilter-types { margin: 16px 0 0; padding: 0; border: 0; }
+    .bfilter-types legend { padding: 0; }
+    .bfilter-types label { display: block; margin-top: 6px; }
+    .bfilter-types input { appearance: auto; margin-right: 6px; }
     .bfilter-preview { margin-top: 12px; padding: 6px 12px; border: 1px solid #d9e2e8; border-radius: 6px; background: #fff; color: #18191c; font: inherit; cursor: pointer; }
     .bfilter-preview[aria-pressed="true"] { background: #ffc0cb; border-color: #e58a9a; }
   `;
@@ -66,6 +70,7 @@
     <div id="bfilter-videos-panel" role="tabpanel" aria-labelledby="bfilter-videos-tab" hidden>
       <label class="bfilter-duration">Hide videos by duration: &lt; <input type="number" min="0" step="any"> minutes</label>
       <label class="bfilter-views">Hide videos by views: &lt; <input type="number" min="0" step="1"> views</label>
+      <fieldset class="bfilter-types"><legend>Hide videos by type</legend><label><input type="checkbox" value="promotional">Promotional videos</label></fieldset>
     </div>`;
   document.body.append(dashboard);
   dashboard
@@ -93,6 +98,11 @@
   const viewsInput = dashboard.querySelector(".bfilter-views input");
   const viewsKey = "bfilter.views";
   viewsInput.value = GM_getValue(viewsKey, "5000");
+  const promotionalInput = dashboard.querySelector(
+    '.bfilter-types input[value="promotional"]',
+  );
+  const promotionalKey = "bfilter.promotional";
+  promotionalInput.checked = GM_getValue(promotionalKey, "0") === "1";
   let blockedUsers = new Set();
   let previewing = false;
   const comments = new Set();
@@ -233,7 +243,13 @@
       minimumViews > 0 &&
       Number.isFinite(views) &&
       views < minimumViews;
-    const filtered = (video && blockedUsers.has(uid)) || shortVideo || fewViews;
+    const promotional =
+      promotionalInput.checked &&
+      !!card.querySelector(
+        'a[href^="//cm.bilibili.com/"][data-target-url^="https://www.bilibili.com/video/"], a[href^="https://cm.bilibili.com/"][data-target-url^="https://www.bilibili.com/video/"]',
+      );
+    const filtered =
+      (video && blockedUsers.has(uid)) || shortVideo || fewViews || promotional;
     setFiltered(card, filtered);
     if (searchPage || homePage) {
       const wrapper = card.querySelector(".bili-video-card__wrap");
@@ -300,6 +316,20 @@
       event.currentTarget.setAttribute("aria-pressed", String(previewing));
       updateUsers();
     });
+
+  promotionalInput.addEventListener("change", () => {
+    GM_setValue(promotionalKey, promotionalInput.checked ? "1" : "0");
+    scanRecommendations(document.body);
+  });
+  GM_addValueChangeListener(
+    promotionalKey,
+    (_key, _oldValue, newValue, remote) => {
+      if (remote) {
+        promotionalInput.checked = newValue === "1";
+        scanRecommendations(document.body);
+      }
+    },
+  );
 
   viewsInput.addEventListener("input", () => {
     GM_setValue(viewsKey, viewsInput.value);
