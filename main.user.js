@@ -9,6 +9,7 @@
 // @grant        GM_getValue
 // @grant        GM_setValue
 // @grant        GM_addValueChangeListener
+// @grant        GM_info
 // @grant        unsafeWindow
 // ==/UserScript==
 
@@ -17,42 +18,62 @@
 
   const style = document.createElement("style");
   style.textContent = `
-    .bfilter-entry {
-      position: fixed; z-index: 10000;
-      padding: 6px 12px; border: 1px solid #d9e2e8; border-radius: 6px;
-      background: #fff !important; color: #18191c; font: 500 14px/1.4 sans-serif;
-      cursor: pointer; box-shadow: 0 2px 8px #0002;
+    /* Hallmark · shape: app screen · theme: red by request · redesign: full · v2.0.0 */
+    /* Hallmark · pre-emit critique: P4 H4 E4 S3 R5 V4 · weakest: specificity; the real filter controls define the window */
+    .bfilter-entry, .bfilter-dashboard {
+      --bfilter-red: #a51f35; --bfilter-soft: #f9edef;
+      --bfilter-ink: #292124; --bfilter-muted: #65585c; --bfilter-border: #a99a9e;
+      --bfilter-titlebar: #f3edef;
+      --bfilter-paper: #fffdfd; --bfilter-white: #fff;
+      --bfilter-shadow: #21121630; --bfilter-font: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
-    .bfilter-entry:hover { color: #00aeec; }
-    .bfilter-entry:focus-visible, .bfilter-close:focus-visible { outline: 2px solid #00aeec; outline-offset: 2px; }
+    .bfilter-entry {
+      position: fixed; display: flex; align-items: center; z-index: 10000; left: 0; top: 25vh; min-height: 28px;
+      padding: 0 12px; border: 1px solid #a10425; border-radius: 0 6px 6px 0;
+      background: #a10425 !important; color: var(--bfilter-white);
+      font: 600 14px/1 var(--bfilter-font); cursor: pointer;
+      box-shadow: 0 3px 10px var(--bfilter-shadow);
+    }
+    .bfilter-entry svg { width: 22px; height: 20px; flex: none; margin-right: 6px; transform: translateY(-1px); }
     .bfilter-dashboard {
-      box-sizing: border-box; width: min(440px, calc(100vw - 32px));
-      margin: auto;
-      min-height: 150px; padding: 20px 24px; border: 0; border-radius: 12px;
-      background: #fff; color: #18191c; box-shadow: 0 12px 48px #0003;
-      font: 14px/1.5 sans-serif;
+      position: fixed; z-index: 10001; left: 0; right: auto; bottom: auto;
+      box-sizing: border-box; width: min(270px, calc(100% - 16px));
+      max-height: calc(100dvh - var(--bfilter-popup-top) - 8px); overflow-y: auto; margin: 0;
+      padding: 0; border: 1px solid var(--bfilter-border); border-radius: 6px;
+      background: var(--bfilter-paper); color: var(--bfilter-ink);
+      box-shadow: 0 8px 24px var(--bfilter-shadow); font: 14px/1.5 var(--bfilter-font);
+      accent-color: var(--bfilter-red);
     }
     .bfilter-dashboard:not([open]) { display: none; }
-    .bfilter-dashboard::backdrop { background: #0006; }
-    .bfilter-heading { display: flex; align-items: center; justify-content: space-between; }
-    .bfilter-heading h2 { margin: 0; font-size: 20px; }
-    .bfilter-close { border: 0; background: transparent; color: #61666d; font: inherit; cursor: pointer; }
-    .bfilter-tabs { display: flex; margin-top: 16px; border-bottom: 1px solid #d9e2e8; }
-    .bfilter-tab { padding: 8px 12px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: #61666d; font: inherit; cursor: pointer; }
-    .bfilter-tab[aria-selected="true"] { border-bottom-color: #00aeec; color: #00aeec; }
-    .bfilter-dashboard [role="tabpanel"][hidden] { display: none; }
-    .bfilter-registration { display: flex; align-items: center; gap: 8px; margin-top: 16px; }
-    .bfilter-registration input { appearance: auto; }
-    .bfilter-users { display: block; margin-top: 16px; }
-    .bfilter-users textarea { box-sizing: border-box; width: 100%; min-height: 150px; margin-top: 8px; padding: 8px; border: 1px solid #d9e2e8; border-radius: 6px; font: inherit; resize: vertical; }
-    .bfilter-duration, .bfilter-views { display: block; margin-top: 16px; }
-    .bfilter-duration input, .bfilter-views input { box-sizing: border-box; width: 5em; padding: 4px; border: 1px solid #d9e2e8; border-radius: 6px; background: #fff; color: #18191c; font: inherit; }
-    .bfilter-types { margin: 16px 0 0; padding: 0; border: 0; }
-    .bfilter-types legend { padding: 0; }
-    .bfilter-types label { display: block; margin-top: 6px; }
-    .bfilter-types input { appearance: auto; margin-right: 6px; }
-    .bfilter-preview { margin-top: 12px; padding: 6px 12px; border: 1px solid #d9e2e8; border-radius: 6px; background: #fff; color: #18191c; font: inherit; cursor: pointer; }
-    .bfilter-preview[aria-pressed="true"] { background: #ffc0cb; border-color: #e58a9a; }
+    .bfilter-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 2px 8px 2px 16px; border-bottom: 1px solid var(--bfilter-border); background: var(--bfilter-titlebar); }
+    .bfilter-heading h2 { margin: 0; color: var(--bfilter-ink); font-size: 16px; font-weight: 650; line-height: 1.25; }
+    .bfilter-brand { display: flex; align-items: baseline; gap: 6px; white-space: nowrap; }
+    .bfilter-version { color: var(--bfilter-muted); font-size: 11px; font-weight: 400; }
+    .bfilter-actions { display: flex; align-items: center; gap: 8px; }
+    .bfilter-close { display: grid; place-items: center; width: 40px; height: 28px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--bfilter-muted); font: 24px/1 var(--bfilter-font); cursor: pointer; }
+    .bfilter-close:hover { background: var(--bfilter-soft); color: var(--bfilter-red); }
+    .bfilter-entry:focus-visible, .bfilter-dashboard :is(button, input, select, textarea):focus-visible { outline: 2px solid var(--bfilter-red); outline-offset: 3px; }
+    .bfilter-section { padding: 12px 16px; }
+    .bfilter-section + .bfilter-section { border-top: 1px solid var(--bfilter-border); }
+    .bfilter-section h3 { margin: 0 0 8px; color: var(--bfilter-ink); font-size: 15px; font-weight: 650; }
+    .bfilter-registration { display: flex; align-items: center; gap: 8px; }
+    .bfilter-registration label { flex: 1; min-width: 0; }
+    .bfilter-registration input, .bfilter-types input { appearance: auto; }
+    .bfilter-registration select { flex: none; width: 60px; min-height: 28px; padding: 2px; border: 1px solid var(--bfilter-border); border-radius: 5px; background: var(--bfilter-paper); color: var(--bfilter-ink); font: inherit; appearance: auto; }
+    .bfilter-users { display: block; margin-top: 10px; font-weight: 600; }
+    .bfilter-users textarea { display: block; box-sizing: border-box; width: 100%; min-height: 96px; margin-top: 4px; padding: 8px; border: 1px solid var(--bfilter-border); border-radius: 5px; background: var(--bfilter-paper); color: var(--bfilter-ink); font: 400 14px/1.4 var(--bfilter-font); resize: vertical; }
+    .bfilter-duration, .bfilter-views { display: flex; align-items: center; justify-content: space-between; gap: 4px; margin-bottom: 8px; }
+    .bfilter-value { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+    .bfilter-duration input, .bfilter-views input { box-sizing: border-box; width: 50px; min-height: 28px; padding: 2px 4px; border: 1px solid var(--bfilter-border); border-radius: 5px; background: var(--bfilter-paper); color: var(--bfilter-ink); font: inherit; text-align: center; appearance: textfield; }
+    .bfilter-dashboard input[type="number"]::-webkit-inner-spin-button, .bfilter-dashboard input[type="number"]::-webkit-outer-spin-button { appearance: none; margin: 0; }
+    .bfilter-types { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; }
+    .bfilter-types-toggle { min-height: 28px; min-width: 50px; padding: 2px 8px; border: 1px solid var(--bfilter-border); border-radius: 5px; background: var(--bfilter-paper); color: var(--bfilter-ink); font: inherit; cursor: pointer; }
+    .bfilter-types-menu { position: fixed; inset: auto; margin: 0; padding: 4px 8px; min-width: 140px; border: 1px solid var(--bfilter-border); border-radius: 5px; background: var(--bfilter-paper); color: var(--bfilter-ink); box-shadow: 0 4px 12px var(--bfilter-shadow); font: inherit; }
+    .bfilter-types-menu label { display: flex; align-items: center; min-height: 28px; }
+    .bfilter-types-menu input { appearance: auto; margin-right: 7px; }
+    .bfilter-preview { min-height: 24px; padding: 0 5px; border: 1px solid var(--bfilter-border); border-radius: 5px; background: var(--bfilter-paper); color: var(--bfilter-ink); font: 12px/1 var(--bfilter-font); cursor: pointer; }
+    .bfilter-preview:hover { border-color: var(--bfilter-red); color: var(--bfilter-red); }
+    .bfilter-preview[aria-pressed="true"] { background: var(--bfilter-red); border-color: var(--bfilter-red); color: var(--bfilter-white); }
     .recommended-container_floor-aside .container > :is(.feed-card, .bili-feed-card, .floor-single-card) { margin-top: 0 !important; }
   `;
   document.head.append(style);
@@ -61,37 +82,44 @@
   dashboard.className = "bfilter-dashboard";
   dashboard.setAttribute("aria-labelledby", "bfilter-title");
   dashboard.innerHTML = `
-    <div class="bfilter-heading"><h2 id="bfilter-title">Bfilter</h2><button class="bfilter-close" type="button" aria-label="Close">×</button></div>
-    <div class="bfilter-tabs" role="tablist" aria-label="Dashboard">
-      <button class="bfilter-tab" type="button" role="tab" aria-selected="true" aria-controls="bfilter-users-panel" id="bfilter-users-tab">Users</button>
-      <button class="bfilter-tab" type="button" role="tab" aria-selected="false" aria-controls="bfilter-videos-panel" id="bfilter-videos-tab">Videos</button>
-    </div>
-    <div id="bfilter-users-panel" role="tabpanel" aria-labelledby="bfilter-users-tab">
-      <div class="bfilter-registration"><label><input type="checkbox"> Hide users registered in and after</label><select aria-label="Registration time threshold"><option value="8">2015</option><option value="9">2017</option><option value="10">2020</option><option value="15">2022</option><option value="2025">2025</option></select></div>
-      <label class="bfilter-users">User UIDs, one per line<textarea spellcheck="false"></textarea></label>
-      <button class="bfilter-preview" type="button" aria-pressed="false">Preview</button>
-    </div>
-    <div id="bfilter-videos-panel" role="tabpanel" aria-labelledby="bfilter-videos-tab" hidden>
-      <label class="bfilter-duration">Hide videos by duration: &lt; <input type="number" min="0" step="any"> minutes</label>
-      <label class="bfilter-views">Hide videos by views: &lt; <input type="number" min="0" step="1"> views</label>
-      <fieldset class="bfilter-types"><legend>Hide videos by type</legend><label><input type="checkbox" value="promotional">Promotional videos</label><label><input type="checkbox" value="live">Live</label><label><input type="checkbox" value="bangumi">Bangumi</label><label><input type="checkbox" value="classroom">Classroom</label><label><input type="checkbox" value="manga">Manga</label></fieldset>
-    </div>`;
+    <div class="bfilter-heading"><div class="bfilter-brand"><h2 id="bfilter-title">Bfilter</h2><span class="bfilter-version"></span></div><div class="bfilter-actions"><button class="bfilter-preview" type="button" aria-pressed="false">Preview</button><button class="bfilter-close" type="button" aria-label="Close">×</button></div></div>
+    <section class="bfilter-section" aria-labelledby="bfilter-users-heading">
+      <h3 id="bfilter-users-heading">Hide Users</h3>
+      <div class="bfilter-registration"><label><input type="checkbox"> Registered in &amp; after</label><select aria-label="Registration time threshold"><option value="8">2015</option><option value="9">2017</option><option value="10">2020</option><option value="15">2022</option><option value="2025">2025</option></select></div>
+      <label class="bfilter-users"><textarea aria-label="User UIDs, one per line" placeholder="User UIDs, one per line" spellcheck="false"></textarea></label>
+    </section>
+    <section class="bfilter-section" aria-labelledby="bfilter-videos-heading">
+      <h3 id="bfilter-videos-heading">Hide Videos</h3>
+      <label class="bfilter-duration"><span>Duration (min.)</span><span class="bfilter-value">&lt; <input type="number" min="0" step="any"></span></label>
+      <label class="bfilter-views"><span>Views</span><span class="bfilter-value">&lt; <input type="number" min="0" step="1"></span></label>
+      <div class="bfilter-types"><span>Types</span><button class="bfilter-types-toggle" type="button" popovertarget="bfilter-types-menu" aria-label="Types"><span class="bfilter-types-count">0</span> ▾</button><div id="bfilter-types-menu" class="bfilter-types-menu" popover><label><input type="checkbox" value="promotional">Promo</label><label><input type="checkbox" value="live">Live</label><label><input type="checkbox" value="bangumi">Bangumi</label><label><input type="checkbox" value="classroom">Classroom</label><label><input type="checkbox" value="manga">Manga</label></div></div>
+    </section>`;
   document.body.append(dashboard);
+  dashboard.querySelector(".bfilter-version").textContent =
+    typeof GM_info === "undefined" ? "" : GM_info.script.version;
+  const typesMenu = dashboard.querySelector(".bfilter-types-menu");
+  dashboard
+    .querySelector(".bfilter-types-toggle")
+    .addEventListener("click", (event) => {
+      const button = event.currentTarget.getBoundingClientRect();
+      typesMenu.style.left = `${Math.max(0, button.right - 140)}px`;
+      typesMenu.style.top = `${button.bottom + 4}px`;
+    });
+  typesMenu.addEventListener("toggle", (event) => {
+    if (event.newState !== "open") return;
+    const button = dashboard
+      .querySelector(".bfilter-types-toggle")
+      .getBoundingClientRect();
+    if (button.bottom + 4 + typesMenu.offsetHeight > window.innerHeight) {
+      typesMenu.style.top = `${Math.max(0, button.top - typesMenu.offsetHeight - 4)}px`;
+    }
+  });
+  dashboard.addEventListener("close", () => {
+    if (typesMenu.matches(":popover-open")) typesMenu.hidePopover();
+  });
   dashboard
     .querySelector(".bfilter-close")
     .addEventListener("click", () => dashboard.close());
-
-  for (const tab of dashboard.querySelectorAll('[role="tab"]')) {
-    tab.addEventListener("click", () => {
-      for (const item of dashboard.querySelectorAll('[role="tab"]')) {
-        const selected = item === tab;
-        item.setAttribute("aria-selected", String(selected));
-        dashboard.querySelector(
-          `#${item.getAttribute("aria-controls")}`,
-        ).hidden = !selected;
-      }
-    });
-  }
 
   const users = dashboard.querySelector("textarea");
   const storageKey = "bfilter.users";
@@ -137,6 +165,14 @@
   );
   const mangaKey = "bfilter.manga";
   mangaInput.checked = GM_getValue(mangaKey, "0") === "1";
+
+  // Keep the dropdown count in sync with the selected types
+  function updateTypeCount() {
+    dashboard.querySelector(".bfilter-types-count").textContent =
+      typesMenu.querySelectorAll("input:checked").length;
+  }
+  typesMenu.addEventListener("change", updateTypeCount);
+  updateTypeCount();
   let blockedUsers = new Set();
   let previewing = false;
   const comments = new Set();
@@ -413,6 +449,7 @@
     (_key, _oldValue, newValue, remote) => {
       if (remote) {
         promotionalInput.checked = newValue === "1";
+        updateTypeCount();
         scanRecommendations(document.body);
       }
     },
@@ -425,6 +462,7 @@
   GM_addValueChangeListener(liveKey, (_key, _oldValue, newValue, remote) => {
     if (remote) {
       liveInput.checked = newValue === "1";
+      updateTypeCount();
       scanRecommendations(document.body);
     }
   });
@@ -436,6 +474,7 @@
   GM_addValueChangeListener(bangumiKey, (_key, _oldValue, newValue, remote) => {
     if (remote) {
       bangumiInput.checked = newValue === "1";
+      updateTypeCount();
       scanRecommendations(document.body);
     }
   });
@@ -449,6 +488,7 @@
     (_key, _oldValue, newValue, remote) => {
       if (remote) {
         classroomInput.checked = newValue === "1";
+        updateTypeCount();
         scanRecommendations(document.body);
       }
     },
@@ -461,6 +501,7 @@
   GM_addValueChangeListener(mangaKey, (_key, _oldValue, newValue, remote) => {
     if (remote) {
       mangaInput.checked = newValue === "1";
+      updateTypeCount();
       scanRecommendations(document.body);
     }
   });
@@ -601,33 +642,37 @@
   const button = document.createElement("button");
   button.type = "button";
   button.className = "bfilter-entry";
-  button.textContent = "Bfilter";
-  button.hidden = true;
-  button.addEventListener("click", () => dashboard.showModal());
+  button.innerHTML = `<svg viewBox="0 0 96 80" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M37 5l11 12L59 5M7 40h82M29 67l-5 8m43-8 5 8"/>
+    <rect x="20" y="20" width="56" height="47" rx="6"/>
+  </svg>Bfilter`;
+  button.setAttribute("aria-haspopup", "dialog");
+  button.setAttribute("aria-expanded", "false");
+  button.addEventListener("click", () => {
+    if (dashboard.open) dashboard.close();
+    else {
+      dashboard.show();
+      button.setAttribute("aria-expanded", "true");
+    }
+  });
+  dashboard.addEventListener("close", () =>
+    button.setAttribute("aria-expanded", "false"),
+  );
+  dashboard.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") dashboard.close();
+  });
   document.body.append(button);
 
-  // Position the entry without modifying Bilibili's navigation
+  // Keep the popup below the fixed launcher
   function placeButton() {
-    const home = Array.from(document.querySelectorAll("a")).find(
-      (link) =>
-        link.textContent.trim() === "首页" &&
-        link.hostname === "www.bilibili.com",
+    const top = Math.min(
+      button.getBoundingClientRect().bottom + 4,
+      Math.max(8, window.innerHeight - 120),
     );
-    if (!home) {
-      button.hidden = true;
-      return;
-    }
-    const rect = home.getBoundingClientRect();
-    button.hidden = rect.width === 0 || rect.height === 0 || rect.bottom <= 0;
-    button.style.left = `${rect.left}px`;
-    button.style.top = `${rect.bottom}px`;
+    dashboard.style.top = `${top}px`;
+    dashboard.style.setProperty("--bfilter-popup-top", `${top}px`);
   }
 
   placeButton();
-  window.addEventListener("scroll", placeButton, { passive: true });
   window.addEventListener("resize", placeButton);
-  new MutationObserver(placeButton).observe(document.body, {
-    childList: true,
-    subtree: true,
-  });
 })();

@@ -51,8 +51,8 @@ async function addComments(page) {
   });
 }
 
-// Verify the entry opens a dismissible dashboard below the home navigation item
-test("opens and closes the dashboard from the home navigation", async ({
+// Verify the independent entry opens a dismissible dashboard
+test("opens and closes the dashboard from the launcher", async ({
   page,
 }) => {
   await openVideo(
@@ -61,12 +61,10 @@ test("opens and closes the dashboard from the home navigation", async ({
   );
   await page.addScriptTag({ path: path.join(__dirname, "..", "main.user.js") });
 
-  const home = page.getByRole("link", { name: "首页" });
   const button = page.getByRole("button", { name: "Bfilter", exact: true });
   await expect(button).toBeVisible();
-  expect((await button.boundingBox()).y).toBeGreaterThanOrEqual(
-    (await home.boundingBox()).y + (await home.boundingBox()).height,
-  );
+  expect((await button.boundingBox()).y).toBeCloseTo(page.viewportSize().height * 0.25, 0);
+  expect((await button.boundingBox()).height).toBeLessThan(40);
   await button.click();
   const dashboard = page.getByRole("dialog", { name: "Bfilter" });
   await expect(dashboard).toBeVisible();
@@ -74,42 +72,70 @@ test("opens and closes the dashboard from the home navigation", async ({
   await expect(page.locator("dialog.bfilter-dashboard")).not.toBeVisible();
 });
 
-// Switch between dashboard tabs without losing the UID list
-test("switches between Users and Videos tabs", async ({ page }) => {
+// Keep both sets of filters accessible in one popup
+test("shows user and video sections together", async ({ page }) => {
   await openVideo(
     page,
     '<nav><a href="https://www.bilibili.com/">首页</a></nav>',
   );
+  await page.evaluate(() => { window.GM_info = { script: { version: "7.8.9" } }; });
   await page.addScriptTag({ path: path.join(__dirname, "..", "main.user.js") });
   await page.getByRole("button", { name: "Bfilter", exact: true }).click();
-  const dashboard = page.getByRole("dialog", { name: "Bfilter" });
-  const users = dashboard.getByRole("tab", { name: "Users" });
-  const videos = dashboard.getByRole("tab", { name: "Videos" });
-  const uidList = dashboard.getByRole("textbox");
-  await uidList.fill("1001");
-  await videos.click();
-  await expect(videos).toHaveAttribute("aria-selected", "true");
-  await expect(users).toHaveAttribute("aria-selected", "false");
-  await expect(uidList).not.toBeVisible();
-  await users.click();
-  await expect(uidList).toBeVisible();
-  await expect(uidList).toHaveValue("1001");
+  const popup = page.getByRole("dialog", { name: "Bfilter" });
+  await expect(popup.getByText("7.8.9")).toBeVisible();
+  await expect(popup.getByRole("heading", { name: "Hide Users" })).toBeVisible();
+  await expect(popup.getByRole("heading", { name: "Hide Videos" })).toBeVisible();
+  await expect(popup.getByRole("textbox", { name: "User UIDs, one per line" })).toHaveAttribute("placeholder", "User UIDs, one per line");
+  await expect(
+    popup.getByRole("spinbutton", { name: /duration/i }),
+  ).toBeVisible();
+  expect((await popup.boundingBox()).width).toBe(270);
 });
 
-// Keep the modal centered when the host page resets element margins
-test("centers the dashboard despite a page-wide margin reset", async ({
-  page,
-}) => {
-  await openVideo(
-    page,
-    '<style>* { margin: 0; }</style><nav><a href="https://www.bilibili.com/">首页</a></nav>',
-  );
+// Keep multiple type selections when the dropdown is closed and reopened
+test("selects multiple video types from the dropdown", async ({ page }) => {
+  await openVideo(page, '<nav><a href="https://www.bilibili.com/">首页</a></nav>');
   await page.addScriptTag({ path: path.join(__dirname, "..", "main.user.js") });
   await page.getByRole("button", { name: "Bfilter", exact: true }).click();
-  const box = await page.getByRole("dialog", { name: "Bfilter" }).boundingBox();
-  const viewport = page.viewportSize();
-  expect(box.x + box.width / 2).toBeCloseTo(viewport.width / 2, 0);
-  expect(box.y + box.height / 2).toBeCloseTo(viewport.height / 2, 0);
+  await expect(page.getByRole("button", { name: "Types" })).toHaveText(/0/);
+  const types = page.getByRole("button", { name: "Types" });
+  const popup = page.getByRole("dialog", { name: "Bfilter" });
+  const height = (await popup.boundingBox()).height;
+  await types.click();
+  expect((await popup.boundingBox()).height).toBe(height);
+  await page.getByRole("checkbox", { name: "Live" }).check();
+  await expect(types).toHaveText(/1/);
+  await page.getByRole("checkbox", { name: "Manga" }).check();
+  await expect(types).toHaveText(/2/);
+  await types.click();
+  await expect(page.locator('input[value="live"]')).not.toBeVisible();
+  await types.click();
+  await expect(page.getByRole("checkbox", { name: "Live" })).toBeChecked();
+  await expect(page.getByRole("checkbox", { name: "Manga" })).toBeChecked();
+});
+
+// Keep the popup beside its launcher without blocking the page
+test("anchors the popup to the left-edge launcher", async ({ page }) => {
+  await openVideo(
+    page,
+    '<style>body { height: 2000px; }</style><button id="site-button">Site action</button>',
+  );
+  await page.addScriptTag({ path: path.join(__dirname, "..", "main.user.js") });
+  const button = page.getByRole("button", { name: "Bfilter", exact: true });
+  const launcher = await button.boundingBox();
+  expect(launcher.x).toBe(0);
+  expect(launcher.y).toBeCloseTo(page.viewportSize().height * 0.25, 0);
+  await page.evaluate(() => window.scrollTo(0, 500));
+  expect((await button.boundingBox()).y).toBeCloseTo(launcher.y, 0);
+  await button.click();
+  const popup = page.getByRole("dialog", { name: "Bfilter" });
+  const box = await popup.boundingBox();
+  expect(box.x).toBe(0);
+  expect(box.y - (launcher.y + launcher.height)).toBeGreaterThanOrEqual(0);
+  expect(box.y - (launcher.y + launcher.height)).toBeLessThanOrEqual(8);
+  await expect(page.locator("#site-button")).toBeEnabled();
+  await button.click();
+  await expect(popup).not.toBeVisible();
 });
 
 // Preserve the site's navigation when it is rendered after the userscript starts
@@ -140,7 +166,6 @@ test("filters saved users in current and later comments", async ({ page }) => {
   await page.addScriptTag({ path: path.join(__dirname, "..", "main.user.js") });
   await addComments(page);
   await page.getByRole("button", { name: "Bfilter", exact: true }).click();
-  await page.getByRole("tab", { name: "Users" }).click();
   const users = page.getByRole("textbox", { name: /uid/i });
   await users.fill("1001");
   const dividers = page.locator("bili-comment-thread-renderer #div");
@@ -197,7 +222,7 @@ test("filters users by registration threshold", async ({ page }) => {
   });
   await page.getByRole("button", { name: "Bfilter", exact: true }).click();
   const filter = page.getByRole("checkbox", {
-    name: /hide users registered in and after/i,
+    name: /registered in & after/i,
   });
   const threshold = page.getByRole("combobox", { name: /registration time/i });
   await expect(filter).not.toBeChecked();
@@ -242,7 +267,7 @@ test("filters the 2025 registration threshold", async ({ page }) => {
   await page.addScriptTag({ path: path.join(__dirname, "..", "main.user.js") });
   await page.getByRole("button", { name: "Bfilter", exact: true }).click();
   await page
-    .getByRole("checkbox", { name: /hide users registered in and after/i })
+    .getByRole("checkbox", { name: /registered in & after/i })
     .check();
   const threshold = page.getByRole("combobox", { name: /registration time/i });
   await threshold.selectOption({ label: "2025" });
@@ -277,7 +302,7 @@ test("uses the registration threshold boundaries", async ({ page }) => {
   await page.addScriptTag({ path: path.join(__dirname, "..", "main.user.js") });
   await page.getByRole("button", { name: "Bfilter", exact: true }).click();
   await page
-    .getByRole("checkbox", { name: /hide users registered in and after/i })
+    .getByRole("checkbox", { name: /registered in & after/i })
     .check();
   const threshold = page.getByRole("combobox", { name: /registration time/i });
   for (const digits of [8, 9, 10, 15]) {
@@ -592,16 +617,14 @@ for (const kind of ["home", "search", "ranking", "video"]) {
     await expect(page.getByText("Boundary video")).toBeVisible();
     await expect(page.getByText("Long video")).toBeVisible();
     await page.getByRole("button", { name: "Bfilter", exact: true }).click();
-    await page.getByRole("tab", { name: "Videos" }).click();
     const threshold = page.getByRole("spinbutton", {
-      name: /hide videos by duration/i,
+      name: /duration \(min\.\)/i,
     });
     await expect(threshold).toHaveValue("3");
     await threshold.fill("2");
     await expect(page.getByText("Short video")).toBeVisible();
     await threshold.fill("4");
     await expect(page.getByText("Boundary video")).toBeHidden();
-    await page.getByRole("tab", { name: "Users" }).click();
     await page.getByRole("button", { name: "Preview" }).click();
     await expect(page.getByText("Boundary video")).toBeVisible();
     await page.getByRole("button", { name: "Preview" }).click();
@@ -667,9 +690,8 @@ for (const kind of ["home", "search", "ranking", "video"]) {
     await expect(page.getByText("Many views")).toBeVisible();
     await expect(page.getByText("Unknown views")).toBeVisible();
     await page.getByRole("button", { name: "Bfilter", exact: true }).click();
-    await page.getByRole("tab", { name: "Videos" }).click();
     const threshold = page.getByRole("spinbutton", {
-      name: /hide videos by views/i,
+      name: /views/i,
     });
     await expect(threshold).toHaveValue("5000");
     await threshold.fill("10000");
@@ -677,7 +699,6 @@ for (const kind of ["home", "search", "ranking", "video"]) {
     await threshold.fill("0");
     await expect(page.getByText("Few views")).toBeVisible();
     await threshold.fill("5000");
-    await page.getByRole("tab", { name: "Users" }).click();
     await page.getByRole("button", { name: "Preview" }).click();
     await expect(page.getByText("Few views")).toBeVisible();
     await page.getByRole("button", { name: "Preview" }).click();
@@ -700,8 +721,8 @@ test("filters promotional videos when selected", async ({ page }) => {
   );
   await page.addScriptTag({ path: path.join(__dirname, "..", "main.user.js") });
   await page.getByRole("button", { name: "Bfilter", exact: true }).click();
-  await page.getByRole("tab", { name: "Videos" }).click();
-  const option = page.getByRole("checkbox", { name: "Promotional videos" });
+  await page.getByRole("button", { name: "Types" }).click();
+  const option = page.getByRole("checkbox", { name: "Promo" });
   await expect(option).not.toBeChecked();
   await expect(page.getByText("Promoted video", { exact: true })).toBeVisible();
   await option.check();
@@ -719,7 +740,6 @@ test("filters promotional videos when selected", async ({ page }) => {
     promoted,
   );
   await expect(page.getByText("Later promotion")).toBeHidden();
-  await page.getByRole("tab", { name: "Users" }).click();
   await page.getByRole("button", { name: "Preview" }).click();
   await expect(page.getByText("Promoted video", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Preview" }).click();
@@ -727,8 +747,8 @@ test("filters promotional videos when selected", async ({ page }) => {
   await page.addScriptTag({ path: path.join(__dirname, "..", "main.user.js") });
   await expect(page.getByText("Promoted video", { exact: true })).toBeHidden();
   await page.getByRole("button", { name: "Bfilter", exact: true }).click();
-  await page.getByRole("tab", { name: "Videos" }).click();
-  await page.getByRole("checkbox", { name: "Promotional videos" }).uncheck();
+  await page.getByRole("button", { name: "Types" }).click();
+  await page.getByRole("checkbox", { name: "Promo" }).uncheck();
   await expect(page.getByText("Promoted video", { exact: true })).toBeVisible();
 });
 
@@ -743,8 +763,8 @@ test("filters promoted videos in bili-feed-card", async ({ page }) => {
   );
   await page.addScriptTag({ path: path.join(__dirname, "..", "main.user.js") });
   await page.getByRole("button", { name: "Bfilter", exact: true }).click();
-  await page.getByRole("tab", { name: "Videos" }).click();
-  const option = page.getByRole("checkbox", { name: "Promotional videos" });
+  await page.getByRole("button", { name: "Types" }).click();
+  const option = page.getByRole("checkbox", { name: "Promo" });
   await option.check();
   const slot = page.locator(".bili-feed-card").first();
   await expect(slot).toBeHidden();
@@ -755,11 +775,10 @@ test("filters promoted videos in bili-feed-card", async ({ page }) => {
     promoted("Later promotion"),
   );
   await expect(page.getByText("Later promotion")).toBeHidden();
-  await page.getByRole("tab", { name: "Users" }).click();
   await page.getByRole("button", { name: "Preview" }).click();
   await expect(slot).toBeVisible();
   await page.getByRole("button", { name: "Preview" }).click();
-  await page.getByRole("tab", { name: "Videos" }).click();
+  await page.getByRole("button", { name: "Types" }).click();
   await option.uncheck();
   await expect(slot).toBeVisible();
 });
@@ -790,7 +809,7 @@ for (const kind of ["home", "search"]) {
       path: path.join(__dirname, "..", "main.user.js"),
     });
     await page.getByRole("button", { name: "Bfilter", exact: true }).click();
-    await page.getByRole("tab", { name: "Videos" }).click();
+    await page.getByRole("button", { name: "Types" }).click();
     const option = page.getByRole("checkbox", { name: "Live" });
     await expect(option).not.toBeChecked();
     await option.check();
@@ -802,7 +821,6 @@ for (const kind of ["home", "search"]) {
       card("Later live stream", true),
     );
     await expect(page.getByText("Later live stream")).toBeHidden();
-    await page.getByRole("tab", { name: "Users" }).click();
     await page.getByRole("button", { name: "Preview" }).click();
     await expect(page.getByText("Live stream", { exact: true })).toBeVisible();
     await page.getByRole("button", { name: "Preview" }).click();
@@ -812,7 +830,7 @@ for (const kind of ["home", "search"]) {
     });
     await expect(page.getByText("Live stream")).toBeHidden();
     await page.getByRole("button", { name: "Bfilter", exact: true }).click();
-    await page.getByRole("tab", { name: "Videos" }).click();
+    await page.getByRole("button", { name: "Types" }).click();
     await page.getByRole("checkbox", { name: "Live" }).uncheck();
     await expect(page.getByText("Live stream")).toBeVisible();
   });
@@ -829,7 +847,7 @@ test("filters home live recommendation cards", async ({ page }) => {
   );
   await page.addScriptTag({ path: path.join(__dirname, "..", "main.user.js") });
   await page.getByRole("button", { name: "Bfilter", exact: true }).click();
-  await page.getByRole("tab", { name: "Videos" }).click();
+  await page.getByRole("button", { name: "Types" }).click();
   const option = page.getByRole("checkbox", { name: "Live" });
   await option.check();
   const liveCard = page.locator(".bili-feed-card").first();
@@ -841,11 +859,10 @@ test("filters home live recommendation cards", async ({ page }) => {
     card("Later recommendation"),
   );
   await expect(page.getByText("Later recommendation")).toBeHidden();
-  await page.getByRole("tab", { name: "Users" }).click();
   await page.getByRole("button", { name: "Preview" }).click();
   await expect(liveCard).toBeVisible();
   await page.getByRole("button", { name: "Preview" }).click();
-  await page.getByRole("tab", { name: "Videos" }).click();
+  await page.getByRole("button", { name: "Types" }).click();
   await option.uncheck();
   await expect(liveCard).toBeVisible();
 });
@@ -864,16 +881,15 @@ test("filters live-room search results", async ({ page }) => {
   await page.goto("https://search.bilibili.com/live?keyword=synthetic");
   await page.addScriptTag({ path: path.join(__dirname, "..", "main.user.js") });
   await page.getByRole("button", { name: "Bfilter", exact: true }).click();
-  await page.getByRole("tab", { name: "Videos" }).click();
+  await page.getByRole("button", { name: "Types" }).click();
   const option = page.getByRole("checkbox", { name: "Live" });
   await option.check();
   await expect(page.getByText("Live room")).toBeHidden();
   await expect(page.getByText("Ordinary video")).toBeVisible();
-  await page.getByRole("tab", { name: "Users" }).click();
   await page.getByRole("button", { name: "Preview" }).click();
   await expect(page.getByText("Live room")).toBeVisible();
   await page.getByRole("button", { name: "Preview" }).click();
-  await page.getByRole("tab", { name: "Videos" }).click();
+  await page.getByRole("button", { name: "Types" }).click();
   await option.uncheck();
   await expect(page.getByText("Live room")).toBeVisible();
 });
@@ -899,7 +915,7 @@ for (const kind of ["all", "bangumi"]) {
       path: path.join(__dirname, "..", "main.user.js"),
     });
     await page.getByRole("button", { name: "Bfilter", exact: true }).click();
-    await page.getByRole("tab", { name: "Videos" }).click();
+    await page.getByRole("button", { name: "Types" }).click();
     const option = page.getByRole("checkbox", { name: "Bangumi" });
     await expect(option).not.toBeChecked();
     await option.check();
@@ -911,7 +927,6 @@ for (const kind of ["all", "bangumi"]) {
       card("Later anime"),
     );
     await expect(page.getByText("Later anime")).toBeHidden();
-    await page.getByRole("tab", { name: "Users" }).click();
     await page.getByRole("button", { name: "Preview" }).click();
     await expect(page.getByText("Anime result", { exact: true })).toBeVisible();
     await page.getByRole("button", { name: "Preview" }).click();
@@ -921,7 +936,7 @@ for (const kind of ["all", "bangumi"]) {
     });
     await expect(page.getByText("Anime result", { exact: true })).toBeHidden();
     await page.getByRole("button", { name: "Bfilter", exact: true }).click();
-    await page.getByRole("tab", { name: "Videos" }).click();
+    await page.getByRole("button", { name: "Types" }).click();
     await page.getByRole("checkbox", { name: "Bangumi" }).uncheck();
     await expect(page.getByText("Anime result", { exact: true })).toBeVisible();
   });
@@ -938,7 +953,7 @@ test("filters bangumi home recommendations", async ({ page }) => {
   );
   await page.addScriptTag({ path: path.join(__dirname, "..", "main.user.js") });
   await page.getByRole("button", { name: "Bfilter", exact: true }).click();
-  await page.getByRole("tab", { name: "Videos" }).click();
+  await page.getByRole("button", { name: "Types" }).click();
   const option = page.getByRole("checkbox", { name: "Bangumi" });
   await option.check();
   await expect(
@@ -951,13 +966,12 @@ test("filters bangumi home recommendations", async ({ page }) => {
     anime.replace("Anime recommendation", "Later anime"),
   );
   await expect(page.getByText("Later anime")).toBeHidden();
-  await page.getByRole("tab", { name: "Users" }).click();
   await page.getByRole("button", { name: "Preview" }).click();
   await expect(
     page.getByText("Anime recommendation", { exact: true }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Preview" }).click();
-  await page.getByRole("tab", { name: "Videos" }).click();
+  await page.getByRole("button", { name: "Types" }).click();
   await option.uncheck();
   await expect(
     page.getByText("Anime recommendation", { exact: true }),
@@ -986,7 +1000,7 @@ for (const kind of ["home", "search"]) {
       path: path.join(__dirname, "..", "main.user.js"),
     });
     await page.getByRole("button", { name: "Bfilter", exact: true }).click();
-    await page.getByRole("tab", { name: "Videos" }).click();
+    await page.getByRole("button", { name: "Types" }).click();
     const option = page.getByRole("checkbox", { name: "Classroom" });
     await expect(option).not.toBeChecked();
     await option.check();
@@ -1004,7 +1018,6 @@ for (const kind of ["home", "search"]) {
       card("Later course"),
     );
     await expect(page.getByText("Later course")).toBeHidden();
-    await page.getByRole("tab", { name: "Users" }).click();
     await page.getByRole("button", { name: "Preview" }).click();
     await expect(
       page.getByText("Classroom result", { exact: true }),
@@ -1018,7 +1031,7 @@ for (const kind of ["home", "search"]) {
       page.getByText("Classroom result", { exact: true }),
     ).toBeHidden();
     await page.getByRole("button", { name: "Bfilter", exact: true }).click();
-    await page.getByRole("tab", { name: "Videos" }).click();
+    await page.getByRole("button", { name: "Types" }).click();
     await page.getByRole("checkbox", { name: "Classroom" }).uncheck();
     await expect(
       page.getByText("Classroom result", { exact: true }),
@@ -1049,7 +1062,7 @@ for (const kind of ["home", "search"]) {
       path: path.join(__dirname, "..", "main.user.js"),
     });
     await page.getByRole("button", { name: "Bfilter", exact: true }).click();
-    await page.getByRole("tab", { name: "Videos" }).click();
+    await page.getByRole("button", { name: "Types" }).click();
     const option = page.getByRole("checkbox", { name: "Manga" });
     await expect(option).not.toBeChecked();
     await option.check();
@@ -1061,7 +1074,6 @@ for (const kind of ["home", "search"]) {
       card("Later manga", "https://manga.bilibili.com/detail/mc456"),
     );
     await expect(page.getByText("Later manga")).toBeHidden();
-    await page.getByRole("tab", { name: "Users" }).click();
     await page.getByRole("button", { name: "Preview" }).click();
     await expect(page.getByText("Manga result")).toBeVisible();
     await page.getByRole("button", { name: "Preview" }).click();
@@ -1071,7 +1083,7 @@ for (const kind of ["home", "search"]) {
     });
     await expect(page.getByText("Manga result")).toBeHidden();
     await page.getByRole("button", { name: "Bfilter", exact: true }).click();
-    await page.getByRole("tab", { name: "Videos" }).click();
+    await page.getByRole("button", { name: "Types" }).click();
     await option.uncheck();
     await expect(page.getByText("Manga result")).toBeVisible();
   });
