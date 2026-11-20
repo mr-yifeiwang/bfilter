@@ -1,12 +1,55 @@
 const { test, expect } = require("@playwright/test");
 const path = require("node:path");
 
+// Serve a synthetic video page with a real origin for persistent settings
+async function openVideo(page, body) {
+  await page.addInitScript(() => {
+    window.GM_getValue = (key, fallback) =>
+      localStorage.getItem(key) ?? fallback;
+    window.GM_setValue = (key, value) => localStorage.setItem(key, value);
+    window.GM_addValueChangeListener = () => {};
+  });
+  await page.route("https://www.bilibili.com/**", (route) =>
+    route.fulfill({ contentType: "text/html; charset=utf-8", body }),
+  );
+  await page.goto("https://www.bilibili.com/video/BVsynthetic");
+}
+
+// Add synthetic comments using Bilibili's nested shadow DOM structure
+async function addComments(page) {
+  await page.evaluate(() => {
+    const comments = document.createElement("bili-comments");
+    const feed = comments.attachShadow({ mode: "open" });
+    for (const [tag, uid, text] of [
+      ["bili-comment-renderer", "1001", "Blocked comment"],
+      ["bili-comment-renderer", "1002", "Visible comment"],
+      ["bili-comment-reply-renderer", "1001", "Blocked reply"],
+    ]) {
+      const thread = document.createElement("bili-comment-thread-renderer");
+      const root = thread.attachShadow({ mode: "open" });
+      const comment = document.createElement(tag);
+      comment.attachShadow({ mode: "open" }).innerHTML =
+        `<a id="user-avatar" data-user-profile-id="${uid}"></a><span>${text}</span>`;
+      root.append(comment);
+      if (tag === "bili-comment-renderer") {
+        const divider = document.createElement("div");
+        divider.id = "div";
+        divider.style.cssText = "height: 1px; border-bottom: 1px solid";
+        root.append(divider);
+      }
+      feed.append(thread);
+    }
+    document.body.append(comments);
+  });
+}
+
 // Verify the entry opens a dismissible dashboard below the home navigation item
 test("opens and closes the dashboard from the home navigation", async ({
   page,
 }) => {
-  await page.setContent(
-    '<nav><div class="home-page-entry"><a href="https://www.bilibili.com/">首页</a></div></nav>',
+  await openVideo(
+    page,
+    '<style>dialog { display: block; }</style><nav><div class="home-page-entry"><a href="https://www.bilibili.com/">首页</a></div></nav>',
   );
   await page.addScriptTag({ path: path.join(__dirname, "..", "main.user.js") });
 
@@ -20,14 +63,14 @@ test("opens and closes the dashboard from the home navigation", async ({
   const dashboard = page.getByRole("dialog", { name: "Bfilter" });
   await expect(dashboard).toBeVisible();
   await dashboard.getByRole("button", { name: "Close" }).click();
-  await expect(dashboard).not.toBeVisible();
+  await expect(page.locator("dialog.bfilter-dashboard")).not.toBeVisible();
 });
 
 // Preserve the site's navigation when it is rendered after the userscript starts
 test("keeps a dynamically rendered home navigation intact", async ({
   page,
 }) => {
-  await page.setContent('<nav id="site-nav"></nav>');
+  await openVideo(page, '<nav id="site-nav"></nav>');
   await page.addScriptTag({ path: path.join(__dirname, "..", "main.user.js") });
   await page.evaluate(async () => {
     const nav = document.querySelector("#site-nav");
@@ -40,4 +83,35 @@ test("keeps a dynamically rendered home navigation intact", async ({
   await expect(
     page.getByRole("button", { name: "Bfilter", exact: true }),
   ).toBeVisible();
+});
+
+// Filter matching comments and replies, restore them on removal, and persist UIDs
+test("filters saved users in current and later comments", async ({ page }) => {
+  await openVideo(
+    page,
+    '<nav><a href="https://www.bilibili.com/">首页</a></nav>',
+  );
+  await page.addScriptTag({ path: path.join(__dirname, "..", "main.user.js") });
+  await addComments(page);
+  await page.getByRole("button", { name: "Bfilter", exact: true }).click();
+  await page.getByRole("tab", { name: "Users" }).click();
+  const users = page.getByRole("textbox", { name: /uid/i });
+  await users.fill("1001");
+  const dividers = page.locator("bili-comment-thread-renderer #div");
+  await expect(dividers.nth(0)).toBeHidden();
+  await expect(dividers.nth(1)).toBeVisible();
+  await expect(page.getByText("Blocked comment")).toBeHidden();
+  await expect(page.getByText("Blocked reply")).toBeHidden();
+  await expect(page.getByText("Visible comment")).toBeVisible();
+  await users.fill("");
+  await expect(dividers.nth(0)).toBeVisible();
+  await expect(page.getByText("Blocked comment")).toBeVisible();
+  await expect(page.getByText("Blocked reply")).toBeVisible();
+  await users.fill("1001");
+  await page.reload();
+  await page.addScriptTag({ path: path.join(__dirname, "..", "main.user.js") });
+  await addComments(page);
+  await expect(page.getByText("Blocked comment")).toBeHidden();
+  await expect(page.getByText("Blocked reply")).toBeHidden();
+  await expect(page.getByText("Visible comment")).toBeVisible();
 });
