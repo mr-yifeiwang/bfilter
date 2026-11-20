@@ -26,6 +26,7 @@
     .bfilter-entry:focus-visible, .bfilter-close:focus-visible { outline: 2px solid #00aeec; outline-offset: 2px; }
     .bfilter-dashboard {
       box-sizing: border-box; width: min(440px, calc(100vw - 32px));
+      margin: auto;
       min-height: 150px; padding: 20px 24px; border: 0; border-radius: 12px;
       background: #fff; color: #18191c; box-shadow: 0 12px 48px #0003;
       font: 14px/1.5 sans-serif;

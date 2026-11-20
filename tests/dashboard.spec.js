@@ -74,6 +74,22 @@ test("opens and closes the dashboard from the home navigation", async ({
   await expect(page.locator("dialog.bfilter-dashboard")).not.toBeVisible();
 });
 
+// Keep the modal centered when the host page resets element margins
+test("centers the dashboard despite a page-wide margin reset", async ({
+  page,
+}) => {
+  await openVideo(
+    page,
+    '<style>* { margin: 0; }</style><nav><a href="https://www.bilibili.com/">首页</a></nav>',
+  );
+  await page.addScriptTag({ path: path.join(__dirname, "..", "main.user.js") });
+  await page.getByRole("button", { name: "Bfilter", exact: true }).click();
+  const box = await page.getByRole("dialog", { name: "Bfilter" }).boundingBox();
+  const viewport = page.viewportSize();
+  expect(box.x + box.width / 2).toBeCloseTo(viewport.width / 2, 0);
+  expect(box.y + box.height / 2).toBeCloseTo(viewport.height / 2, 0);
+});
+
 // Preserve the site's navigation when it is rendered after the userscript starts
 test("keeps a dynamically rendered home navigation intact", async ({
   page,
