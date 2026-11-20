@@ -70,7 +70,7 @@
     <div id="bfilter-videos-panel" role="tabpanel" aria-labelledby="bfilter-videos-tab" hidden>
       <label class="bfilter-duration">Hide videos by duration: &lt; <input type="number" min="0" step="any"> minutes</label>
       <label class="bfilter-views">Hide videos by views: &lt; <input type="number" min="0" step="1"> views</label>
-      <fieldset class="bfilter-types"><legend>Hide videos by type</legend><label><input type="checkbox" value="promotional">Promotional videos</label><label><input type="checkbox" value="live">Live</label><label><input type="checkbox" value="bangumi">Bangumi</label><label><input type="checkbox" value="classroom">Classroom</label></fieldset>
+      <fieldset class="bfilter-types"><legend>Hide videos by type</legend><label><input type="checkbox" value="promotional">Promotional videos</label><label><input type="checkbox" value="live">Live</label><label><input type="checkbox" value="bangumi">Bangumi</label><label><input type="checkbox" value="classroom">Classroom</label><label><input type="checkbox" value="manga">Manga</label></fieldset>
     </div>`;
   document.body.append(dashboard);
   dashboard
@@ -118,6 +118,11 @@
   );
   const classroomKey = "bfilter.classroom";
   classroomInput.checked = GM_getValue(classroomKey, "0") === "1";
+  const mangaInput = dashboard.querySelector(
+    '.bfilter-types input[value="manga"]',
+  );
+  const mangaKey = "bfilter.manga";
+  mangaInput.checked = GM_getValue(mangaKey, "0") === "1";
   let blockedUsers = new Set();
   let previewing = false;
   const comments = new Set();
@@ -282,6 +287,11 @@
       !!card.querySelector(
         'a[href^="//www.bilibili.com/cheese/"], a[href^="https://www.bilibili.com/cheese/"], a[href^="//m.bilibili.com/cheese/"], a[href^="https://m.bilibili.com/cheese/"]',
       );
+    const manga =
+      mangaInput.checked &&
+      !!card.querySelector(
+        'a[href^="//manga.bilibili.com/"], a[href^="https://manga.bilibili.com/"]',
+      );
     const filtered =
       (video && blockedUsers.has(uid)) ||
       shortVideo ||
@@ -289,7 +299,8 @@
       promotional ||
       live ||
       bangumi ||
-      classroom;
+      classroom ||
+      manga;
     setFiltered(card, filtered);
     if (searchPage || homePage) {
       const wrapper = card.querySelector(
@@ -415,6 +426,17 @@
       }
     },
   );
+
+  mangaInput.addEventListener("change", () => {
+    GM_setValue(mangaKey, mangaInput.checked ? "1" : "0");
+    scanRecommendations(document.body);
+  });
+  GM_addValueChangeListener(mangaKey, (_key, _oldValue, newValue, remote) => {
+    if (remote) {
+      mangaInput.checked = newValue === "1";
+      scanRecommendations(document.body);
+    }
+  });
 
   viewsInput.addEventListener("input", () => {
     GM_setValue(viewsKey, viewsInput.value);

@@ -774,3 +774,53 @@ for (const kind of ["home", "search"]) {
     await expect(page.getByText("Mobile classroom")).toBeVisible();
   });
 }
+
+// Hide manga recommendations without hiding unrelated videos
+for (const kind of ["home", "search"]) {
+  test(`filters manga on ${kind}`, async ({ page }) => {
+    const card = (title, url) =>
+      `<div class="${kind === "home" ? "feed-card" : "col_3"}"><div class="bili-video-card"><div class="bili-video-card__wrap"><a href="${url}">${title}</a></div></div></div>`;
+    const body = `<nav><a href="https://www.bilibili.com/">首页</a></nav><div class="feed">${card("Manga result", "//manga.bilibili.com/detail/mc123")}${card("Ordinary result", "https://www.bilibili.com/video/BVnormal")}</div>`;
+    if (kind === "search") {
+      await page.addInitScript(() => {
+        window.GM_getValue = (key, fallback) =>
+          localStorage.getItem(key) ?? fallback;
+        window.GM_setValue = (key, value) => localStorage.setItem(key, value);
+        window.GM_addValueChangeListener = () => {};
+      });
+      await page.route("https://search.bilibili.com/**", (route) =>
+        route.fulfill({ contentType: "text/html; charset=utf-8", body }),
+      );
+      await page.goto("https://search.bilibili.com/all?keyword=synthetic");
+    } else await openVideo(page, body, "/");
+    await page.addScriptTag({
+      path: path.join(__dirname, "..", "main.user.js"),
+    });
+    await page.getByRole("button", { name: "Bfilter", exact: true }).click();
+    await page.getByRole("tab", { name: "Videos" }).click();
+    const option = page.getByRole("checkbox", { name: "Manga" });
+    await expect(option).not.toBeChecked();
+    await option.check();
+    await expect(page.getByText("Manga result")).toBeHidden();
+    await expect(page.getByText("Ordinary result")).toBeVisible();
+    await page.evaluate(
+      (html) =>
+        document.querySelector(".feed").insertAdjacentHTML("beforeend", html),
+      card("Later manga", "https://manga.bilibili.com/detail/mc456"),
+    );
+    await expect(page.getByText("Later manga")).toBeHidden();
+    await page.getByRole("tab", { name: "Users" }).click();
+    await page.getByRole("button", { name: "Preview" }).click();
+    await expect(page.getByText("Manga result")).toBeVisible();
+    await page.getByRole("button", { name: "Preview" }).click();
+    await page.reload();
+    await page.addScriptTag({
+      path: path.join(__dirname, "..", "main.user.js"),
+    });
+    await expect(page.getByText("Manga result")).toBeHidden();
+    await page.getByRole("button", { name: "Bfilter", exact: true }).click();
+    await page.getByRole("tab", { name: "Videos" }).click();
+    await option.uncheck();
+    await expect(page.getByText("Manga result")).toBeVisible();
+  });
+}
