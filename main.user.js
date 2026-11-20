@@ -16,6 +16,15 @@
 (function () {
   "use strict";
 
+  const rankingPage = location.pathname.startsWith("/v/popular/rank/");
+  const searchPage = location.hostname === "search.bilibili.com";
+  const homePage =
+    (location.hostname === "www.bilibili.com" ||
+      location.hostname === "bilibili.com") &&
+    location.pathname === "/";
+  const videoPage = location.pathname.startsWith("/video/");
+  if (!(homePage || searchPage || rankingPage || videoPage)) return;
+
   const style = document.createElement("style");
   style.textContent = `
     /* Hallmark · shape: app screen · theme: red by request · redesign: full · v2.0.0 */
@@ -177,12 +186,6 @@
   let previewing = false;
   const comments = new Set();
   const hiddenDisplays = new WeakMap();
-  const rankingPage = location.pathname.startsWith("/v/popular/rank/");
-  const searchPage = location.hostname === "search.bilibili.com";
-  const homePage =
-    (location.hostname === "www.bilibili.com" ||
-      location.hostname === "bilibili.com") &&
-    location.pathname === "/";
   const recommendationSelector =
     searchPage || homePage
       ? homePage
@@ -570,7 +573,7 @@
   });
   updateUsers();
 
-  if (location.pathname.startsWith("/video/")) {
+  if (videoPage) {
     const selector =
       "bili-comments, bili-comment-thread-renderer, bili-comment-replies-renderer, bili-comment-renderer, bili-comment-reply-renderer";
     const observed = new WeakSet();

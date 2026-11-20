@@ -51,6 +51,38 @@ async function addComments(page) {
   });
 }
 
+// Show the launcher only where Bfilter provides filtering
+test("shows the launcher only on supported pages", async ({ page }) => {
+  await page.route("https://**/*", (route) =>
+    route.fulfill({
+      contentType: "text/html",
+      body: "<html><body></body></html>",
+    }),
+  );
+  await page.addInitScript(() => {
+    window.GM_getValue = (_key, fallback) => fallback;
+    window.GM_setValue = () => {};
+    window.GM_addValueChangeListener = () => {};
+  });
+  for (const [url, supported] of [
+    ["https://www.bilibili.com/", true],
+    ["https://www.bilibili.com/video/BVsynthetic", true],
+    ["https://www.bilibili.com/v/popular/rank/all", true],
+    ["https://search.bilibili.com/all?keyword=example", true],
+    ["https://www.bilibili.com/v/popular/all", false],
+    ["https://space.bilibili.com/123456", false],
+    ["https://live.bilibili.com/123456", false],
+  ]) {
+    await page.goto(url);
+    await page.addScriptTag({
+      path: path.join(__dirname, "..", "main.user.js"),
+    });
+    await expect(
+      page.getByRole("button", { name: "Bfilter", exact: true }),
+    ).toHaveCount(supported ? 1 : 0);
+  }
+});
+
 // Verify the independent entry opens a dismissible dashboard
 test("opens and closes the dashboard from the launcher", async ({ page }) => {
   await openVideo(
