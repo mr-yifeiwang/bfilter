@@ -145,7 +145,7 @@ test("toggles a space profile UID below the launcher", async ({ page }) => {
     ),
   ).toBe(true);
   await launcher.click();
-  const users = page.getByRole("textbox", { name: "User UIDs, one per line" });
+  const users = page.getByRole("textbox", { name: "UIDs, one per line" });
   await expect(users).toHaveValue("1001\n987654321");
   await page.reload();
   await page.addScriptTag({ path: path.join(__dirname, "..", "main.user.js") });
@@ -198,8 +198,8 @@ test("shows user and video sections together", async ({ page }) => {
     popup.getByRole("heading", { name: "Hide Videos" }),
   ).toBeVisible();
   await expect(
-    popup.getByRole("textbox", { name: "User UIDs, one per line" }),
-  ).toHaveAttribute("placeholder", "User UIDs, one per line");
+    popup.getByRole("textbox", { name: "UIDs, one per line" }),
+  ).toHaveAttribute("placeholder", "UIDs, one per line");
   await expect(
     popup.getByRole("spinbutton", { name: /duration/i }),
   ).toBeVisible();

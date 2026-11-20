@@ -105,7 +105,7 @@
     <section class="bfilter-section" aria-labelledby="bfilter-users-heading">
       <h3 id="bfilter-users-heading">Hide Users</h3>
       <div class="bfilter-registration"><label><input type="checkbox"> Registered in &amp; after</label><select aria-label="Registration time threshold"><option value="8">2015</option><option value="9">2017</option><option value="10">2020</option><option value="15">2022</option><option value="2025">2025</option></select></div>
-      <label class="bfilter-users"><textarea aria-label="User UIDs, one per line" placeholder="User UIDs, one per line" spellcheck="false"></textarea></label>
+      <label class="bfilter-users"><textarea aria-label="UIDs, one per line" placeholder="UIDs, one per line" spellcheck="false"></textarea></label>
     </section>
     <section class="bfilter-section" aria-labelledby="bfilter-videos-heading">
       <h3 id="bfilter-videos-heading">Hide Videos</h3>
