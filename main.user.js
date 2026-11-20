@@ -77,6 +77,7 @@
     .bfilter-registration select { flex: none; width: 60px; min-height: 28px; padding: 2px; border: 1px solid var(--bfilter-border); border-radius: 5px; background: var(--bfilter-paper); color: var(--bfilter-ink); font: inherit; appearance: auto; }
     .bfilter-users { display: block; margin-top: 10px; font-weight: 600; }
     .bfilter-users textarea { display: block; box-sizing: border-box; width: 100%; min-height: 96px; margin-top: 4px; padding: 8px; border: 1px solid var(--bfilter-border); border-radius: 5px; background: var(--bfilter-paper); color: var(--bfilter-ink); font: 400 14px/1.4 var(--bfilter-font); resize: vertical; }
+    .bfilter-users-count { margin: 4px 0 0; color: #666; font-size: 11px; font-weight: 400; }
     .bfilter-duration, .bfilter-views { display: flex; align-items: center; justify-content: space-between; gap: 4px; margin-bottom: 8px; }
     .bfilter-value { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
     .bfilter-duration input, .bfilter-views input { box-sizing: border-box; width: 50px; min-height: 28px; padding: 2px 4px; border: 1px solid var(--bfilter-border); border-radius: 5px; background: var(--bfilter-paper); color: var(--bfilter-ink); font: inherit; text-align: center; appearance: textfield; }
@@ -106,6 +107,7 @@
       <h3 id="bfilter-users-heading">Hide Users</h3>
       <div class="bfilter-registration"><label><input type="checkbox"> Registered in &amp; after</label><select aria-label="Registration time threshold"><option value="8">2015</option><option value="9">2017</option><option value="10">2020</option><option value="15">2022</option><option value="2025">2025</option></select></div>
       <label class="bfilter-users"><textarea aria-label="UIDs, one per line" placeholder="UIDs, one per line" spellcheck="false"></textarea></label>
+      <p class="bfilter-users-count" aria-live="polite"></p>
     </section>
     <section class="bfilter-section" aria-labelledby="bfilter-videos-heading">
       <h3 id="bfilter-videos-heading">Hide Videos</h3>
@@ -439,6 +441,8 @@
     blockedUsers = new Set(
       users.value.split(/[\s,]+/).filter((uid) => /^\d+$/.test(uid)),
     );
+    dashboard.querySelector(".bfilter-users-count").textContent =
+      `${blockedUsers.size} UIDs are in the blocklist.`;
     if (spaceButton) {
       const blocked = blockedUsers.has(spaceUid);
       spaceButton.textContent = blocked ? "Unblock User" : "Block User";
