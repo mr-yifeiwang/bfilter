@@ -571,3 +571,57 @@ test("filters promotional videos when selected", async ({ page }) => {
   await page.getByRole("checkbox", { name: "Promotional videos" }).uncheck();
   await expect(page.getByText("Promoted video", { exact: true })).toBeVisible();
 });
+
+// Filter live stream cards without affecting ordinary videos
+for (const kind of ["home", "search"]) {
+  test(`filters live streams on ${kind}`, async ({ page }) => {
+    const card = (title, live) =>
+      kind === "home"
+        ? live
+          ? `<div class="floor-single-card"><div class="floor-card-inner"><a href="https://live.bilibili.com/123">${title}</a></div></div>`
+          : `<div class="feed-card"><div class="bili-video-card"><a href="https://www.bilibili.com/video/BVnormal">${title}</a></div></div>`
+        : `<div class="col_3"><div class="bili-video-card"><div class="bili-video-card__wrap"><a href="${live ? "//live.bilibili.com/123" : "//www.bilibili.com/video/BVnormal"}">${title}</a></div></div></div>`;
+    const body = `<nav><a href="https://www.bilibili.com/">首页</a></nav><div class="feed">${card("Live stream", true)}${card("Ordinary video", false)}</div>`;
+    if (kind === "search") {
+      await page.addInitScript(() => {
+        window.GM_getValue = (key, fallback) =>
+          localStorage.getItem(key) ?? fallback;
+        window.GM_setValue = (key, value) => localStorage.setItem(key, value);
+        window.GM_addValueChangeListener = () => {};
+      });
+      await page.route("https://search.bilibili.com/**", (route) =>
+        route.fulfill({ contentType: "text/html; charset=utf-8", body }),
+      );
+      await page.goto("https://search.bilibili.com/all?keyword=synthetic");
+    } else await openVideo(page, body, "/");
+    await page.addScriptTag({
+      path: path.join(__dirname, "..", "main.user.js"),
+    });
+    await page.getByRole("button", { name: "Bfilter", exact: true }).click();
+    await page.getByRole("tab", { name: "Videos" }).click();
+    const option = page.getByRole("checkbox", { name: "Live" });
+    await expect(option).not.toBeChecked();
+    await option.check();
+    await expect(page.getByText("Live stream")).toBeHidden();
+    await expect(page.getByText("Ordinary video")).toBeVisible();
+    await page.evaluate(
+      (html) =>
+        document.querySelector(".feed").insertAdjacentHTML("beforeend", html),
+      card("Later live stream", true),
+    );
+    await expect(page.getByText("Later live stream")).toBeHidden();
+    await page.getByRole("tab", { name: "Users" }).click();
+    await page.getByRole("button", { name: "Preview" }).click();
+    await expect(page.getByText("Live stream", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Preview" }).click();
+    await page.reload();
+    await page.addScriptTag({
+      path: path.join(__dirname, "..", "main.user.js"),
+    });
+    await expect(page.getByText("Live stream")).toBeHidden();
+    await page.getByRole("button", { name: "Bfilter", exact: true }).click();
+    await page.getByRole("tab", { name: "Videos" }).click();
+    await page.getByRole("checkbox", { name: "Live" }).uncheck();
+    await expect(page.getByText("Live stream")).toBeVisible();
+  });
+}

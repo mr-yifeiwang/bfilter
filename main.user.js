@@ -70,7 +70,7 @@
     <div id="bfilter-videos-panel" role="tabpanel" aria-labelledby="bfilter-videos-tab" hidden>
       <label class="bfilter-duration">Hide videos by duration: &lt; <input type="number" min="0" step="any"> minutes</label>
       <label class="bfilter-views">Hide videos by views: &lt; <input type="number" min="0" step="1"> views</label>
-      <fieldset class="bfilter-types"><legend>Hide videos by type</legend><label><input type="checkbox" value="promotional">Promotional videos</label></fieldset>
+      <fieldset class="bfilter-types"><legend>Hide videos by type</legend><label><input type="checkbox" value="promotional">Promotional videos</label><label><input type="checkbox" value="live">Live</label></fieldset>
     </div>`;
   document.body.append(dashboard);
   dashboard
@@ -103,6 +103,11 @@
   );
   const promotionalKey = "bfilter.promotional";
   promotionalInput.checked = GM_getValue(promotionalKey, "0") === "1";
+  const liveInput = dashboard.querySelector(
+    '.bfilter-types input[value="live"]',
+  );
+  const liveKey = "bfilter.live";
+  liveInput.checked = GM_getValue(liveKey, "0") === "1";
   let blockedUsers = new Set();
   let previewing = false;
   const comments = new Set();
@@ -116,7 +121,7 @@
   const recommendationSelector =
     searchPage || homePage
       ? homePage
-        ? ".feed-card .bili-video-card"
+        ? ".feed-card .bili-video-card, .floor-single-card"
         : ".bili-video-card"
       : rankingPage
         ? ".rank-list .rank-item"
@@ -248,11 +253,22 @@
       !!card.querySelector(
         'a[href^="//cm.bilibili.com/"][data-target-url^="https://www.bilibili.com/video/"], a[href^="https://cm.bilibili.com/"][data-target-url^="https://www.bilibili.com/video/"]',
       );
+    const live =
+      liveInput.checked &&
+      !!card.querySelector(
+        'a[href^="//live.bilibili.com/"], a[href^="https://live.bilibili.com/"]',
+      );
     const filtered =
-      (video && blockedUsers.has(uid)) || shortVideo || fewViews || promotional;
+      (video && blockedUsers.has(uid)) ||
+      shortVideo ||
+      fewViews ||
+      promotional ||
+      live;
     setFiltered(card, filtered);
     if (searchPage || homePage) {
-      const wrapper = card.querySelector(".bili-video-card__wrap");
+      const wrapper = card.querySelector(
+        ".bili-video-card__wrap, .floor-card-inner",
+      );
       if (wrapper) setFiltered(wrapper, filtered);
     }
     if (searchPage && card.parentElement?.classList.contains("col_3")) {
@@ -330,6 +346,17 @@
       }
     },
   );
+
+  liveInput.addEventListener("change", () => {
+    GM_setValue(liveKey, liveInput.checked ? "1" : "0");
+    scanRecommendations(document.body);
+  });
+  GM_addValueChangeListener(liveKey, (_key, _oldValue, newValue, remote) => {
+    if (remote) {
+      liveInput.checked = newValue === "1";
+      scanRecommendations(document.body);
+    }
+  });
 
   viewsInput.addEventListener("input", () => {
     GM_setValue(viewsKey, viewsInput.value);
