@@ -1,5 +1,3 @@
-<p align="center"><img src="favicons/favicon-96x96.png" alt="" width="96" height="96"></p>
-
 # Bfilter
 
 Bfilter is a userscript that filters videos and comments on Bilibili's Home, Search, Ranking, and Video pages.
@@ -8,6 +6,8 @@ Bfilter is a userscript that filters videos and comments on Bilibili's Home, Sea
 | ---------------- | ------------------------------------------- |
 | Users & contents | UID, registration time                      |
 | Videos           | duration, views, types (e.g. Live, Bangumi) |
+
+<p align="center"><img src="screenshot.png" alt="" width="250"></p>
 
 ## Limitations
 

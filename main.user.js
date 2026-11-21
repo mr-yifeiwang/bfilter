@@ -33,14 +33,16 @@
 
   const style = document.createElement("style");
   style.textContent = `
-    /* Hallmark · shape: app screen · theme: red by request · redesign: full · v2.0.0 */
-    /* Hallmark · pre-emit critique: P4 H4 E4 S3 R5 V4 · weakest: specificity; the real filter controls define the window */
     .bfilter-entry, .bfilter-dashboard {
       --bfilter-red: #a51f35; --bfilter-soft: #f9edef;
       --bfilter-ink: #292124; --bfilter-muted: #65585c; --bfilter-border: #a99a9e;
       --bfilter-titlebar: #f3edef;
       --bfilter-paper: #fffdfd; --bfilter-white: #fff;
       --bfilter-shadow: #21121630; --bfilter-font: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    .bfilter-dashboard {
+      --bfilter-border: #eadbdf; --bfilter-titlebar: #fff;
+      --bfilter-paper: #fff; --bfilter-shadow: #4b222c26;
     }
     .bfilter-entry {
       position: fixed; display: flex; align-items: center; z-index: 10000; left: 0; top: 5.4vh; min-height: 28px;
@@ -52,27 +54,29 @@
     .bfilter-entry svg { width: 22px; height: 20px; flex: none; margin-right: 6px; transform: translateY(-1px); }
     .bfilter-dashboard {
       position: fixed; z-index: 10001; left: 0; right: auto; bottom: auto;
-      box-sizing: border-box; width: min(270px, calc(100% - 16px));
+      box-sizing: border-box; width: min(300px, calc(100% - 16px));
       max-height: calc(100dvh - var(--bfilter-popup-top) - 8px); overflow-y: auto; margin: 0;
-      padding: 0; border: 1px solid var(--bfilter-border); border-radius: 6px;
+      padding: 0; border: 1px solid var(--bfilter-border); border-radius: 16px;
       background: var(--bfilter-paper); color: var(--bfilter-ink);
-      box-shadow: 0 8px 24px var(--bfilter-shadow); font: 14px/1.5 var(--bfilter-font);
+      box-shadow: 0 12px 32px var(--bfilter-shadow); font: 14px/1.5 var(--bfilter-font);
       accent-color: var(--bfilter-red);
     }
     .bfilter-dashboard:not([open]) { display: none; }
-    .bfilter-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 2px 8px 2px 16px; border-bottom: 1px solid var(--bfilter-border); background: var(--bfilter-titlebar); }
-    .bfilter-heading h2 { margin: 0; color: var(--bfilter-ink); font-size: 16px; font-weight: 650; line-height: 1.25; }
+    .bfilter-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 18px; border-bottom: 1px solid var(--bfilter-border); background: var(--bfilter-titlebar); }
+    .bfilter-heading h2 { margin: 0; color: var(--bfilter-ink); font-size: 16px; font-weight: 700; line-height: 1.25; }
     .bfilter-heading h2 a { color: inherit; text-decoration: none; }
     .bfilter-heading h2 a:hover { text-decoration: underline; }
-    .bfilter-brand { display: flex; align-items: baseline; gap: 6px; white-space: nowrap; }
-    .bfilter-version { color: var(--bfilter-muted); font-size: 11px; font-weight: 400; }
+    .bfilter-brand { display: flex; align-items: center; gap: 10px; white-space: nowrap; }
+    .bfilter-mark { display: grid; place-items: center; flex: none; width: 38px; height: 38px; border-radius: 11px; background: #a10425; color: #fff; }
+    .bfilter-mark svg { width: 29px; height: 25px; }
+    .bfilter-version { display: block; color: var(--bfilter-muted); font-size: 11px; font-weight: 400; }
     .bfilter-actions { display: flex; align-items: center; gap: 8px; }
-    .bfilter-close { display: grid; place-items: center; width: 40px; height: 28px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--bfilter-muted); font: 24px/1 var(--bfilter-font); cursor: pointer; }
+    .bfilter-close { display: grid; place-items: center; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 8px; background: transparent; color: var(--bfilter-muted); font: 24px/1 var(--bfilter-font); cursor: pointer; }
     .bfilter-close:hover { background: var(--bfilter-soft); color: var(--bfilter-red); }
     .bfilter-entry:focus-visible, .bfilter-dashboard :is(a, button, input, select, textarea):focus-visible { outline: 2px solid var(--bfilter-red); outline-offset: 3px; }
-    .bfilter-section { padding: 12px 16px; }
+    .bfilter-section { padding: 18px; }
     .bfilter-section + .bfilter-section { border-top: 1px solid var(--bfilter-border); }
-    .bfilter-section h3 { margin: 0 0 8px; color: var(--bfilter-ink); font-size: 15px; font-weight: 650; }
+    .bfilter-section h3 { margin: 0 0 14px; color: var(--bfilter-ink); font-size: 15px; font-weight: 700; }
     .bfilter-registration { display: flex; align-items: center; gap: 8px; }
     .bfilter-registration label { flex: 1; min-width: 0; }
     .bfilter-registration input, .bfilter-section input[type="checkbox"] { appearance: auto; }
@@ -81,20 +85,20 @@
     input:not(:checked) + .bfilter-filter-name::after { transform: scaleX(1); }
     @media (prefers-reduced-motion: reduce) { .bfilter-filter-name::after { transition: none; } }
     .bfilter-dashboard :is(select, input[type="number"], .bfilter-types-toggle):disabled { opacity: 0.5; cursor: default; }
-    .bfilter-registration select { flex: none; width: 60px; min-height: 28px; padding: 2px; border: 1px solid var(--bfilter-border); border-radius: 5px; background: var(--bfilter-paper); color: var(--bfilter-ink); font: inherit; appearance: auto; }
-    .bfilter-users { display: block; margin-top: 10px; font-weight: 600; }
-    .bfilter-users textarea { display: block; box-sizing: border-box; width: 100%; min-height: 96px; margin-top: 4px; padding: 8px; border: 1px solid var(--bfilter-border); border-radius: 5px; background: var(--bfilter-paper); color: var(--bfilter-ink); font: 400 14px/1.4 var(--bfilter-font); resize: vertical; }
-    .bfilter-users-count { margin: 4px 0 0; color: #666; font-size: 11px; font-weight: 400; }
-    .bfilter-duration, .bfilter-views { display: flex; align-items: center; justify-content: space-between; gap: 4px; margin-bottom: 8px; }
-    .bfilter-value { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
-    .bfilter-duration input[type="number"], .bfilter-views input[type="number"] { box-sizing: border-box; width: 50px; min-height: 28px; padding: 2px 4px; border: 1px solid var(--bfilter-border); border-radius: 5px; background: var(--bfilter-paper); color: var(--bfilter-ink); font: inherit; text-align: center; appearance: textfield; }
+    .bfilter-registration select { flex: none; width: 70px; min-height: 34px; padding: 4px; border: 1px solid var(--bfilter-border); border-radius: 8px; background: var(--bfilter-paper); color: var(--bfilter-ink); font: inherit; appearance: auto; }
+    .bfilter-users { display: block; margin-top: 14px; font-weight: 600; }
+    .bfilter-users textarea { display: block; box-sizing: border-box; width: 100%; min-height: 88px; margin-top: 4px; padding: 10px; border: 1px solid var(--bfilter-border); border-radius: 8px; background: var(--bfilter-paper); color: var(--bfilter-ink); font: 400 14px/1.4 var(--bfilter-font); resize: vertical; }
+    .bfilter-users-count { margin: 4px 0 0; color: var(--bfilter-muted); font-size: 11px; font-weight: 400; }
+    .bfilter-duration, .bfilter-views { display: flex; align-items: center; justify-content: space-between; gap: 4px; margin-bottom: 10px; }
+    .bfilter-value { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+    .bfilter-duration input[type="number"], .bfilter-views input[type="number"] { box-sizing: border-box; width: 70px; min-height: 34px; padding: 4px; border: 1px solid var(--bfilter-border); border-radius: 8px; background: var(--bfilter-paper); color: var(--bfilter-ink); font: inherit; text-align: center; appearance: textfield; }
     .bfilter-dashboard input[type="number"]::-webkit-inner-spin-button, .bfilter-dashboard input[type="number"]::-webkit-outer-spin-button { appearance: none; margin: 0; }
     .bfilter-types { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; }
-    .bfilter-types-toggle { min-height: 28px; min-width: 50px; padding: 2px 8px; border: 1px solid var(--bfilter-border); border-radius: 5px; background: var(--bfilter-paper); color: var(--bfilter-ink); font: inherit; cursor: pointer; }
-    .bfilter-types-menu { position: fixed; inset: auto; margin: 0; padding: 4px 8px; min-width: 140px; border: 1px solid var(--bfilter-border); border-radius: 5px; background: var(--bfilter-paper); color: var(--bfilter-ink); box-shadow: 0 4px 12px var(--bfilter-shadow); font: inherit; }
+    .bfilter-types-toggle { min-height: 34px; min-width: 70px; padding: 4px 8px; border: 1px solid var(--bfilter-border); border-radius: 8px; background: var(--bfilter-paper); color: var(--bfilter-ink); font: inherit; cursor: pointer; }
+    .bfilter-types-menu { position: fixed; inset: auto; margin: 0; padding: 6px 10px; min-width: 140px; border: 1px solid var(--bfilter-border); border-radius: 8px; background: var(--bfilter-paper); color: var(--bfilter-ink); box-shadow: 0 4px 12px var(--bfilter-shadow); font: inherit; }
     .bfilter-types-menu label { display: flex; align-items: center; min-height: 28px; }
     .bfilter-types-menu input { appearance: auto; margin-right: 7px; }
-    .bfilter-preview { min-height: 24px; padding: 0 5px; border: 1px solid var(--bfilter-border); border-radius: 5px; background: var(--bfilter-paper); color: var(--bfilter-ink); font: 12px/1 var(--bfilter-font); cursor: pointer; }
+    .bfilter-preview { min-height: 34px; padding: 0 12px; border: 1px solid var(--bfilter-red); border-radius: 8px; background: var(--bfilter-paper); color: var(--bfilter-red); font: 600 12px/1 var(--bfilter-font); cursor: pointer; }
     .bfilter-preview:hover { border-color: var(--bfilter-red); color: var(--bfilter-red); }
     .bfilter-preview[aria-pressed="true"] { background: var(--bfilter-red); border-color: var(--bfilter-red); color: var(--bfilter-white); }
     .bfilter-entry-space { border-radius: 0 6px 0 0; }
@@ -109,7 +113,7 @@
   dashboard.className = "bfilter-dashboard";
   dashboard.setAttribute("aria-labelledby", "bfilter-title");
   dashboard.innerHTML = `
-    <div class="bfilter-heading"><div class="bfilter-brand"><h2 id="bfilter-title"><a href="https://github.com/mr-yifeiwang/bfilter" target="_blank" rel="noopener noreferrer">Bfilter</a></h2><span class="bfilter-version"></span></div><div class="bfilter-actions"><button class="bfilter-preview" type="button" aria-pressed="false">Preview</button><button class="bfilter-close" type="button" aria-label="Close">×</button></div></div>
+    <div class="bfilter-heading"><div class="bfilter-brand"><span class="bfilter-mark" aria-hidden="true"><svg viewBox="0 0 96 80" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"><path d="M37 5l11 12L59 5M7 40h82M29 67l-5 8m43-8 5 8"/><rect x="20" y="20" width="56" height="47" rx="6"/></svg></span><div><h2 id="bfilter-title"><a href="https://github.com/mr-yifeiwang/bfilter" target="_blank" rel="noopener noreferrer">Bfilter</a></h2><span class="bfilter-version"></span></div></div><div class="bfilter-actions"><button class="bfilter-preview" type="button" aria-pressed="false">Preview</button><button class="bfilter-close" type="button" aria-label="Close">×</button></div></div>
     <section class="bfilter-section" aria-labelledby="bfilter-users-heading">
       <h3 id="bfilter-users-heading">Hide Users</h3>
       <div class="bfilter-registration"><label><input type="checkbox"> <span class="bfilter-filter-name">Registered in &amp; after</span></label><select aria-label="Registration time threshold"><option value="8">2015</option><option value="9">2017</option><option value="10">2020</option><option value="15">2022</option><option value="2025">2025</option></select></div>
@@ -496,7 +500,7 @@
       users.value.split(/[\s,]+/).filter((uid) => /^\d+$/.test(uid)),
     );
     dashboard.querySelector(".bfilter-users-count").textContent =
-      `${blockedUsers.size} UIDs are in the blocklist.`;
+      `${blockedUsers.size} UID(s) in the blocklist`;
     if (spaceButton) {
       const blocked = blockedUsers.has(spaceUid);
       spaceButton.textContent = blocked ? "Unblock User" : "Block User";

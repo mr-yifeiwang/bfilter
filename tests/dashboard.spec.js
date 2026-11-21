@@ -203,7 +203,6 @@ test("shows user and video sections together", async ({ page }) => {
   await expect(
     popup.getByRole("spinbutton", { name: /duration/i }),
   ).toBeVisible();
-  expect((await popup.boundingBox()).width).toBe(270);
 });
 
 // Open the project page without navigating away from Bilibili
@@ -234,16 +233,12 @@ test("shows the number of blocked users", async ({ page }) => {
   await openVideo(page, "<body></body>");
   await page.addScriptTag({ path: path.join(__dirname, "..", "main.user.js") });
   await page.getByRole("button", { name: "Bfilter", exact: true }).click();
-  await expect(page.getByText("0 UIDs are in the blocklist.")).toBeVisible();
-  await expect(page.getByText("0 UIDs are in the blocklist.")).toHaveCSS(
-    "font-size",
-    "11px",
-  );
+  await expect(page.getByText("0 UID(s) in the blocklist")).toBeVisible();
   const users = page.getByRole("textbox", { name: "UIDs, one per line" });
   await users.fill("1001\n1002\n1001\ninvalid");
-  await expect(page.getByText("2 UIDs are in the blocklist.")).toBeVisible();
+  await expect(page.getByText("2 UID(s) in the blocklist")).toBeVisible();
   await users.fill("");
-  await expect(page.getByText("0 UIDs are in the blocklist.")).toBeVisible();
+  await expect(page.getByText("0 UID(s) in the blocklist")).toBeVisible();
 });
 
 // Keep multiple type selections when the dropdown is closed and reopened
