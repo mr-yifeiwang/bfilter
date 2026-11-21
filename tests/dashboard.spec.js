@@ -775,6 +775,46 @@ test("filters video search results by uploader", async ({ page }) => {
   await expect(page.getByText("Later video")).toBeVisible();
 });
 
+// Keep the searched creator's videos visible while filtering other results
+test("exempts the searched creator's videos from search filters", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    window.GM_getValue = (key, fallback) =>
+      ({
+        "bfilter.durationEnabled": "1",
+        "bfilter.duration": "3",
+        "bfilter.viewsEnabled": "1",
+        "bfilter.views": "5000",
+        "bfilter.users": "1001 1002",
+      })[key] ?? fallback;
+    window.GM_setValue = () => {};
+    window.GM_addValueChangeListener = () => {};
+  });
+  await page.route("https://search.bilibili.com/**", (route) =>
+    route.fulfill({
+      contentType: "text/html",
+      body: `<div class="b-user-video-card"><a class="user-name" href="//space.bilibili.com/1001">Example Creator</a><div class="user-video-info"><div class="bili-video-card"><a href="//www.bilibili.com/video/BV1">Featured work</a><span class="bili-video-card__stats__duration">01:00</span></div></div></div>
+      <div class="col_3"><div class="bili-video-card"><a href="//www.bilibili.com/video/BV2">Creator work</a><a class="bili-video-card__info--owner" href="//space.bilibili.com/1001">Example Creator</a></div></div>
+      <div class="col_3"><div class="bili-video-card"><a href="//www.bilibili.com/video/BV3">Other work</a><a class="bili-video-card__info--owner" href="//space.bilibili.com/1002">Other</a></div></div>`,
+    }),
+  );
+  await page.goto("https://search.bilibili.com/all?keyword=Example%20Creator");
+  await page.addScriptTag({ path: path.join(__dirname, "..", "main.user.js") });
+  await expect(page.getByText("Featured work")).toBeVisible();
+  await expect(page.getByText("Creator work")).toBeVisible();
+  await expect(page.getByText("Other work")).toBeHidden();
+  await page.locator(".b-user-video-card").evaluate((card) => card.remove());
+  await expect(page.getByText("Creator work")).toBeHidden();
+  await page.evaluate(() => {
+    document.body.insertAdjacentHTML(
+      "afterbegin",
+      '<div class="b-user-video-card"><a class="user-name" href="//space.bilibili.com/1001">Example Creator</a></div>',
+    );
+  });
+  await expect(page.getByText("Creator work")).toBeVisible();
+});
+
 // Filter home feed videos and let the grid fill the removed slots
 test("filters home feed videos by uploader", async ({ page }) => {
   await openVideo(

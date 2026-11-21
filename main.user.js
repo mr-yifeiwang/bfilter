@@ -318,6 +318,17 @@
     const uid = href.match(
       /^(?:https?:)?\/\/space\.bilibili\.com\/(\d+)(?:[/?#]|$)/,
     )?.[1];
+    const searchedUser = searchPage
+      ? document.querySelector(".b-user-video-card .user-name")
+      : null;
+    const searchedUid = searchedUser
+      ?.getAttribute("href")
+      ?.match(/^(?:https?:)?\/\/space\.bilibili\.com\/(\d+)(?:[/?#]|$)/)?.[1];
+    const searchedWork =
+      !!searchedUid &&
+      (uid === searchedUid ||
+        card.closest(".b-user-video-card") ===
+          searchedUser.closest(".b-user-video-card"));
     const video =
       !(searchPage || homePage) ||
       !!card.querySelector(
@@ -420,11 +431,12 @@
         'a[href^="//manga.bilibili.com/"], a[href^="https://manga.bilibili.com/"]',
       );
     const filtered =
-      (video && matchesUser(uid)) ||
-      shortVideo ||
-      fewViews ||
-      (typesEnabled.checked &&
-        (promotional || live || bangumi || classroom || manga));
+      !searchedWork &&
+      ((video && matchesUser(uid)) ||
+        shortVideo ||
+        fewViews ||
+        (typesEnabled.checked &&
+          (promotional || live || bangumi || classroom || manga)));
     setFiltered(card, filtered);
     if (searchPage || homePage) {
       const wrapper = card.querySelector(
@@ -722,12 +734,26 @@
   }
   if (rankingPage || searchPage || homePage) {
     new MutationObserver((mutations) => {
-      for (const mutation of mutations)
-        scanRecommendations(
+      for (const mutation of mutations) {
+        const target =
           mutation.target instanceof Element
             ? mutation.target
-            : mutation.target.parentElement,
-        );
+            : mutation.target.parentElement;
+        if (
+          searchPage &&
+          (target?.closest(".b-user-video-card") ||
+            [...mutation.addedNodes, ...mutation.removedNodes].some(
+              (node) =>
+                node instanceof Element &&
+                (node.matches(".b-user-video-card") ||
+                  node.querySelector(".b-user-video-card")),
+            ))
+        ) {
+          scanRecommendations(document.body);
+        } else {
+          scanRecommendations(target);
+        }
+      }
     }).observe(document.body, {
       childList: true,
       characterData: true,
