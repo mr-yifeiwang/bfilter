@@ -178,6 +178,36 @@ test("opens and closes the dashboard from the launcher", async ({ page }) => {
   await expect(page.locator("dialog.bfilter-dashboard")).not.toBeVisible();
 });
 
+// Show the most recently entered UIDs whenever the dashboard opens
+test("opens the UID list at the last lines", async ({ page }) => {
+  await openVideo(page, "<nav></nav>");
+  await page.evaluate(() => {
+    localStorage.setItem(
+      "bfilter.users",
+      Array.from({ length: 30 }, (_, i) => String(1000 + i)).join("\n"),
+    );
+  });
+  await page.addScriptTag({ path: path.join(__dirname, "..", "main.user.js") });
+  const launcher = page.getByRole("button", { name: "Bfilter", exact: true });
+  await launcher.click();
+  const users = page.getByRole("textbox", { name: "UIDs, one per line" });
+  const atBottom = () =>
+    users.evaluate(
+      (element) =>
+        element.scrollTop > 0 &&
+        Math.abs(
+          element.scrollHeight - element.clientHeight - element.scrollTop,
+        ) < 1,
+    );
+  expect(await atBottom()).toBe(true);
+  await users.evaluate((element) => {
+    element.scrollTop = 0;
+  });
+  await page.getByRole("button", { name: "Close" }).click();
+  await launcher.click();
+  expect(await atBottom()).toBe(true);
+});
+
 // Keep both sets of filters accessible in one popup
 test("shows user and video sections together", async ({ page }) => {
   await openVideo(

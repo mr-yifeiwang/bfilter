@@ -779,6 +779,7 @@
     if (dashboard.open) dashboard.close();
     else {
       dashboard.show();
+      users.scrollTop = users.scrollHeight;
       button.setAttribute("aria-expanded", "true");
     }
   });
