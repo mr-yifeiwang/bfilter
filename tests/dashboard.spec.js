@@ -156,6 +156,43 @@ test("toggles a space profile UID below the launcher", async ({ page }) => {
   await expect(users).toHaveValue("1001");
 });
 
+// Block the current video uploader after its profile link loads
+test("toggles the video uploader without blocking recommended authors", async ({
+  page,
+}) => {
+  await openVideo(
+    page,
+    '<div class="up-detail-top"></div><div class="rec-list"><a href="//space.bilibili.com/2222/">Other author</a></div>',
+  );
+  await page.addScriptTag({ path: path.join(__dirname, "..", "main.user.js") });
+  const block = page.getByRole("button", { name: "Block User", exact: true });
+  await expect(block).toHaveCount(0);
+  await page.locator(".up-detail-top").evaluate((element) => {
+    element.innerHTML =
+      '<a class="up-name" href="//space.bilibili.com/1111/?from=video">Uploader</a>';
+  });
+  await expect(block).toBeVisible();
+  await block.click();
+  const unblock = page.getByRole("button", {
+    name: "Unblock User",
+    exact: true,
+  });
+  await expect(unblock).toBeVisible();
+  await page.getByRole("button", { name: "Bfilter", exact: true }).click();
+  const users = page.getByRole("textbox", { name: "UIDs, one per line" });
+  await expect(users).toHaveValue("1111");
+  await page.reload();
+  await page.addScriptTag({ path: path.join(__dirname, "..", "main.user.js") });
+  await page.locator(".up-detail-top").evaluate((element) => {
+    element.innerHTML =
+      '<a class="up-name" href="//space.bilibili.com/1111/">Uploader</a>';
+  });
+  await expect(unblock).toBeVisible();
+  await unblock.click();
+  await page.getByRole("button", { name: "Bfilter", exact: true }).click();
+  await expect(users).toHaveValue("");
+});
+
 // Verify the independent entry opens a dismissible dashboard
 test("opens and closes the dashboard from the launcher", async ({ page }) => {
   await openVideo(

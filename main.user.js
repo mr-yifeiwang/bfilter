@@ -254,7 +254,10 @@
   typesMenu.addEventListener("change", updateTypeCount);
   updateTypeCount();
   let blockedUsers = new Set();
-  const spaceButton = spaceUid ? document.createElement("button") : null;
+  let targetUid = spaceUid;
+  const spaceButton =
+    spaceUid || videoPage ? document.createElement("button") : null;
+  if (spaceButton) spaceButton.hidden = !targetUid;
   let previewing = false;
   const comments = new Set();
   const hiddenDisplays = new WeakMap();
@@ -514,7 +517,7 @@
     dashboard.querySelector(".bfilter-users-count").textContent =
       `${blockedUsers.size} UID(s) in the blocklist`;
     if (spaceButton) {
-      const blocked = blockedUsers.has(spaceUid);
+      const blocked = blockedUsers.has(targetUid);
       spaceButton.textContent = blocked ? "Unblock User" : "Block User";
       spaceButton.setAttribute("aria-pressed", String(blocked));
     }
@@ -669,13 +672,13 @@
     spaceButton.type = "button";
     spaceButton.className = "bfilter-space-block";
     spaceButton.addEventListener("click", () => {
-      if (blockedUsers.has(spaceUid)) {
-        const uid = new RegExp(`(^|[\\s,])${spaceUid}(?=$|[\\s,])`, "g");
+      if (blockedUsers.has(targetUid)) {
+        const uid = new RegExp(`(^|[\\s,])${targetUid}(?=$|[\\s,])`, "g");
         users.value = users.value
           .replace(uid, "$1")
           .replace(/^[\s,]+|[\s,]+$/g, "");
       } else {
-        users.value += `${users.value && !users.value.endsWith("\n") ? "\n" : ""}${spaceUid}`;
+        users.value += `${users.value && !users.value.endsWith("\n") ? "\n" : ""}${targetUid}`;
       }
       users.dispatchEvent(new Event("input", { bubbles: true }));
     });
@@ -686,6 +689,7 @@
       "bili-comments, bili-comment-thread-renderer, bili-comment-replies-renderer, bili-comment-renderer, bili-comment-reply-renderer";
     const observed = new WeakSet();
     const observer = new MutationObserver((mutations) => {
+      updateVideoUploader();
       for (const mutation of mutations) {
         const target =
           mutation.target instanceof Element ||
@@ -767,7 +771,7 @@
   const button = document.createElement("button");
   button.type = "button";
   button.className = "bfilter-entry";
-  if (spaceButton) button.classList.add("bfilter-entry-space");
+  if (targetUid) button.classList.add("bfilter-entry-space");
   button.innerHTML = `<svg viewBox="0 0 96 80" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
     <path d="M37 5l11 12L59 5M7 40h82M29 67l-5 8m43-8 5 8"/>
     <rect x="20" y="20" width="56" height="47" rx="6"/>
@@ -820,17 +824,40 @@
 
   // Keep the Space action and popup below the fixed launcher
   function placeButton() {
-    if (spaceButton) {
+    if (spaceButton && !spaceButton.hidden) {
       spaceButton.style.top = `${button.getBoundingClientRect().bottom}px`;
       spaceButton.style.width = `${button.getBoundingClientRect().width}px`;
     }
     const top = Math.min(
-      (spaceButton || button).getBoundingClientRect().bottom + 4,
+      (spaceButton && !spaceButton.hidden
+        ? spaceButton
+        : button
+      ).getBoundingClientRect().bottom + 4,
       Math.max(8, window.innerHeight - 120),
     );
     dashboard.style.top = `${top}px`;
     dashboard.style.setProperty("--bfilter-popup-top", `${top}px`);
   }
+
+  // Keep the video action synchronized with the current uploader link
+  function updateVideoUploader() {
+    const link = document.querySelector(".up-detail-top a.up-name");
+    let uid = null;
+    if (link) {
+      const url = new URL(link.href);
+      if (url.hostname === "space.bilibili.com") {
+        uid = url.pathname.match(/^\/(\d+)(?:\/|$)/)?.[1] || null;
+      }
+    }
+    if (uid === targetUid) return;
+    targetUid = uid;
+    spaceButton.hidden = !uid;
+    button.classList.toggle("bfilter-entry-space", Boolean(uid));
+    updateUsers();
+    placeButton();
+  }
+
+  if (videoPage) updateVideoUploader();
 
   placeButton();
   window.addEventListener("resize", placeButton);
