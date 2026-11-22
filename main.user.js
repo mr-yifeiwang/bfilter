@@ -841,7 +841,14 @@
 
   // Keep the video action synchronized with the current uploader link
   function updateVideoUploader() {
-    const link = document.querySelector(".up-detail-top a.up-name");
+    const link =
+      document.querySelector(".up-detail-top a.up-name") ||
+      [...document.querySelectorAll(".membersinfo-upcard .staff-info")]
+        .find(
+          (staff) =>
+            staff.querySelector(".info-tag")?.textContent.trim() === "UP主",
+        )
+        ?.querySelector("a.staff-name");
     let uid = null;
     if (link) {
       const url = new URL(link.href);

@@ -193,6 +193,28 @@ test("toggles the video uploader without blocking recommended authors", async ({
   await expect(users).toHaveValue("");
 });
 
+// Only the uploader is toggled on a video with multiple credited creators
+test("blocks the uploader without changing other team members", async ({
+  page,
+}) => {
+  await openVideo(
+    page,
+    `<div class="membersinfo-upcard"><div class="staff-info">
+    <a class="staff-name" href="//space.bilibili.com/2222">Writer</a><span class="info-tag">文案</span>
+  </div></div><div class="membersinfo-upcard"><div class="staff-info">
+    <a class="staff-name" href="//space.bilibili.com/1111">Uploader</a><span class="info-tag">UP主</span>
+  </div></div>`,
+  );
+  await page.evaluate(() => localStorage.setItem("bfilter.users", "2222"));
+  await page.addScriptTag({ path: path.join(__dirname, "..", "main.user.js") });
+  await page.getByRole("button", { name: "Block User", exact: true }).click();
+  await page.getByRole("button", { name: "Bfilter", exact: true }).click();
+  const users = page.getByRole("textbox", { name: "UIDs, one per line" });
+  await expect(users).toHaveValue("2222\n1111");
+  await page.getByRole("button", { name: "Unblock User", exact: true }).click();
+  await expect(users).toHaveValue("2222");
+});
+
 // Verify the independent entry opens a dismissible dashboard
 test("opens and closes the dashboard from the launcher", async ({ page }) => {
   await openVideo(
