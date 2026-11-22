@@ -321,17 +321,7 @@
     const uid = href.match(
       /^(?:https?:)?\/\/space\.bilibili\.com\/(\d+)(?:[/?#]|$)/,
     )?.[1];
-    const searchedUser = searchPage
-      ? document.querySelector(".b-user-video-card .user-name")
-      : null;
-    const searchedUid = searchedUser
-      ?.getAttribute("href")
-      ?.match(/^(?:https?:)?\/\/space\.bilibili\.com\/(\d+)(?:[/?#]|$)/)?.[1];
-    const searchedWork =
-      !!searchedUid &&
-      (uid === searchedUid ||
-        card.closest(".b-user-video-card") ===
-          searchedUser.closest(".b-user-video-card"));
+    const searchedWork = searchPage && !!card.closest(".b-user-video-card");
     const video =
       !(searchPage || homePage) ||
       !!card.querySelector(
@@ -743,20 +733,7 @@
           mutation.target instanceof Element
             ? mutation.target
             : mutation.target.parentElement;
-        if (
-          searchPage &&
-          (target?.closest(".b-user-video-card") ||
-            [...mutation.addedNodes, ...mutation.removedNodes].some(
-              (node) =>
-                node instanceof Element &&
-                (node.matches(".b-user-video-card") ||
-                  node.querySelector(".b-user-video-card")),
-            ))
-        ) {
-          scanRecommendations(document.body);
-        } else {
-          scanRecommendations(target);
-        }
+        scanRecommendations(target);
       }
     }).observe(document.body, {
       childList: true,

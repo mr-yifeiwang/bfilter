@@ -834,8 +834,8 @@ test("filters video search results by uploader", async ({ page }) => {
   await expect(page.getByText("Later video")).toBeVisible();
 });
 
-// Keep the searched creator's videos visible while filtering other results
-test("exempts the searched creator's videos from search filters", async ({
+// Keep featured profile videos visible while filtering ordinary search results
+test("filters blocked creator results outside the profile card", async ({
   page,
 }) => {
   await page.addInitScript(() => {
@@ -861,7 +861,7 @@ test("exempts the searched creator's videos from search filters", async ({
   await page.goto("https://search.bilibili.com/all?keyword=Example%20Creator");
   await page.addScriptTag({ path: path.join(__dirname, "..", "main.user.js") });
   await expect(page.getByText("Featured work")).toBeVisible();
-  await expect(page.getByText("Creator work")).toBeVisible();
+  await expect(page.getByText("Creator work")).toBeHidden();
   await expect(page.getByText("Other work")).toBeHidden();
   await page.locator(".b-user-video-card").evaluate((card) => card.remove());
   await expect(page.getByText("Creator work")).toBeHidden();
@@ -871,7 +871,7 @@ test("exempts the searched creator's videos from search filters", async ({
       '<div class="b-user-video-card"><a class="user-name" href="//space.bilibili.com/1001">Example Creator</a></div>',
     );
   });
-  await expect(page.getByText("Creator work")).toBeVisible();
+  await expect(page.getByText("Creator work")).toBeHidden();
 });
 
 // Filter home feed videos and let the grid fill the removed slots
